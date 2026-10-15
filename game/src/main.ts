@@ -10,6 +10,7 @@ import { GameNetwork } from './net/GameNetwork.js';
 import { LobbyUI } from './ui/LobbyUI.js';
 import { GameHUD } from './ui/GameHUD.js';
 import { TelemetryLab } from './ui/TelemetryLab.js';
+import { ClickSpark } from './ui/ClickSpark.js';
 import { LEVELS, type LevelDef } from './levels/LevelData.js';
 
 class GameApp {
@@ -37,6 +38,7 @@ class GameApp {
   private lobbyUI!: LobbyUI;
   private hud!: GameHUD;
   private telemetryLab!: TelemetryLab;
+  private clickSpark = new ClickSpark();
 
   // State
   private currentLevelIndex = 0;

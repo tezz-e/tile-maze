@@ -38,9 +38,9 @@ export class LobbyUI {
   private dotsState: LedDotState[] = [];
   private ledLastTime = performance.now();
   private ledMouse = { x: -1000, y: -1000, active: false };
-  private currentLanIp = 'localhost';
-  private currentPort = 3000;
-  private currentRoomCode = '----';
+
+  // Gooey mercury active pill indicator
+  private gooeyPill!: HTMLElement;
 
   private readonly LED_COLS = 44;
   private readonly LED_ROWS = 6;
@@ -56,20 +56,33 @@ export class LobbyUI {
     parent.appendChild(this.container);
 
     this.initLedGrid();
+    this.initSpotlight();
+    this.initCardTilts();
   }
 
   private buildDOM(): void {
     this.container.innerHTML = `
+      <!-- Skiper UI skiper46 SVG Gooey Mercury Filter Definition -->
+      <svg style="position: absolute; width: 0; height: 0; pointer-events: none;">
+        <defs>
+          <filter id="mercury-goo">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
+            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -8" result="goo" />
+            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+          </filter>
+        </defs>
+      </svg>
+
       <style>
         #lobby-modal {
           position: absolute;
           inset: 0;
-          background-color: #000000;
+          background: #000000;
           background-image: 
+            radial-gradient(550px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(234, 51, 35, 0.08), rgba(255, 255, 255, 0.03) 30%, transparent 60%),
             linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-            repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 255, 255, 0.015) 2px, rgba(255, 255, 255, 0.015) 4px);
-          background-size: 32px 32px, 32px 32px, 100% 4px;
+            linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+          background-size: 100% 100%, 32px 32px, 32px 32px;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -81,11 +94,16 @@ export class LobbyUI {
           box-sizing: border-box;
         }
 
-        .lobby-panel {
+        /* Glass Surface Chassis with Magic UI Border Beam */
+        .glass-chassis {
           position: relative;
-          background: #080808;
-          border: 1px solid #ffffff;
-          box-shadow: 0 0 0 1px #000000, 0 30px 60px rgba(0, 0, 0, 0.95);
+          background: rgba(10, 10, 14, 0.78);
+          backdrop-filter: blur(28px) saturate(180%);
+          -webkit-backdrop-filter: blur(28px) saturate(180%);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          box-shadow: 
+            inset 0 1px 0 rgba(255, 255, 255, 0.22),
+            0 35px 80px rgba(0, 0, 0, 0.85);
           max-width: 820px;
           width: 100%;
           padding: 1.75rem 2rem;
@@ -93,6 +111,30 @@ export class LobbyUI {
           flex-direction: column;
           gap: 1.25rem;
           box-sizing: border-box;
+          overflow: hidden;
+        }
+
+        /* Magic UI Border Beam: 1.5px perimeter highlight */
+        .glass-chassis::before {
+          content: '';
+          position: absolute;
+          inset: -1.5px;
+          padding: 1.5px;
+          background: conic-gradient(from var(--beam-angle, 0deg), transparent 75%, rgba(255, 255, 255, 0.5) 88%, #EA3323 96%, transparent 100%);
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          pointer-events: none;
+          animation: border-beam-spin 8s linear infinite;
+        }
+        @property --beam-angle {
+          syntax: '<angle>';
+          inherits: false;
+          initial-value: 0deg;
+        }
+        @keyframes border-beam-spin {
+          to { --beam-angle: 360deg; }
         }
 
         /* Tactical corner crosshairs */
@@ -108,17 +150,18 @@ export class LobbyUI {
           align-items: center;
           justify-content: center;
           pointer-events: none;
+          z-index: 10;
         }
-        .corner-tl { top: -6px; left: -6px; }
-        .corner-tr { top: -6px; right: -6px; }
-        .corner-bl { bottom: -6px; left: -6px; }
-        .corner-br { bottom: -6px; right: -6px; }
+        .corner-tl { top: 4px; left: 4px; }
+        .corner-tr { top: 4px; right: 4px; }
+        .corner-bl { bottom: 4px; left: 4px; }
+        .corner-br { bottom: 4px; right: 4px; }
 
         .lobby-meta-bar {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-bottom: 1px solid #222222;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
           padding-bottom: 0.6rem;
           font-size: 0.72rem;
           letter-spacing: 0.08em;
@@ -153,10 +196,12 @@ export class LobbyUI {
           text-transform: uppercase;
         }
 
-        /* Embedded LedGrid canvas */
+        /* Glass-framed LedGrid */
         .led-grid-wrap {
-          border: 1px solid #222222;
-          background: #000000;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(0, 0, 0, 0.6);
+          backdrop-filter: blur(12px);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
           padding: 6px;
           display: flex;
           align-items: center;
@@ -178,16 +223,20 @@ export class LobbyUI {
           .lobby-grid { grid-template-columns: 1fr; }
         }
 
-        /* QR Bay */
+        /* Tilted Smoked Glass QR Card */
         .qr-card {
-          background: #000000;
-          border: 1px solid #222222;
+          background: rgba(18, 18, 24, 0.65);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 10px 25px rgba(0, 0, 0, 0.5);
           padding: 1.1rem 1rem;
           display: flex;
           flex-direction: column;
           align-items: center;
           text-align: center;
           position: relative;
+          transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.4, 1), box-shadow 0.2s;
         }
         .section-label {
           font-size: 0.72rem;
@@ -208,10 +257,11 @@ export class LobbyUI {
           letter-spacing: 0.08em;
           white-space: nowrap;
           color: #ffffff;
-          background: #000000;
+          background: rgba(0, 0, 0, 0.6);
           padding: 0.5rem 0.5rem;
           margin: 0.2rem 0 0.8rem 0;
-          border: 1px solid #ffffff;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
           width: 100%;
           box-sizing: border-box;
           display: flex;
@@ -230,6 +280,7 @@ export class LobbyUI {
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         }
         .qr-canvas {
           display: block;
@@ -249,16 +300,20 @@ export class LobbyUI {
           gap: 1rem;
         }
         .player-slot-chip {
-          background: #000000;
-          border: 1px solid #222222;
+          background: rgba(18, 18, 24, 0.65);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
           padding: 0.8rem 1rem;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          transition: border-color 0.15s;
+          transition: border-color 0.2s, background 0.2s;
         }
         .player-slot-chip.connected {
-          border-color: #ffffff;
+          border-color: rgba(255, 255, 255, 0.4);
+          background: rgba(234, 51, 35, 0.08);
         }
         .slot-title {
           font-size: 0.82rem;
@@ -283,6 +338,7 @@ export class LobbyUI {
           padding: 0.35rem 0.75rem;
           border: 1px solid currentColor;
           box-sizing: border-box;
+          transition: all 0.2s;
         }
         .status-waiting {
           color: #888888;
@@ -293,6 +349,7 @@ export class LobbyUI {
           color: #ffffff;
           background: #EA3323;
           border-color: #EA3323;
+          box-shadow: 0 0 16px rgba(234, 51, 35, 0.5);
         }
         .status-recon {
           color: #000000;
@@ -300,20 +357,25 @@ export class LobbyUI {
           border-color: #ffffff;
         }
 
-        /* Level Selector */
+        /* Skiper UI skiper46 Liquid Mercury Gooey Level Selector */
         .level-selector {
           display: flex;
           flex-direction: column;
           gap: 0.4rem;
         }
-        .level-tabs {
+        .gooey-tabs-container {
+          position: relative;
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 0.5rem;
+          filter: url(#mercury-goo);
+          background: transparent;
         }
         .level-tab-btn {
-          background: #000000;
-          border: 1px solid #333333;
+          position: relative;
+          background: rgba(18, 18, 24, 0.7);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
           color: #888888;
           padding: 0.65rem 0.4rem;
           cursor: pointer;
@@ -323,16 +385,20 @@ export class LobbyUI {
           letter-spacing: 0.05em;
           text-transform: uppercase;
           text-align: center;
-          transition: all 0.12s;
+          transition: color 0.15s, border-color 0.15s, transform 0.15s;
+          z-index: 2;
         }
         .level-tab-btn:hover {
           color: #ffffff;
-          border-color: #ffffff;
+          border-color: rgba(255, 255, 255, 0.3);
+          transform: translateY(-1px);
         }
         .level-tab-btn.active {
           background: #ffffff;
           border-color: #ffffff;
           color: #000000;
+          box-shadow: 0 4px 14px rgba(255, 255, 255, 0.35);
+          transform: translateY(-1px);
         }
 
         /* Action Buttons */
@@ -340,43 +406,52 @@ export class LobbyUI {
           display: flex;
           gap: 0.75rem;
           margin-top: 0.25rem;
-          border-top: 1px solid #222222;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
           padding-top: 1.25rem;
         }
         .btn-launch {
           flex: 1.3;
           background: #ffffff;
           color: #000000;
-          border: 2px solid #ffffff;
+          border: 1.5px solid #ffffff;
           padding: 0.85rem 1rem;
           font-family: var(--font-mono);
-          font-size: 0.9rem;
+          font-size: 0.88rem;
           font-weight: 700;
           letter-spacing: 0.06em;
           text-transform: uppercase;
           cursor: pointer;
           text-align: center;
-          transition: all 0.15s;
+          transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.12s;
+          box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
         }
         .btn-launch:hover:not(:disabled) {
           background: #EA3323;
           border-color: #EA3323;
           color: #ffffff;
+          transform: translateY(-1px);
+          box-shadow: 0 6px 20px rgba(234, 51, 35, 0.45);
+        }
+        .btn-launch:active:not(:disabled) {
+          transform: translateY(0);
         }
         .btn-launch:disabled {
-          background: #111111;
-          border-color: #222222;
+          background: rgba(255, 255, 255, 0.05);
+          border-color: rgba(255, 255, 255, 0.1);
           color: #444444;
+          box-shadow: none;
           cursor: not-allowed;
         }
         .btn-kbd {
           flex: 1;
-          background: transparent;
+          background: rgba(18, 18, 24, 0.7);
+          backdrop-filter: blur(12px);
           color: #ffffff;
-          border: 1px solid #ffffff;
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
           padding: 0.85rem 1rem;
           font-family: var(--font-mono);
-          font-size: 0.85rem;
+          font-size: 0.84rem;
           font-weight: 700;
           letter-spacing: 0.05em;
           text-transform: uppercase;
@@ -387,11 +462,19 @@ export class LobbyUI {
         .btn-kbd:hover {
           background: #ffffff;
           color: #000000;
+          border-color: #ffffff;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 16px rgba(255, 255, 255, 0.25);
+        }
+        .btn-kbd:active {
+          transform: translateY(0);
         }
         .btn-telemetry {
-          background: transparent;
+          background: rgba(18, 18, 24, 0.7);
+          backdrop-filter: blur(12px);
           color: #888888;
-          border: 1px solid #333333;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
           padding: 0.85rem 1.1rem;
           font-family: var(--font-mono);
           font-size: 0.82rem;
@@ -404,11 +487,15 @@ export class LobbyUI {
         }
         .btn-telemetry:hover {
           color: #ffffff;
-          border-color: #ffffff;
+          border-color: rgba(255, 255, 255, 0.35);
+          transform: translateY(-1px);
+        }
+        .btn-telemetry:active {
+          transform: translateY(0);
         }
       </style>
 
-      <div class="lobby-panel">
+      <div class="glass-chassis">
         <div class="corner-mark corner-tl">+</div>
         <div class="corner-mark corner-tr">+</div>
         <div class="corner-mark corner-bl">+</div>
@@ -430,7 +517,7 @@ export class LobbyUI {
         </div>
 
         <div class="lobby-grid">
-          <div class="qr-card">
+          <div class="qr-card" id="qr-tilted-card">
             <div class="section-label">
               <span>PAIRING CODE</span>
               <span style="color: #EA3323;">01 // QR</span>
@@ -470,7 +557,7 @@ export class LobbyUI {
                 <span>SECTOR SELECTION</span>
                 <span id="level-selected-name" style="color: #ffffff;">01 // SKY HIGHWAY</span>
               </div>
-              <div class="level-tabs">
+              <div class="gooey-tabs-container">
                 ${LEVELS.map(
                   (l, idx) => `
                   <button class="level-tab-btn ${idx === 0 ? 'active' : ''}" data-index="${idx}" data-name="${l.name}">
@@ -533,8 +620,46 @@ export class LobbyUI {
   }
 
   /**
+   * Ambient Spotlight (ibelick / React Bits)
+   * Tracks cursor position to generate a wide-falloff radial pool (550px radius at ~7% opacity)
+   */
+  private initSpotlight(): void {
+    const modal = this.container;
+    modal.addEventListener('mousemove', (e) => {
+      const rect = modal.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      modal.style.setProperty('--mouse-x', `${x}px`);
+      modal.style.setProperty('--mouse-y', `${y}px`);
+    });
+  }
+
+  /**
+   * 3D Inertial Card Tilt (TiltedCard from React Bits)
+   */
+  private initCardTilts(): void {
+    const qrCard = this.container.querySelector('#qr-tilted-card') as HTMLElement;
+    if (!qrCard) return;
+
+    qrCard.addEventListener('mousemove', (e) => {
+      const rect = qrCard.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const rotateX = ((y - centerY) / centerY) * -6; // max -6deg to +6deg
+      const rotateY = ((x - centerX) / centerX) * 6;
+
+      qrCard.style.transform = `perspective(600px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateY(-2px)`;
+    });
+
+    qrCard.addEventListener('mouseleave', () => {
+      qrCard.style.transform = 'perspective(600px) rotateX(0deg) rotateY(0deg) translateY(0px)';
+    });
+  }
+
+  /**
    * Authentic Nothing OS / Glyph Odyssey 2D LED Grid Canvas
-   * Replicates LedGrid.tsx with noise targets, mouse interaction springs, and red spikes.
    */
   private initLedGrid(): void {
     const canvas = this.container.querySelector('#lobby-led-canvas') as HTMLCanvasElement;
@@ -596,7 +721,7 @@ export class LobbyUI {
       const totalHeight = this.LED_ROWS * this.LED_DOT_SIZE + (this.LED_ROWS - 1) * this.LED_GAP;
       const rect = this.ledCanvas.getBoundingClientRect();
 
-      this.ledCtx.fillStyle = '#000000';
+      this.ledCtx.fillStyle = '#08080c';
       this.ledCtx.fillRect(0, 0, totalWidth, totalHeight);
 
       const omega = (2 * Math.PI) / 0.4;
@@ -621,11 +746,11 @@ export class LobbyUI {
           ds.val = ds.target;
           const rand = Math.random();
           if (rand < 0.5) {
-            ds.target = 0.05 + Math.random() * 0.1; // Dark dots
+            ds.target = 0.05 + Math.random() * 0.1;
           } else if (rand < 0.85) {
-            ds.target = 0.7 + Math.random() * 0.3; // Crisp white
+            ds.target = 0.7 + Math.random() * 0.3;
           } else {
-            ds.target = 0.3 + Math.random() * 0.3; // Muted gray
+            ds.target = 0.3 + Math.random() * 0.3;
           }
           ds.duration = 250 + Math.random() * 450;
         }
@@ -704,13 +829,8 @@ export class LobbyUI {
   }
 
   public setRoomInfo(roomCode: string, lanIp: string, port: number): void {
-    this.currentRoomCode = roomCode;
-    this.currentLanIp = lanIp;
-    this.currentPort = port;
-
     this.animateDecryptedText(roomCode);
 
-    // Payload formatted for phone scanner:
     const payload = JSON.stringify({
       wsUrl: `ws://${lanIp}:${port}`,
       roomCode,
@@ -746,7 +866,7 @@ export class LobbyUI {
       if (slot === 1) {
         this.hasPlayer1 = true;
         this.startBtn.disabled = false;
-        this.startBtn.textContent = '[ LAUNCH ENGINE // COMMENCE ]';
+        this.startBtn.textContent = '[ LAUNCH // COMMENCE ]';
       }
     } else if (status === 'reconnecting') {
       el.classList.add('status-recon');
@@ -759,7 +879,7 @@ export class LobbyUI {
       if (slot === 1) {
         this.hasPlayer1 = false;
         this.startBtn.disabled = true;
-        this.startBtn.textContent = '[ LAUNCH ENGINE // PHONE READY ]';
+        this.startBtn.textContent = '[ LAUNCH // PHONE ]';
       }
     }
   }

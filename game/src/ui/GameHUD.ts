@@ -22,6 +22,7 @@ export class GameHUD {
   private toastEl!: HTMLElement;
   private victoryModal!: HTMLElement;
   private victoryTimeEl!: HTMLElement;
+  private tiltPillEl!: HTMLElement;
 
   private startTime: number = 0;
   private timerRunning = false;
@@ -44,6 +45,17 @@ export class GameHUD {
 
   private buildDOM(): void {
     this.container.innerHTML = `
+      <!-- Skiper UI Gooey Filter for Toast & Dynamic Island -->
+      <svg style="position: absolute; width: 0; height: 0; pointer-events: none;">
+        <defs>
+          <filter id="hud-goo">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur" />
+            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo" />
+            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+          </filter>
+        </defs>
+      </svg>
+
       <style>
         #game-hud {
           position: absolute;
@@ -59,12 +71,18 @@ export class GameHUD {
           box-sizing: border-box;
         }
 
-        .hud-panel {
-          background: rgba(0, 0, 0, 0.85);
-          border: 1px solid rgba(255, 255, 255, 0.35);
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+        /* Frosted Smoked Acrylic Glass Surface */
+        .hud-glass-surface {
+          background: rgba(10, 10, 14, 0.74);
+          backdrop-filter: blur(24px) saturate(180%);
+          -webkit-backdrop-filter: blur(24px) saturate(180%);
+          border: 1px solid rgba(255, 255, 255, 0.16);
+          box-shadow: 
+            inset 0 1px 0 rgba(255, 255, 255, 0.22),
+            0 12px 32px rgba(0, 0, 0, 0.6);
           pointer-events: auto;
           box-sizing: border-box;
+          transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.4, 1), box-shadow 0.2s;
         }
 
         /* Top Bar */
@@ -105,7 +123,7 @@ export class GameHUD {
           align-items: center;
           gap: 6px;
           padding-top: 4px;
-          border-top: 1px solid #222222;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
           font-size: 0.75rem;
           color: #888888;
           letter-spacing: 0.04em;
@@ -117,7 +135,7 @@ export class GameHUD {
           font-weight: 700;
         }
 
-        /* Top-Right: Checkpoint Badge & Menu */
+        /* Top-Right: Controls & Checkpoint Badge */
         .hud-top-right-group {
           display: flex;
           align-items: flex-start;
@@ -149,8 +167,10 @@ export class GameHUD {
         }
 
         .hud-btn-util {
-          background: rgba(0, 0, 0, 0.85);
-          border: 1px solid rgba(255, 255, 255, 0.35);
+          background: rgba(14, 14, 18, 0.72);
+          backdrop-filter: blur(16px);
+          border: 1px solid rgba(255, 255, 255, 0.16);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
           color: #ffffff;
           padding: 8px 12px;
           font-family: var(--font-mono);
@@ -167,29 +187,32 @@ export class GameHUD {
           background: #ffffff;
           color: #000000;
           border-color: #ffffff;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 14px rgba(255, 255, 255, 0.25);
         }
 
-        /* Center Toast */
+        /* Center Toast (Gooey Mercury Pop) */
         .hud-center-toast {
           align-self: center;
-          background: #000000;
-          border: 1px solid #EA3323;
+          background: rgba(8, 8, 12, 0.92);
+          backdrop-filter: blur(20px);
+          border: 1.5px solid #EA3323;
           color: #ffffff;
-          padding: 0.6rem 1.6rem;
-          font-size: 0.95rem;
+          padding: 0.65rem 1.8rem;
+          font-size: 0.92rem;
           font-weight: 700;
           letter-spacing: 0.08em;
           text-transform: uppercase;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+          box-shadow: 0 12px 35px rgba(234, 51, 35, 0.35);
           opacity: 0;
-          transform: translateY(8px);
-          transition: all 0.2s;
+          transform: translateY(12px) scale(0.96);
+          transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
           pointer-events: none;
         }
 
         .hud-center-toast.visible {
           opacity: 1;
-          transform: translateY(0);
+          transform: translateY(0) scale(1);
         }
 
         /* Bottom Bar */
@@ -200,19 +223,25 @@ export class GameHUD {
           width: 100%;
         }
 
-        /* Bottom-Left: Tilt to Steer Controller Pill */
+        /* Bottom-Left: Apple Dynamic Island style Elastic Controller Pill */
         .hud-tilt-pill {
           padding: 10px 16px;
           display: flex;
           align-items: center;
           gap: 12px;
+          transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s;
+        }
+        .hud-tilt-pill.pulse {
+          transform: scale(1.05);
+          box-shadow: 0 0 24px rgba(234, 51, 35, 0.5);
         }
 
         .hud-phone-indicator {
-          width: 10px;
-          height: 10px;
+          width: 8px;
+          height: 8px;
           background: #EA3323;
           border: 1px solid #ffffff;
+          box-shadow: 0 0 10px #EA3323;
         }
 
         .hud-tilt-text {
@@ -276,7 +305,8 @@ export class GameHUD {
         #victory-modal {
           position: absolute;
           inset: 0;
-          background: rgba(0, 0, 0, 0.92);
+          background: rgba(0, 0, 0, 0.88);
+          backdrop-filter: blur(20px);
           display: none;
           flex-direction: column;
           align-items: center;
@@ -287,9 +317,12 @@ export class GameHUD {
         }
 
         .victory-card {
-          background: #000000;
-          border: 2px solid #ffffff;
-          box-shadow: 0 0 50px rgba(0, 0, 0, 1);
+          background: rgba(12, 12, 16, 0.85);
+          backdrop-filter: blur(28px) saturate(180%);
+          border: 1.5px solid rgba(255, 255, 255, 0.2);
+          box-shadow: 
+            inset 0 1px 0 rgba(255, 255, 255, 0.25),
+            0 40px 90px rgba(0, 0, 0, 0.95);
           padding: 2.5rem 2rem;
           text-align: center;
           max-width: 480px;
@@ -332,7 +365,7 @@ export class GameHUD {
         .victory-btn-primary {
           background: #ffffff;
           color: #000000;
-          border: 2px solid #ffffff;
+          border: 1.5px solid #ffffff;
           padding: 0.9rem;
           font-family: var(--font-mono);
           font-size: 0.95rem;
@@ -341,18 +374,20 @@ export class GameHUD {
           text-transform: uppercase;
           cursor: pointer;
           transition: all 0.15s;
+          box-shadow: 0 4px 16px rgba(255, 255, 255, 0.25);
         }
 
         .victory-btn-primary:hover {
           background: #EA3323;
           border-color: #EA3323;
           color: #ffffff;
+          box-shadow: 0 6px 20px rgba(234, 51, 35, 0.45);
         }
 
         .victory-btn-secondary {
-          background: transparent;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.16);
           color: #ffffff;
-          border: 1px solid #333333;
           padding: 0.75rem;
           font-family: var(--font-mono);
           font-size: 0.85rem;
@@ -366,13 +401,14 @@ export class GameHUD {
         .victory-btn-secondary:hover {
           border-color: #ffffff;
           color: #ffffff;
+          background: rgba(255, 255, 255, 0.12);
         }
       </style>
 
       <!-- TOP BAR -->
       <div class="hud-top-bar">
         <!-- Top-Left: Time & Best Card -->
-        <div class="hud-panel hud-time-card">
+        <div class="hud-glass-surface hud-time-card">
           <span class="hud-meta-label">[ 01 // CHRONO ]</span>
           <span id="hud-timer" class="hud-timer-digits">00:00.00</span>
           <div class="hud-best-row">
@@ -387,7 +423,7 @@ export class GameHUD {
           <button id="hud-btn-lobby" class="hud-btn-util">[ LOBBY // ESC ]</button>
           <button id="hud-btn-lab" class="hud-btn-util">[ TELEMETRY // F3 ]</button>
 
-          <div class="hud-panel hud-checkpoint-badge">
+          <div class="hud-glass-surface hud-checkpoint-badge">
             <span class="hud-meta-label">[ 02 // CHECKPOINT ]</span>
             <span id="hud-checkpoint" class="hud-checkpoint-digits">0 / 4</span>
             <span id="hud-checkpoint-meter" class="hud-checkpoint-meter">□□□□</span>
@@ -400,8 +436,8 @@ export class GameHUD {
 
       <!-- BOTTOM BAR -->
       <div class="hud-bottom-bar">
-        <!-- Bottom-Left: Tilt to Steer Controller Pill -->
-        <div class="hud-panel hud-tilt-pill">
+        <!-- Bottom-Left: Tilt to Steer Controller Pill (Dynamic Island) -->
+        <div class="hud-glass-surface hud-tilt-pill" id="hud-tilt-pill">
           <div class="hud-phone-indicator"></div>
           <div class="hud-tilt-text">
             <span class="hud-tilt-title">CONTROLLER // NOTHING PHONE 3</span>
@@ -410,7 +446,7 @@ export class GameHUD {
         </div>
 
         <!-- Bottom-Right: Segmented LED Speedometer -->
-        <div class="hud-panel hud-speedometer-group">
+        <div class="hud-glass-surface hud-speedometer-group">
           <span class="hud-meta-label">[ VELOCITY // KM/H ]</span>
           <span id="speedo-value" class="speedo-number">0</span>
           <div id="speedo-segments" class="speedo-segments">··········</div>
@@ -448,6 +484,7 @@ export class GameHUD {
     this.toastEl = this.container.querySelector('#hud-toast')!;
     this.victoryModal = this.container.querySelector('#victory-modal')!;
     this.victoryTimeEl = this.container.querySelector('#victory-time')!;
+    this.tiltPillEl = this.container.querySelector('#hud-tilt-pill')!;
 
     this.container.querySelector('#hud-btn-lab')!.addEventListener('click', () => {
       this.callbacks.onToggleTelemetryLab();
@@ -524,8 +561,10 @@ export class GameHUD {
     this.speedoSegmentsEl.textContent = bar;
     if (speedKmH > 35) {
       this.speedoSegmentsEl.style.color = '#EA3323';
+      this.tiltPillEl.classList.add('pulse');
     } else {
       this.speedoSegmentsEl.style.color = '#ffffff';
+      this.tiltPillEl.classList.remove('pulse');
     }
   }
 
