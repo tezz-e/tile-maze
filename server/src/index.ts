@@ -380,16 +380,18 @@ wss.on('close', () => {
 });
 
 // Start Server
-server.listen(PORT, HOST, () => {
-  const lanIp = getPrimaryLanIp();
-  console.log(`========================================================`);
-  console.log(`  TILTMAZE: KINETIC EDITION - RELAY SERVER ONLINE      `);
-  console.log(`========================================================`);
-  console.log(`  Local HTTP / WS:   http://localhost:${PORT}`);
-  console.log(`  LAN HTTP / WS:     http://${lanIp}:${PORT}`);
-  console.log(`  WebSocket URL:     ws://${lanIp}:${PORT}`);
-  console.log(`========================================================`);
-});
+if (!process.env.VITEST) {
+  server.listen(PORT, HOST, () => {
+    const lanIp = getPrimaryLanIp();
+    console.log(`========================================================`);
+    console.log(`  TILTMAZE: KINETIC EDITION - RELAY SERVER ONLINE      `);
+    console.log(`========================================================`);
+    console.log(`  Local HTTP / WS:   http://localhost:${PORT}`);
+    console.log(`  LAN HTTP / WS:     http://${lanIp}:${PORT}`);
+    console.log(`  WebSocket URL:     ws://${lanIp}:${PORT}`);
+    console.log(`========================================================`);
+  });
+}
 
 // Export server and instances for testing
 export { app, server, wss, roomManager };

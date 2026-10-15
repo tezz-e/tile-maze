@@ -15,15 +15,40 @@ import {
 } from '@tiltmaze/protocol';
 
 describe('End-to-End WebSocket Relay Integration', () => {
+  let weStartedServer = false;
+
   beforeAll(async () => {
+    // Check if port 3000 is already running
+    const alreadyUp = await new Promise<boolean>((resolve) => {
+      const probe = new WebSocket('ws://127.0.0.1:3000');
+      probe.on('open', () => {
+        probe.close();
+        resolve(true);
+      });
+      probe.on('error', () => resolve(false));
+    });
+
+    if (alreadyUp) {
+      return;
+    }
+
     if (!server.listening) {
-      await new Promise<void>((resolve) => server.on('listening', () => resolve()));
+      weStartedServer = true;
+      await new Promise<void>((resolve, reject) => {
+        server.listen(3000, '0.0.0.0', () => resolve());
+        server.on('error', (err) => {
+          if ((err as any).code === 'EADDRINUSE') resolve();
+          else reject(err);
+        });
+      });
     }
   });
 
   afterAll(async () => {
-    wss.close();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (weStartedServer) {
+      wss.close();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 
   it('handles full lifecycle: room creation, mobile join, 20-byte zero-copy binary forwarding, and NTP sync', async () => {
