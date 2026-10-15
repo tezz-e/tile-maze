@@ -183,74 +183,176 @@ fun ConnectionScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0B0F19))
+            .background(Color(0xFF000000))
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier
-                .widthIn(max = 520.dp)
-                .background(Color(0xFF161E2E), RoundedCornerShape(16.dp))
+                .widthIn(max = 480.dp)
+                .border(androidx.compose.foundation.BorderStroke(1.dp, Color.White), RoundedCornerShape(0.dp))
+                .background(Color(0xFF080808))
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "TILTMAZE CONTROLLER",
-                color = Color(0xFF38BDF8),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Black
-            )
+            // Micro header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "[ SYS // CONTROLLER_LINK ]",
+                    color = Color(0xFF888888),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "100HZ IMU",
+                    color = Color(0xFFEA3323),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "TILTMAZE",
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 2.sp
+                )
+                Text(
+                    text = "NOTHING PHONE (3) // KINETIC MATRIX",
+                    color = Color(0xFF888888),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 1.sp
+                )
+            }
 
             errorMessage?.let {
-                Text(text = it, color = Color(0xFFEF4444), fontSize = 13.sp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEA3323)), RoundedCornerShape(0.dp))
+                        .background(Color(0xFF110000))
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "[ $it ]",
+                        color = Color(0xFFEA3323),
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
-            // QR Scan Button
+            // QR Scan Button (Inverted White Brutalist)
             Button(
                 onClick = onScanQr,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color.Black
+                ),
+                shape = RoundedCornerShape(0.dp),
                 modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
-                Text("SCAN QR CODE ON LAPTOP", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(
+                    text = "[ SCAN LAPTOP QR CODE ]",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 0.5.sp
+                )
             }
 
-            Text("— OR ENTER MANUALLY —", color = Color(0xFF64748B), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = "— OR MANUAL IP ENTRY —",
+                color = Color(0xFF666666),
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
                     value = ipInput,
                     onValueChange = { ipInput = it },
-                    label = { Text("Laptop LAN IP") },
+                    label = { Text("LAN IP", fontFamily = FontFamily.Monospace, fontSize = 11.sp) },
                     modifier = Modifier.weight(2f),
-                    singleLine = true
+                    singleLine = true,
+                    shape = RoundedCornerShape(0.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color.White,
+                        unfocusedBorderColor = Color(0xFF333333),
+                        focusedLabelColor = Color(0xFFEA3323),
+                        unfocusedLabelColor = Color(0xFF888888)
+                    )
                 )
                 OutlinedTextField(
                     value = portInput,
                     onValueChange = { portInput = it },
-                    label = { Text("Port") },
+                    label = { Text("Port", fontFamily = FontFamily.Monospace, fontSize = 11.sp) },
                     modifier = Modifier.weight(1f),
-                    singleLine = true
+                    singleLine = true,
+                    shape = RoundedCornerShape(0.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color.White,
+                        unfocusedBorderColor = Color(0xFF333333),
+                        focusedLabelColor = Color(0xFFEA3323),
+                        unfocusedLabelColor = Color(0xFF888888)
+                    )
                 )
             }
 
             OutlinedTextField(
                 value = codeInput,
                 onValueChange = { codeInput = it.take(4).uppercase() },
-                label = { Text("4-Digit Room Code (e.g. K9X2)") },
+                label = { Text("4-Char Room Code (e.g. 6UTP)", fontFamily = FontFamily.Monospace, fontSize = 11.sp) },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                shape = RoundedCornerShape(0.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color.White,
+                    unfocusedBorderColor = Color(0xFF333333),
+                    focusedLabelColor = Color(0xFFEA3323),
+                    unfocusedLabelColor = Color(0xFF888888)
+                )
             )
 
             Button(
                 onClick = { onConnect(ipInput, portInput, codeInput) },
                 enabled = codeInput.length == 4,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (codeInput.length == 4) Color(0xFFEA3323) else Color(0xFF1A1A1A),
+                    contentColor = if (codeInput.length == 4) Color.White else Color(0xFF555555),
+                    disabledContainerColor = Color(0xFF111111),
+                    disabledContentColor = Color(0xFF444444)
+                ),
+                shape = RoundedCornerShape(0.dp),
                 modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
-                Text("CONNECT TO GAME", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(
+                    text = "[ CONNECT TO RELAY // COMMENCE ]",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 0.5.sp
+                )
             }
         }
     }
