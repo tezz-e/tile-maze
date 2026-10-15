@@ -18,15 +18,15 @@ describe('PhysicsWorld - Rotated Gravity & Stability', () => {
   });
 
   it('aligns rotated gravity vector with correct tilt signs', () => {
-    // 1. Nose down forward (-pitch) -> gz must be negative (accelerating towards -Z)
-    physics.updateGravity(-1.0, 0.0);
+    // 1. Nose down forward (+pitch) -> gz must be negative (accelerating towards -Z)
+    physics.updateGravity(1.0, 0.0);
     // @ts-expect-error accessing private Rapier world for test verification
     const gravForward = physics.world.gravity;
     expect(gravForward.z).toBeLessThan(-0.5);
     expect(gravForward.x).toBeCloseTo(0, 2);
 
-    // 2. Nose up backward (+pitch) -> gz must be positive (accelerating towards +Z)
-    physics.updateGravity(1.0, 0.0);
+    // 2. Nose up backward (-pitch) -> gz must be positive (accelerating towards +Z)
+    physics.updateGravity(-1.0, 0.0);
     // @ts-expect-error accessing private Rapier world for test verification
     const gravBackward = physics.world.gravity;
     expect(gravBackward.z).toBeGreaterThan(0.5);

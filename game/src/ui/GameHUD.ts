@@ -23,6 +23,8 @@ export class GameHUD {
   private victoryModal!: HTMLElement;
   private victoryTimeEl!: HTMLElement;
   private tiltPillEl!: HTMLElement;
+  private tiltTitleEl!: HTMLElement;
+  private tiltSubEl!: HTMLElement;
 
   private startTime: number = 0;
   private timerRunning = false;
@@ -440,8 +442,8 @@ export class GameHUD {
         <div class="hud-glass-surface hud-tilt-pill" id="hud-tilt-pill">
           <div class="hud-phone-indicator"></div>
           <div class="hud-tilt-text">
-            <span class="hud-tilt-title">CONTROLLER // NOTHING PHONE 3</span>
-            <span class="hud-tilt-sub">100HZ STREAM • TILT TO STEER</span>
+            <span class="hud-tilt-title" id="hud-tilt-title">MOTION CONTROLLER // ACTIVE</span>
+            <span class="hud-tilt-sub" id="hud-tilt-sub">100HZ STREAM • TILT TO STEER</span>
           </div>
         </div>
 
@@ -485,6 +487,8 @@ export class GameHUD {
     this.victoryModal = this.container.querySelector('#victory-modal')!;
     this.victoryTimeEl = this.container.querySelector('#victory-time')!;
     this.tiltPillEl = this.container.querySelector('#hud-tilt-pill')!;
+    this.tiltTitleEl = this.container.querySelector('#hud-tilt-title')!;
+    this.tiltSubEl = this.container.querySelector('#hud-tilt-sub')!;
 
     this.container.querySelector('#hud-btn-lab')!.addEventListener('click', () => {
       this.callbacks.onToggleTelemetryLab();
@@ -575,8 +579,16 @@ export class GameHUD {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${cs.toString().padStart(2, '0')}`;
   }
 
-  public updateLatency(_rttMs: number, _hz: number, _jitterMs: number, _isKeyboard: boolean): void {
-    // Latency telemetry is inspected via the Telemetry Lab [F3]
+  public updateLatency(rttMs: number, hz: number, _jitterMs: number, isKeyboard: boolean): void {
+    if (this.tiltTitleEl && this.tiltSubEl) {
+      if (isKeyboard) {
+        this.tiltTitleEl.textContent = 'KEYBOARD // WASD';
+        this.tiltSubEl.textContent = 'STEER WITH KEYS • SHIFT: NITRO';
+      } else {
+        this.tiltTitleEl.textContent = 'MOTION CONTROLLER // ACTIVE';
+        this.tiltSubEl.textContent = `${hz}HZ STREAM • ${Math.round(rttMs)}MS RTT`;
+      }
+    }
   }
 
   public showToast(text: string, _color: string = '#ffffff'): void {

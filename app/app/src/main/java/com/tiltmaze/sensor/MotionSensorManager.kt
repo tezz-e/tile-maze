@@ -5,10 +5,9 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import kotlin.math.atan2
+import android.view.Surface
+import android.view.WindowManager
 import kotlin.math.hypot
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.sqrt
 
 data class MotionData(
@@ -19,7 +18,13 @@ data class MotionData(
     val recalibratedPulse: Boolean
 )
 
-class MotionSensorManager(context: Context) : SensorEventListener {
+/**
+ * High-Precision Sensor Manager for Kinetic Motion Steering.
+ * Reads hardware Game Rotation Vector (or Rotation Vector) at SENSOR_DELAY_FASTEST (~100Hz),
+ * performs display-aware coordinate transformation, applies calibration offsets,
+ * and conditions the signal with an adaptive One-Euro filter.
+ */
+class MotionSensorManager(private val context: Context) : SensorEventListener {
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val rotationSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
         ?: sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
@@ -29,9 +34,11 @@ class MotionSensorManager(context: Context) : SensorEventListener {
     private val pitchFilter = OneEuroFilter(minCutoff = 1.0f, beta = 0.4f)
     private val rollFilter = OneEuroFilter(minCutoff = 1.0f, beta = 0.4f)
 
-    // Quaternion neutral reference for relative orientation
-    private var refQuat: FloatArray? = null
-    private var recalibratePulse = false
+    // Calibration offsets (in radians)
+    @Volatile private var calibPitchOffset = 0.0f
+    @Volatile private var calibRollOffset = 0.0f
+    @Volatile private var pendingCalibration = false
+    @Volatile private var recalibratePulse = false
 
     // Current filtered values
     @Volatile private var currentPitch = 0.0f
@@ -43,8 +50,8 @@ class MotionSensorManager(context: Context) : SensorEventListener {
     private var shakeFramesRemaining = 0
     private val SHAKE_THRESHOLD_G = 2.15f * 9.81f // ~21.1 m/s^2
     private val SHAKE_DEBOUNCE_MS = 450L
-    private val MAX_TILT_DEG = 35.0f
-    private val DEADZONE_RAD = 0.04f
+    private val MAX_TILT_DEG = 30.0f
+    private val DEADZONE_RAD = 0.025f // ~1.4° deadzone
 
     fun start() {
         rotationSensor?.let {
@@ -60,7 +67,12 @@ class MotionSensorManager(context: Context) : SensorEventListener {
     }
 
     fun calibrateNeutral() {
-        refQuat = null // Reset so next rotation event stores current quat as neutral
+        pendingCalibration = true
+    }
+
+    fun resetToFlat() {
+        calibPitchOffset = 0.0f
+        calibRollOffset = 0.0f
         recalibratePulse = true
     }
 
@@ -69,53 +81,76 @@ class MotionSensorManager(context: Context) : SensorEventListener {
         val now = System.currentTimeMillis()
 
         if (event.sensor.type == Sensor.TYPE_GAME_ROTATION_VECTOR || event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
-            val qCurr = FloatArray(4)
-            SensorManager.getQuaternionFromVector(qCurr, event.values)
+            val worldRotMatrix = FloatArray(9)
+            SensorManager.getRotationMatrixFromVector(worldRotMatrix, event.values)
 
-            // Capture neutral reference
-            if (refQuat == null) {
-                refQuat = qCurr.clone()
+            // Remap coordinate system for current display rotation
+            val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+            val displayRotation = windowManager?.defaultDisplay?.rotation ?: Surface.ROTATION_90
+
+            val axisX: Int
+            val axisY: Int
+            when (displayRotation) {
+                Surface.ROTATION_0 -> {
+                    axisX = SensorManager.AXIS_X
+                    axisY = SensorManager.AXIS_Y
+                }
+                Surface.ROTATION_90 -> {
+                    axisX = SensorManager.AXIS_Y
+                    axisY = SensorManager.AXIS_MINUS_X
+                }
+                Surface.ROTATION_180 -> {
+                    axisX = SensorManager.AXIS_MINUS_X
+                    axisY = SensorManager.AXIS_MINUS_Y
+                }
+                Surface.ROTATION_270 -> {
+                    axisX = SensorManager.AXIS_MINUS_Y
+                    axisY = SensorManager.AXIS_X
+                }
+                else -> {
+                    axisX = SensorManager.AXIS_Y
+                    axisY = SensorManager.AXIS_MINUS_X
+                }
             }
 
-            // Calculate relative orientation: q_rel = q_ref^* * q_curr
-            val qRef = refQuat!!
-            val qRel = quatMultiply(quatConjugate(qRef), qCurr)
-
-            // Convert relative quaternion to Euler angles
-            val rotMatrix = FloatArray(9)
-            SensorManager.getRotationMatrixFromVector(rotMatrix, floatArrayOf(qRel[1], qRel[2], qRel[3], qRel[0]))
-
-            // Remap coordinate system for landscape orientation (long edge horizontal)
-            val remappedRotMatrix = FloatArray(9)
-            SensorManager.remapCoordinateSystem(
-                rotMatrix,
-                SensorManager.AXIS_Y,
-                SensorManager.AXIS_MINUS_X,
-                remappedRotMatrix
-            )
+            val screenRotMatrix = FloatArray(9)
+            SensorManager.remapCoordinateSystem(worldRotMatrix, axisX, axisY, screenRotMatrix)
 
             val orientation = FloatArray(3)
-            SensorManager.getOrientation(remappedRotMatrix, orientation)
+            SensorManager.getOrientation(screenRotMatrix, orientation)
 
-            var rawPitch = orientation[1]  // Pitch (tilt forward nose-down / nose-up)
-            var rawRoll = orientation[2]   // Roll (tilt left / tilt right)
+            val rawAzimuth = orientation[0]
+            val rawPitch = orientation[1] // Pitch (tilt nose-down / nose-up)
+            val rawRoll = orientation[2]  // Roll (tilt left / tilt right)
+
+            // Apply pending calibration
+            if (pendingCalibration) {
+                calibPitchOffset = rawPitch
+                calibRollOffset = rawRoll
+                pendingCalibration = false
+                recalibratePulse = true
+            }
+
+            // Calculate calibrated relative delta angles
+            var deltaPitch = rawPitch - calibPitchOffset
+            var deltaRoll = rawRoll - calibRollOffset
 
             // Deadzone check
-            val radialMag = hypot(rawPitch, rawRoll)
+            val radialMag = hypot(deltaPitch, deltaRoll)
             if (radialMag < DEADZONE_RAD) {
-                rawPitch = 0.0f
-                rawRoll = 0.0f
+                deltaPitch = 0.0f
+                deltaRoll = 0.0f
             }
 
             // Normalize to [-1.0, 1.0] clamped to MAX_TILT_DEG
             val maxTiltRad = (MAX_TILT_DEG * Math.PI / 180.0).toFloat()
-            val normPitch = max(-1.0f, min(1.0f, rawPitch / maxTiltRad))
-            val normRoll = max(-1.0f, min(1.0f, rawRoll / maxTiltRad))
+            val normPitch = (deltaPitch / maxTiltRad).coerceIn(-1.0f, 1.0f)
+            val normRoll = (deltaRoll / maxTiltRad).coerceIn(-1.0f, 1.0f)
 
             // Adaptive One Euro Filter
             currentPitch = pitchFilter.filter(normPitch, now)
             currentRoll = rollFilter.filter(normRoll, now)
-            currentYawRate = orientation[0]
+            currentYawRate = rawAzimuth
         } else if (event.sensor.type == Sensor.TYPE_LINEAR_ACCELERATION) {
             val ax = event.values[0]
             val ay = event.values[1]
@@ -144,23 +179,6 @@ class MotionSensorManager(context: Context) : SensorEventListener {
             yawRate = currentYawRate,
             shakeTriggered = isShake,
             recalibratedPulse = isRecal
-        )
-    }
-
-    private fun quatConjugate(q: FloatArray): FloatArray {
-        // q = [w, x, y, z]
-        return floatArrayOf(q[0], -q[1], -q[2], -q[3])
-    }
-
-    private fun quatMultiply(q1: FloatArray, q2: FloatArray): FloatArray {
-        val w1 = q1[0]; val x1 = q1[1]; val y1 = q1[2]; val z1 = q1[3]
-        val w2 = q2[0]; val x2 = q2[1]; val y2 = q2[2]; val z2 = q2[3]
-
-        return floatArrayOf(
-            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2
         )
     }
 }

@@ -361,44 +361,78 @@ export class LobbyUI {
         .level-selector {
           display: flex;
           flex-direction: column;
-          gap: 0.4rem;
+          gap: 0.5rem;
         }
-        .gooey-tabs-container {
+        .gooey-tabs-track {
           position: relative;
+          height: 44px;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+          padding: 3px;
+          box-sizing: border-box;
+          display: flex;
+          align-items: stretch;
+          overflow: visible;
+        }
+        .gooey-liquid-layer {
+          position: absolute;
+          inset: 3px;
+          pointer-events: none;
+          filter: url(#mercury-goo);
+          z-index: 1;
+        }
+        .gooey-pill {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 0;
+          width: 25%;
+          background: #ffffff;
+          box-shadow: 0 0 16px rgba(255, 255, 255, 0.5);
+          transition: transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+          will-change: transform;
+        }
+        .gooey-trailing-blob {
+          position: absolute;
+          top: 15%;
+          bottom: 15%;
+          left: 0;
+          width: 25%;
+          background: #ffffff;
+          opacity: 0.9;
+          transition: transform 0.44s cubic-bezier(0.15, 0.75, 0.35, 1.25);
+          will-change: transform;
+        }
+        .gooey-buttons-layer {
+          position: relative;
+          z-index: 5;
           display: grid;
           grid-template-columns: repeat(4, 1fr);
-          gap: 0.5rem;
-          filter: url(#mercury-goo);
-          background: transparent;
+          width: 100%;
+          height: 100%;
         }
         .level-tab-btn {
-          position: relative;
-          background: rgba(18, 18, 24, 0.7);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-          color: #888888;
-          padding: 0.65rem 0.4rem;
+          all: unset;
           cursor: pointer;
-          font-size: 0.75rem;
+          font-size: 0.8rem;
           font-family: var(--font-mono);
           font-weight: 700;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
           text-align: center;
-          transition: color 0.15s, border-color 0.15s, transform 0.15s;
-          z-index: 2;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #888888;
+          transition: color 0.18s cubic-bezier(0.2, 0.8, 0.4, 1);
         }
         .level-tab-btn:hover {
           color: #ffffff;
-          border-color: rgba(255, 255, 255, 0.3);
-          transform: translateY(-1px);
         }
         .level-tab-btn.active {
-          background: #ffffff;
-          border-color: #ffffff;
           color: #000000;
-          box-shadow: 0 4px 14px rgba(255, 255, 255, 0.35);
-          transform: translateY(-1px);
+          font-weight: 700;
         }
 
         /* Action Buttons */
@@ -503,13 +537,13 @@ export class LobbyUI {
 
         <div class="lobby-meta-bar">
           <div>[ SYS // HARNESS_ONLINE ] <span class="accent">100HZ STREAM</span></div>
-          <div>NOTHING PHONE (3) • 25×25 GLYPH MATRIX</div>
+          <div>MOTION SENSOR CONTROLLER • ZERO-COPY RELAY</div>
         </div>
 
         <div class="lobby-header-row">
           <div class="lobby-title-area">
             <h1>TILTMAZE</h1>
-            <p>Physical Motion Controller // Low-Latency Kinetic Relay</p>
+            <p>Physical Motion Controller // Real-Time Kinetic Simulation</p>
           </div>
           <div class="led-grid-wrap">
             <canvas id="lobby-led-canvas"></canvas>
@@ -539,7 +573,7 @@ export class LobbyUI {
             <div class="player-slot-chip" id="p1-slot-chip">
               <div>
                 <div class="slot-title">SLOT 01 // PRIMARY CONTROLLER</div>
-                <div class="slot-subtitle">NOTHING PHONE 3 (NATIVE IMU + GLYPHS)</div>
+                <div class="slot-subtitle">PHYSICAL MOTION SENSOR LINK (100HZ IMU)</div>
               </div>
               <span id="p1-status" class="status-badge status-waiting">[ STANDBY ]</span>
             </div>
@@ -555,16 +589,22 @@ export class LobbyUI {
             <div class="level-selector">
               <div class="section-label">
                 <span>SECTOR SELECTION</span>
-                <span id="level-selected-name" style="color: #ffffff;">01 // SKY HIGHWAY</span>
+                <span id="level-selected-name" style="color: #ffffff;">01 // SKYWAY RUNWAY</span>
               </div>
-              <div class="gooey-tabs-container">
-                ${LEVELS.map(
-                  (l, idx) => `
-                  <button class="level-tab-btn ${idx === 0 ? 'active' : ''}" data-index="${idx}" data-name="${l.name}">
-                    [ 0${l.id} ]
-                  </button>
-                `
-                ).join('')}
+              <div class="gooey-tabs-track" id="gooey-tabs-track">
+                <div class="gooey-liquid-layer">
+                  <div class="gooey-pill" id="gooey-pill"></div>
+                  <div class="gooey-trailing-blob" id="gooey-trailing-blob"></div>
+                </div>
+                <div class="gooey-buttons-layer">
+                  ${LEVELS.map(
+                    (l, idx) => `
+                    <button class="level-tab-btn ${idx === 0 ? 'active' : ''}" data-index="${idx}" data-name="${l.name}">
+                      [ 0${l.id} ]
+                    </button>
+                  `
+                  ).join('')}
+                </div>
               </div>
             </div>
           </div>
@@ -584,9 +624,12 @@ export class LobbyUI {
     this.p2StatusElement = this.container.querySelector('#p2-status')!;
     this.startBtn = this.container.querySelector('#start-game-btn')!;
 
-    // Level tab selection
-    const levelButtons = this.container.querySelectorAll('.level-tab-btn');
+    // Level tab selection with liquid mercury animation
+    const levelButtons = this.container.querySelectorAll<HTMLButtonElement>('.level-tab-btn');
     const levelNameLabel = this.container.querySelector('#level-selected-name')!;
+    const pill = this.container.querySelector<HTMLElement>('#gooey-pill');
+    const blob = this.container.querySelector<HTMLElement>('#gooey-trailing-blob');
+
     levelButtons.forEach((btn) => {
       btn.addEventListener('click', (e) => {
         levelButtons.forEach((b) => b.classList.remove('active'));
@@ -595,6 +638,11 @@ export class LobbyUI {
         this.selectedLevelIndex = parseInt(target.dataset.index || '0', 10);
         if (levelNameLabel && target.dataset.name) {
           levelNameLabel.textContent = `0${this.selectedLevelIndex + 1} // ${target.dataset.name.toUpperCase()}`;
+        }
+        if (pill && blob) {
+          const shift = this.selectedLevelIndex * 100;
+          pill.style.transform = `translateX(${shift}%)`;
+          blob.style.transform = `translateX(${shift}%)`;
         }
       });
     });

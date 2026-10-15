@@ -32,6 +32,7 @@ fun CockpitControllerScreen(
     onBoostChange: (Boolean) -> Unit,
     onBrakeChange: (Boolean) -> Unit,
     onCalibrate: () -> Unit,
+    onResetFlat: () -> Unit,
     onDisconnect: () -> Unit
 ) {
     var isBraking by remember { mutableStateOf(false) }
@@ -153,7 +154,7 @@ fun CockpitControllerScreen(
                     style = Stroke(width = 1f)
                 )
 
-                // Precision Crosshair lines with tick marks
+                // Precision Crosshair lines
                 drawLine(
                     color = Color(0xFF333333),
                     start = Offset(center.x - radius, center.y),
@@ -167,9 +168,9 @@ fun CockpitControllerScreen(
                     strokeWidth = 1f
                 )
 
-                // Motion Target: mapped from pitch (Y) and roll (X)
+                // Motion Target: mapped from roll (X) and pitch (Y: tilting forward moves UP)
                 val dotX = (center.x + roll * radius * 0.85f).coerceIn(center.x - radius, center.x + radius)
-                val dotY = (center.y + pitch * radius * 0.85f).coerceIn(center.y - radius, center.y + radius)
+                val dotY = (center.y - pitch * radius * 0.85f).coerceIn(center.y - radius, center.y + radius)
 
                 // Target Halo & Core (Nothing Red #EA3323)
                 drawCircle(
@@ -192,7 +193,7 @@ fun CockpitControllerScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "P: %+.1f°  R: %+.1f°".format(pitch * 35f, roll * 35f),
+                    text = "P: %+.1f°  R: %+.1f°".format(pitch * 30f, roll * 30f),
                     color = Color(0xFF888888),
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
@@ -206,26 +207,27 @@ fun CockpitControllerScreen(
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .padding(start = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "[ 01 // ATTITUDE ]",
+                text = "[ 01 // CALIBRATION ]",
                 color = Color(0xFF888888),
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
             )
 
-            // Calibrate Neutral Button (Brutalist Invert)
+            // Zero IMU Neutral (Hold in comfortable hand position)
             Button(
                 onClick = onCalibrate,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Black,
-                    contentColor = Color.White
+                    containerColor = Color.White,
+                    contentColor = Color.Black
                 ),
                 border = BorderStroke(1.dp, Color.White),
                 shape = RoundedCornerShape(0.dp),
-                modifier = Modifier.size(width = 140.dp, height = 48.dp)
+                modifier = Modifier.size(width = 140.dp, height = 40.dp),
+                contentPadding = PaddingValues(0.dp)
             ) {
                 Text(
                     text = "[ ZERO IMU ]",
@@ -236,10 +238,32 @@ fun CockpitControllerScreen(
                 )
             }
 
+            // Reset to Level Flat Horizon
+            Button(
+                onClick = onResetFlat,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Black,
+                    contentColor = Color(0xFF888888)
+                ),
+                border = BorderStroke(1.dp, Color(0xFF444444)),
+                shape = RoundedCornerShape(0.dp),
+                modifier = Modifier.size(width = 140.dp, height = 34.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text(
+                    text = "RESET FLAT",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Normal,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
             // Brake Thumb Button (Hold down, Nothing Red when active)
             Box(
                 modifier = Modifier
-                    .size(width = 140.dp, height = 80.dp)
+                    .size(width = 140.dp, height = 74.dp)
                     .border(
                         BorderStroke(1.dp, if (isBraking) Color(0xFFEA3323) else Color.White),
                         RoundedCornerShape(0.dp)
@@ -263,7 +287,7 @@ fun CockpitControllerScreen(
                         text = "[ BRAKE ]",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace
                     )
                     Text(

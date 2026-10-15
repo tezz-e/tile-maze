@@ -232,7 +232,7 @@ export class PhysicsWorld {
     const rollRad = rollNorm * MAX_BOARD_TILT_RAD;
 
     const gx = -BASE_GRAVITY * Math.sin(rollRad);
-    const gz = -BASE_GRAVITY * Math.sin(pitchRad);
+    const gz = BASE_GRAVITY * Math.sin(pitchRad);
     const gy = BASE_GRAVITY * Math.cos(pitchRad) * Math.cos(rollRad);
 
     this.world.gravity = { x: gx, y: gy, z: gz };

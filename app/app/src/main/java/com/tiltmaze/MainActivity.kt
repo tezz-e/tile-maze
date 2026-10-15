@@ -55,12 +55,13 @@ class MainActivity : ComponentActivity(), TelemetryListener {
         setContent {
             MaterialTheme {
                 if (isConnectedState) {
-                    // 60Hz UI Reticle update ticker
+                    // 60Hz UI Reticle & Glyph LED update ticker
                     LaunchedEffect(Unit) {
                         while (true) {
                             val motion = sensorManager.getCurrentMotionData()
                             pitchState = motion.pitch
                             rollState = motion.roll
+                            glyphController.updateBallPosition(rollState, pitchState)
                             delay(16)
                         }
                     }
@@ -74,6 +75,7 @@ class MainActivity : ComponentActivity(), TelemetryListener {
                         onBoostChange = { socket.isBoostActive = it },
                         onBrakeChange = { socket.isBrakeActive = it },
                         onCalibrate = { sensorManager.calibrateNeutral() },
+                        onResetFlat = { sensorManager.resetToFlat() },
                         onDisconnect = { disconnect() }
                     )
                 } else {
@@ -229,7 +231,7 @@ fun ConnectionScreen(
                     letterSpacing = 2.sp
                 )
                 Text(
-                    text = "NOTHING PHONE (3) // KINETIC MATRIX",
+                    text = "PHYSICAL MOTION CONTROLLER // KINETIC HARNESS",
                     color = Color(0xFF888888),
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,

@@ -52,6 +52,9 @@ dependencies {
     // Networking: OkHttp for high-speed WebSockets and binary streaming
     implementation(libs.okhttp)
 
+    // Local libs: Nothing Glyph Matrix SDK AAR
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar", "*.jar"))))
+
     // QR Code scanner: Google Code Scanner (zero-permission Google Play services API)
     implementation(libs.play.services.code.scanner)
 

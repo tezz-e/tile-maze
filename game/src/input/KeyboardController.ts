@@ -71,7 +71,7 @@ export class KeyboardController {
     if (this.keys['KeyA'] || this.keys['ArrowLeft']) right -= 1.0;
 
     // Target values clamped to [-1.0, 1.0]
-    this.targetPitch = -forward; // Forward tilts nose down
+    this.targetPitch = forward; // Forward (W) tilts nose down
     this.targetRoll = right;
 
     // Smooth response with exponential decay
