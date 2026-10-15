@@ -16,8 +16,9 @@ export class GameHUD {
   private timerEl!: HTMLElement;
   private bestEl!: HTMLElement;
   private checkpointEl!: HTMLElement;
+  private checkpointMeterEl!: HTMLElement;
   private speedoValueEl!: HTMLElement;
-  private speedoArcEl!: SVGPathElement;
+  private speedoSegmentsEl!: HTMLElement;
   private toastEl!: HTMLElement;
   private victoryModal!: HTMLElement;
   private victoryTimeEl!: HTMLElement;
@@ -26,7 +27,7 @@ export class GameHUD {
   private timerRunning = false;
   private toastTimer: number | null = null;
   private bestTimes: Record<number, number> = {
-    1: 75.2,  // 01:15.20 from reference screenshot
+    1: 75.2, // 01:15.20
     2: 92.15,
     3: 114.5,
     4: 138.0,
@@ -53,17 +54,17 @@ export class GameHUD {
           justify-content: space-between;
           padding: 1.5rem;
           color: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+          font-family: var(--font-mono);
           user-select: none;
+          box-sizing: border-box;
         }
 
-        .hud-glass-panel {
-          background: rgba(15, 23, 42, 0.65);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+        .hud-panel {
+          background: rgba(0, 0, 0, 0.85);
+          border: 1px solid rgba(255, 255, 255, 0.35);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
           pointer-events: auto;
+          box-sizing: border-box;
         }
 
         /* Top Bar */
@@ -76,125 +77,113 @@ export class GameHUD {
 
         /* Top-Left: Time & Best Card */
         .hud-time-card {
-          border-radius: 16px;
-          padding: 12px 20px;
+          padding: 10px 16px;
           display: flex;
           flex-direction: column;
-          gap: 6px;
-          min-width: 170px;
-        }
-
-        .hud-time-row {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .hud-icon-wrap {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 26px;
-          height: 26px;
-          color: #f8fafc;
-        }
-
-        .hud-label-col {
-          display: flex;
-          flex-direction: column;
+          gap: 4px;
+          min-width: 180px;
         }
 
         .hud-meta-label {
           font-size: 0.68rem;
-          font-weight: 800;
+          font-weight: 700;
           letter-spacing: 0.08em;
-          color: #94a3b8;
+          color: #888888;
           text-transform: uppercase;
         }
 
         .hud-timer-digits {
-          font-family: ui-monospace, SFMono-Regular, "SF Pro Display", monospace;
-          font-size: 1.55rem;
-          font-weight: 800;
+          font-size: 1.8rem;
+          font-weight: 700;
           color: #ffffff;
-          letter-spacing: 0.02em;
+          letter-spacing: -0.02em;
           line-height: 1.1;
         }
 
         .hud-best-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
           padding-top: 4px;
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          border-top: 1px solid #222222;
+          font-size: 0.75rem;
+          color: #888888;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
         }
 
-        .hud-best-digits {
-          font-family: ui-monospace, SFMono-Regular, monospace;
-          font-size: 1.0rem;
+        .hud-best-row .red-dot {
+          color: #EA3323;
           font-weight: 700;
-          color: #cbd5e1;
-          letter-spacing: 0.02em;
         }
 
         /* Top-Right: Checkpoint Badge & Menu */
         .hud-top-right-group {
           display: flex;
-          align-items: center;
-          gap: 10px;
+          align-items: flex-start;
+          gap: 8px;
         }
 
         .hud-checkpoint-badge {
-          border-radius: 14px;
-          padding: 10px 22px;
+          padding: 10px 16px;
           display: flex;
           flex-direction: column;
-          align-items: center;
-          min-width: 120px;
+          align-items: flex-end;
+          min-width: 150px;
         }
 
         .hud-checkpoint-digits {
-          font-size: 1.45rem;
-          font-weight: 800;
+          font-size: 1.35rem;
+          font-weight: 700;
           color: #ffffff;
           letter-spacing: 0.04em;
           line-height: 1.1;
           margin-top: 2px;
         }
 
-        .hud-util-btn {
-          background: rgba(15, 23, 42, 0.65);
-          backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          color: #f1f5f9;
-          padding: 8px 14px;
-          border-radius: 10px;
-          font-size: 0.8rem;
-          font-weight: 600;
+        .hud-checkpoint-meter {
+          font-size: 0.85rem;
+          letter-spacing: 0.15em;
+          color: #EA3323;
+          margin-top: 2px;
+        }
+
+        .hud-btn-util {
+          background: rgba(0, 0, 0, 0.85);
+          border: 1px solid rgba(255, 255, 255, 0.35);
+          color: #ffffff;
+          padding: 8px 12px;
+          font-family: var(--font-mono);
+          font-size: 0.75rem;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.15s;
           pointer-events: auto;
         }
 
-        .hud-util-btn:hover {
-          background: rgba(30, 41, 59, 0.85);
-          border-color: #38bdf8;
-          color: #38bdf8;
+        .hud-btn-util:hover {
+          background: #ffffff;
+          color: #000000;
+          border-color: #ffffff;
         }
 
         /* Center Toast */
         .hud-center-toast {
           align-self: center;
-          background: rgba(15, 23, 42, 0.88);
-          backdrop-filter: blur(12px);
-          border: 1.5px solid #38bdf8;
-          color: #38bdf8;
-          padding: 0.75rem 2rem;
-          border-radius: 9999px;
-          font-size: 1.25rem;
-          font-weight: 800;
-          letter-spacing: 0.05em;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+          background: #000000;
+          border: 1px solid #EA3323;
+          color: #ffffff;
+          padding: 0.6rem 1.6rem;
+          font-size: 0.95rem;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
           opacity: 0;
-          transform: translateY(12px);
-          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          transform: translateY(8px);
+          transition: all 0.2s;
           pointer-events: none;
         }
 
@@ -213,17 +202,17 @@ export class GameHUD {
 
         /* Bottom-Left: Tilt to Steer Controller Pill */
         .hud-tilt-pill {
-          border-radius: 16px;
-          padding: 12px 20px;
+          padding: 10px 16px;
           display: flex;
           align-items: center;
-          gap: 14px;
+          gap: 12px;
         }
 
-        .hud-phone-icon {
-          width: 32px;
-          height: 32px;
-          color: #ffffff;
+        .hud-phone-indicator {
+          width: 10px;
+          height: 10px;
+          background: #EA3323;
+          border: 1px solid #ffffff;
         }
 
         .hud-tilt-text {
@@ -232,103 +221,106 @@ export class GameHUD {
         }
 
         .hud-tilt-title {
-          font-size: 0.95rem;
-          font-weight: 800;
+          font-size: 0.82rem;
+          font-weight: 700;
           letter-spacing: 0.06em;
+          text-transform: uppercase;
           color: #ffffff;
           line-height: 1.1;
         }
 
         .hud-tilt-sub {
-          font-size: 0.85rem;
-          font-weight: 700;
+          font-size: 0.72rem;
+          font-weight: 400;
           letter-spacing: 0.04em;
-          color: #cbd5e1;
+          color: #888888;
+          text-transform: uppercase;
+          margin-top: 2px;
         }
 
-        /* Bottom-Right: Arc Gauge Speedometer */
+        /* Bottom-Right: Segmented LED Speedometer */
         .hud-speedometer-group {
-          position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          min-width: 110px;
-          height: 80px;
-          pointer-events: auto;
-        }
-
-        .speedo-arc-svg {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 110px;
-          height: 80px;
-          pointer-events: none;
-        }
-
-        .speedo-readout {
+          padding: 10px 18px;
           display: flex;
           flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          text-align: center;
-          z-index: 2;
-          margin-left: 42px;
+          align-items: flex-end;
+          min-width: 150px;
         }
 
         .speedo-number {
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          font-size: 2.4rem;
-          font-weight: 800;
+          font-size: 2.2rem;
+          font-weight: 700;
           color: #ffffff;
           line-height: 1.0;
-          letter-spacing: -0.02em;
+          letter-spacing: -0.03em;
         }
 
         .speedo-unit {
-          font-size: 0.75rem;
+          font-size: 0.72rem;
           font-weight: 700;
-          color: #94a3b8;
-          margin-top: 1px;
-          text-transform: lowercase;
+          letter-spacing: 0.08em;
+          color: #888888;
+          text-transform: uppercase;
+          margin-top: 2px;
+        }
+
+        .speedo-segments {
+          font-family: var(--font-mono);
+          font-size: 0.8rem;
+          letter-spacing: 2px;
+          color: #ffffff;
+          margin-top: 4px;
         }
 
         /* Victory Modal */
         #victory-modal {
           position: absolute;
           inset: 0;
-          background: rgba(15, 23, 42, 0.85);
-          backdrop-filter: blur(12px);
+          background: rgba(0, 0, 0, 0.92);
           display: none;
           flex-direction: column;
           align-items: center;
           justify-content: center;
           pointer-events: auto;
           z-index: 60;
+          padding: 1.5rem;
         }
 
         .victory-card {
-          background: rgba(30, 41, 59, 0.95);
-          border: 2px solid #10b981;
-          box-shadow: 0 25px 50px -12px rgba(16, 185, 129, 0.25);
-          border-radius: 20px;
-          padding: 2.5rem;
+          background: #000000;
+          border: 2px solid #ffffff;
+          box-shadow: 0 0 50px rgba(0, 0, 0, 1);
+          padding: 2.5rem 2rem;
           text-align: center;
-          max-width: 440px;
-          width: 90%;
+          max-width: 480px;
+          width: 100%;
+          box-sizing: border-box;
+          position: relative;
         }
 
         .victory-card h2 {
-          color: #10b981;
-          font-size: 2.2rem;
-          font-weight: 800;
+          color: #ffffff;
+          font-size: 1.8rem;
+          font-weight: 700;
+          letter-spacing: -0.04em;
+          text-transform: uppercase;
           margin-bottom: 0.5rem;
         }
 
         .victory-card p {
-          color: #cbd5e1;
-          font-size: 1.1rem;
-          margin-bottom: 1.8rem;
+          color: #888888;
+          font-size: 0.9rem;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          margin-bottom: 2rem;
+        }
+
+        .victory-time-display {
+          font-size: 2.6rem;
+          font-weight: 700;
+          color: #ffffff;
+          margin: 1rem 0;
+          letter-spacing: -0.02em;
         }
 
         .victory-actions {
@@ -336,121 +328,111 @@ export class GameHUD {
           flex-direction: column;
           gap: 0.75rem;
         }
+
+        .victory-btn-primary {
+          background: #ffffff;
+          color: #000000;
+          border: 2px solid #ffffff;
+          padding: 0.9rem;
+          font-family: var(--font-mono);
+          font-size: 0.95rem;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .victory-btn-primary:hover {
+          background: #EA3323;
+          border-color: #EA3323;
+          color: #ffffff;
+        }
+
+        .victory-btn-secondary {
+          background: transparent;
+          color: #ffffff;
+          border: 1px solid #333333;
+          padding: 0.75rem;
+          font-family: var(--font-mono);
+          font-size: 0.85rem;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .victory-btn-secondary:hover {
+          border-color: #ffffff;
+          color: #ffffff;
+        }
       </style>
 
       <!-- TOP BAR -->
       <div class="hud-top-bar">
         <!-- Top-Left: Time & Best Card -->
-        <div class="hud-glass-panel hud-time-card">
-          <div class="hud-time-row">
-            <div class="hud-icon-wrap">
-              <!-- Stopwatch SVG Icon -->
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
-                <circle cx="12" cy="13" r="8"></circle>
-                <path d="M12 9v4l2.5 2.5"></path>
-                <path d="M10 2h4"></path>
-                <path d="M12 2v3"></path>
-              </svg>
-            </div>
-            <div class="hud-label-col">
-              <span class="hud-meta-label">TIME</span>
-              <span id="hud-timer" class="hud-timer-digits">00:00.00</span>
-            </div>
-          </div>
-
-          <div class="hud-time-row hud-best-row">
-            <div class="hud-icon-wrap" style="color: #fbbf24;">
-              <!-- Crown SVG Icon -->
-              <svg viewBox="0 0 24 24" fill="#fbbf24" width="20" height="20">
-                <path d="M2 19h20v2H2zM3 17l3.5-9 5.5 6 5.5-6 3.5 9z"></path>
-              </svg>
-            </div>
-            <div class="hud-label-col">
-              <span class="hud-meta-label">BEST</span>
-              <span id="hud-best" class="hud-best-digits">01:15.20</span>
-            </div>
+        <div class="hud-panel hud-time-card">
+          <span class="hud-meta-label">[ 01 // CHRONO ]</span>
+          <span id="hud-timer" class="hud-timer-digits">00:00.00</span>
+          <div class="hud-best-row">
+            <span class="red-dot">■</span>
+            <span>RECORD:</span>
+            <span id="hud-best">01:15.20</span>
           </div>
         </div>
 
-        <!-- Top-Right: Checkpoint Badge & Controls -->
+        <!-- Top-Right: Controls & Checkpoint Badge -->
         <div class="hud-top-right-group">
-          <button id="hud-btn-lobby" class="hud-util-btn">Lobby</button>
-          <button id="hud-btn-lab" class="hud-util-btn">Telemetry [T]</button>
+          <button id="hud-btn-lobby" class="hud-btn-util">[ LOBBY // ESC ]</button>
+          <button id="hud-btn-lab" class="hud-btn-util">[ TELEMETRY // F3 ]</button>
 
-          <div class="hud-glass-panel hud-checkpoint-badge">
-            <span class="hud-meta-label">CHECKPOINT</span>
-            <span id="hud-checkpoint" class="hud-checkpoint-digits">1 / 4</span>
+          <div class="hud-panel hud-checkpoint-badge">
+            <span class="hud-meta-label">[ 02 // CHECKPOINT ]</span>
+            <span id="hud-checkpoint" class="hud-checkpoint-digits">0 / 4</span>
+            <span id="hud-checkpoint-meter" class="hud-checkpoint-meter">□□□□</span>
           </div>
         </div>
       </div>
 
       <!-- CENTER TOAST -->
-      <div id="hud-toast" class="hud-center-toast">CHECKPOINT!</div>
+      <div id="hud-toast" class="hud-center-toast">[ CHECKPOINT LOGGED ]</div>
 
       <!-- BOTTOM BAR -->
       <div class="hud-bottom-bar">
         <!-- Bottom-Left: Tilt to Steer Controller Pill -->
-        <div class="hud-glass-panel hud-tilt-pill">
-          <div class="hud-phone-icon">
-            <!-- Mobile Phone Tilt Icon with Rotation Motion Arcs -->
-            <svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="32" height="32">
-              <path d="M5 12 C3 16, 3 20, 5 24" stroke="#94a3b8" stroke-width="2"/>
-              <path d="M31 12 C33 16, 33 20, 31 24" stroke="#94a3b8" stroke-width="2"/>
-              <rect x="11" y="6" width="14" height="24" rx="3.5" stroke="#ffffff" fill="rgba(255,255,255,0.05)"/>
-              <circle cx="18" cy="25" r="1.2" fill="#ffffff"/>
-            </svg>
-          </div>
+        <div class="hud-panel hud-tilt-pill">
+          <div class="hud-phone-indicator"></div>
           <div class="hud-tilt-text">
-            <span class="hud-tilt-title">TILT</span>
-            <span class="hud-tilt-sub">TO STEER</span>
+            <span class="hud-tilt-title">CONTROLLER // NOTHING PHONE 3</span>
+            <span class="hud-tilt-sub">100HZ STREAM • TILT TO STEER</span>
           </div>
         </div>
 
-        <!-- Bottom-Right: Arc Gauge Speedometer -->
-        <div class="hud-speedometer-group">
-          <svg class="speedo-arc-svg" viewBox="0 0 110 80">
-            <!-- Dim background guide arc on left flank -->
-            <path
-              d="M 36 68 A 38 38 0 0 1 38 14"
-              fill="none"
-              stroke="rgba(255, 255, 255, 0.2)"
-              stroke-width="5"
-              stroke-linecap="round"
-            />
-            <!-- Glowing active speed arc on left flank -->
-            <path
-              id="speedo-fill-arc"
-              d="M 36 68 A 38 38 0 0 1 38 14"
-              fill="none"
-              stroke="#67e8f9"
-              stroke-width="5.5"
-              stroke-linecap="round"
-              stroke-dasharray="64"
-              stroke-dashoffset="64"
-              style="transition: stroke-dashoffset 0.08s ease-out; filter: drop-shadow(0 0 6px rgba(103, 232, 249, 0.7));"
-            />
-          </svg>
-          <div class="speedo-readout">
-            <span id="speedo-value" class="speedo-number">0</span>
-            <span class="speedo-unit">km/h</span>
-          </div>
+        <!-- Bottom-Right: Segmented LED Speedometer -->
+        <div class="hud-panel hud-speedometer-group">
+          <span class="hud-meta-label">[ VELOCITY // KM/H ]</span>
+          <span id="speedo-value" class="speedo-number">0</span>
+          <div id="speedo-segments" class="speedo-segments">··········</div>
         </div>
       </div>
 
       <!-- VICTORY MODAL -->
       <div id="victory-modal">
         <div class="victory-card">
-          <h2>COURSE CLEARED!</h2>
-          <p>Labyrinth completed in <strong id="victory-time" style="color: #f8fafc;">00:00.00</strong></p>
+          <span class="hud-meta-label" style="color: #EA3323;">[ MISSION DEBRIEF // SECTOR COMPLETE ]</span>
+          <h2 style="margin-top: 0.5rem;">SECTOR CLEARED</h2>
+          <div id="victory-time" class="victory-time-display">00:00.00</div>
+          <p>PHYSICAL MOTION CONTROLLER PERFORMANCE LOGGED</p>
           <div class="victory-actions">
-            <button id="victory-next-btn" class="hud-util-btn" style="background: #0284c7; padding: 0.9rem; font-size: 1.05rem; font-weight: 700;">
-              Next Course &rarr;
+            <button id="victory-next-btn" class="victory-btn-primary">
+              [ NEXT SECTOR &rarr; ]
             </button>
-            <button id="victory-retry-btn" class="hud-util-btn" style="padding: 0.75rem;">
-              Replay Course
+            <button id="victory-retry-btn" class="victory-btn-secondary">
+              [ REPLAY SECTOR ]
             </button>
-            <button id="victory-lobby-btn" class="hud-util-btn" style="padding: 0.75rem;">
-              Back to Lobby
+            <button id="victory-lobby-btn" class="victory-btn-secondary">
+              [ RETURN TO LOBBY ]
             </button>
           </div>
         </div>
@@ -460,8 +442,9 @@ export class GameHUD {
     this.timerEl = this.container.querySelector('#hud-timer')!;
     this.bestEl = this.container.querySelector('#hud-best')!;
     this.checkpointEl = this.container.querySelector('#hud-checkpoint')!;
+    this.checkpointMeterEl = this.container.querySelector('#hud-checkpoint-meter')!;
     this.speedoValueEl = this.container.querySelector('#speedo-value')!;
-    this.speedoArcEl = this.container.querySelector('#speedo-fill-arc')!;
+    this.speedoSegmentsEl = this.container.querySelector('#speedo-segments')!;
     this.toastEl = this.container.querySelector('#hud-toast')!;
     this.victoryModal = this.container.querySelector('#victory-modal')!;
     this.victoryTimeEl = this.container.querySelector('#victory-time')!;
@@ -501,6 +484,11 @@ export class GameHUD {
 
   public setCheckpoints(current: number, total: number): void {
     this.checkpointEl.textContent = `${current} / ${total}`;
+    let meter = '';
+    for (let i = 0; i < total; i++) {
+      meter += i < current ? '■' : '□';
+    }
+    this.checkpointMeterEl.textContent = meter;
   }
 
   public startTimer(): void {
@@ -526,11 +514,19 @@ export class GameHUD {
     const speedKmH = Math.round(speedMps * 3.6);
     this.speedoValueEl.textContent = `${speedKmH}`;
 
-    // Arc gauge fill: Max 50 km/h, path length is ~64
-    const maxSpeed = 50;
-    const ratio = Math.min(Math.max(speedKmH / maxSpeed, 0), 1);
-    const offset = 64 * (1 - ratio);
-    this.speedoArcEl.style.strokeDashoffset = offset.toFixed(1);
+    // Segmented bar (10 segments)
+    const maxSpeed = 45;
+    const count = Math.min(Math.round((speedKmH / maxSpeed) * 10), 10);
+    let bar = '';
+    for (let i = 0; i < 10; i++) {
+      bar += i < count ? '|' : '·';
+    }
+    this.speedoSegmentsEl.textContent = bar;
+    if (speedKmH > 35) {
+      this.speedoSegmentsEl.style.color = '#EA3323';
+    } else {
+      this.speedoSegmentsEl.style.color = '#ffffff';
+    }
   }
 
   private formatTimeSecs(totalSecs: number): string {
@@ -541,13 +537,11 @@ export class GameHUD {
   }
 
   public updateLatency(_rttMs: number, _hz: number, _jitterMs: number, _isKeyboard: boolean): void {
-    // Latency telemetry can be inspected anytime via the Telemetry Lab [T] button
+    // Latency telemetry is inspected via the Telemetry Lab [F3]
   }
 
-  public showToast(text: string, color: string = '#38bdf8'): void {
-    this.toastEl.textContent = text;
-    this.toastEl.style.color = color;
-    this.toastEl.style.borderColor = color;
+  public showToast(text: string, _color: string = '#ffffff'): void {
+    this.toastEl.textContent = `[ ${text.toUpperCase()} ]`;
     this.toastEl.classList.add('visible');
 
     if (this.toastTimer) window.clearTimeout(this.toastTimer);
@@ -562,8 +556,8 @@ export class GameHUD {
     this.victoryModal.style.display = 'flex';
 
     confetti({
-      particleCount: 120,
-      spread: 75,
+      particleCount: 100,
+      spread: 70,
       origin: { y: 0.6 },
     });
   }

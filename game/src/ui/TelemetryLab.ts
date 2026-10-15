@@ -56,187 +56,282 @@ export class TelemetryLab {
         #telemetry-lab-modal {
           position: absolute;
           inset: 0;
-          background: rgba(11, 15, 25, 0.96);
-          backdrop-filter: blur(12px);
+          background-color: #000000;
+          background-image: 
+            linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+            repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 255, 255, 0.015) 2px, rgba(255, 255, 255, 0.015) 4px);
+          background-size: 32px 32px, 32px 32px, 100% 4px;
           display: none;
           flex-direction: column;
           z-index: 200;
           padding: 1.5rem;
-          color: #f3f4f6;
-          font-family: system-ui, sans-serif;
+          color: #ffffff;
+          font-family: var(--font-mono);
           overflow-y: auto;
+          box-sizing: border-box;
         }
+
+        .lab-panel {
+          position: relative;
+          background: #080808;
+          border: 1px solid #ffffff;
+          box-shadow: 0 0 0 1px #000000, 0 30px 60px rgba(0, 0, 0, 0.95);
+          max-width: 960px;
+          width: 100%;
+          margin: 0 auto;
+          padding: 1.75rem 2rem;
+          display: flex;
+          flex-direction: column;
+          gap: 1.25rem;
+          box-sizing: border-box;
+        }
+
+        /* Corner crosshairs */
+        .lab-corner {
+          position: absolute;
+          width: 9px;
+          height: 9px;
+          color: #EA3323;
+          font-family: var(--font-mono);
+          font-size: 11px;
+          line-height: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          pointer-events: none;
+        }
+        .lab-tl { top: -6px; left: -6px; }
+        .lab-tr { top: -6px; right: -6px; }
+        .lab-bl { bottom: -6px; left: -6px; }
+        .lab-br { bottom: -6px; right: -6px; }
+
+        .lab-meta-bar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 1px solid #222222;
+          padding-bottom: 0.6rem;
+          font-size: 0.72rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #888888;
+        }
+        .lab-meta-bar span.accent {
+          color: #EA3323;
+          font-weight: 700;
+        }
+
         .lab-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-bottom: 1px solid #334155;
-          padding-bottom: 1rem;
-          margin-bottom: 1.5rem;
+          margin-bottom: 0.5rem;
         }
         .lab-header h2 {
-          color: #38bdf8;
-          font-size: 1.5rem;
+          color: #ffffff;
+          font-size: 1.6rem;
+          font-weight: 700;
+          letter-spacing: -0.04em;
+          text-transform: uppercase;
           margin: 0;
-          display: flex;
-          align-items: center;
-          gap: 0.6rem;
         }
         .lab-close-btn {
-          background: #1e293b;
-          border: 1px solid #475569;
-          color: #f8fafc;
-          padding: 0.4rem 1rem;
-          border-radius: 6px;
-          cursor: pointer;
+          background: transparent;
+          border: 1px solid #ffffff;
+          color: #ffffff;
+          padding: 0.5rem 1.2rem;
+          font-family: var(--font-mono);
+          font-size: 0.8rem;
           font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: all 0.15s;
         }
+        .lab-close-btn:hover {
+          background: #ffffff;
+          color: #000000;
+        }
+
         .lab-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
-          gap: 1.5rem;
+          gap: 1.25rem;
         }
         @media (max-width: 840px) {
           .lab-grid { grid-template-columns: 1fr; }
         }
+
         .lab-card {
-          background: #161e2e;
-          border: 1px solid #334155;
-          border-radius: 12px;
-          padding: 1.2rem;
+          background: #000000;
+          border: 1px solid #222222;
+          padding: 1rem;
           display: flex;
           flex-direction: column;
+          box-sizing: border-box;
+          position: relative;
         }
         .lab-card-title {
-          font-size: 0.95rem;
+          font-size: 0.75rem;
           font-weight: 700;
-          color: #94a3b8;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #888888;
           margin-bottom: 0.8rem;
           display: flex;
           justify-content: space-between;
+          align-items: center;
+          border-bottom: 1px solid #111111;
+          padding-bottom: 0.4rem;
         }
+
         .hex-dump-box {
-          font-family: monospace;
-          font-size: 0.95rem;
-          background: #0f172a;
-          border: 1px solid #1e293b;
-          border-radius: 6px;
+          font-family: var(--font-mono);
+          font-size: 0.88rem;
+          background: #000000;
+          border: 1px solid #222222;
           padding: 0.8rem;
-          color: #38bdf8;
+          color: #ffffff;
           letter-spacing: 0.08em;
           word-break: break-all;
         }
+
         .metrics-row {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
-          gap: 0.8rem;
-          margin-top: 0.8rem;
+          gap: 0.75rem;
+          margin-top: 1rem;
+        }
+        @media (max-width: 600px) {
+          .metrics-row { grid-template-columns: repeat(2, 1fr); }
         }
         .metric-pill {
-          background: #0f172a;
-          border: 1px solid #1e293b;
-          padding: 0.6rem;
-          border-radius: 6px;
-          text-align: center;
+          background: #000000;
+          border: 1px solid #222222;
+          padding: 0.65rem;
+          text-align: left;
         }
         .metric-value {
-          font-family: monospace;
-          font-size: 1.2rem;
-          font-weight: 800;
-          color: #34d399;
+          font-family: var(--font-mono);
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: #ffffff;
+          letter-spacing: -0.02em;
         }
         .metric-label {
-          font-size: 0.75rem;
-          color: #94a3b8;
+          font-size: 0.68rem;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #888888;
+          margin-top: 2px;
         }
+
         .bitmask-badges {
           display: flex;
-          gap: 0.4rem;
+          gap: 0.5rem;
           flex-wrap: wrap;
-          margin-top: 0.5rem;
+          margin-top: 0.8rem;
         }
         .bit-badge {
-          font-size: 0.75rem;
-          padding: 0.2rem 0.5rem;
-          border-radius: 4px;
-          background: #334155;
-          color: #94a3b8;
+          font-family: var(--font-mono);
+          font-size: 0.72rem;
           font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          padding: 0.35rem 0.6rem;
+          border: 1px solid #333333;
+          background: #111111;
+          color: #666666;
         }
         .bit-badge.active {
-          background: #0284c7;
+          background: #EA3323;
+          border-color: #EA3323;
           color: #ffffff;
         }
       </style>
 
-      <div class="lab-header">
-        <h2>FLIGHT RECORDER & TELEMETRY LAB</h2>
-        <button id="lab-close" class="lab-close-btn">Close [T]</button>
-      </div>
+      <div class="lab-panel">
+        <div class="lab-corner lab-tl">+</div>
+        <div class="lab-corner lab-tr">+</div>
+        <div class="lab-corner lab-bl">+</div>
+        <div class="lab-corner lab-br">+</div>
 
-      <div class="lab-grid">
-        <!-- Card 1: 3D Wireframe Smartphone Gimbal -->
-        <div class="lab-card">
-          <div class="lab-card-title">
-            <span>3D CONTROLLER ORIENTATION TRACKER</span>
-            <span style="color: #38bdf8;">60 Hz Real-Time</span>
-          </div>
-          <div style="width: 100%; height: 240px; background: #0f172a; border-radius: 8px; overflow: hidden; display: flex; justify-content: center; align-items: center;">
-            <canvas id="phone-canvas" width="360" height="240"></canvas>
-          </div>
+        <div class="lab-meta-bar">
+          <div>[ SYS // FLIGHT_RECORDER ] <span class="accent">20-BYTE ZERO-COPY STREAM</span></div>
+          <div>NOTHING PHONE (3) • 100HZ REAL-TIME TELEMETRY</div>
         </div>
 
-        <!-- Card 2: Dual-Trace Oscilloscope -->
-        <div class="lab-card">
-          <div class="lab-card-title">
-            <span>DUAL-TRACE SENSOR OSCILLOSCOPE</span>
-            <span style="font-size: 0.8rem;">
-              <span style="color: #ef4444;">● Raw Sensor</span>
-              &nbsp;|&nbsp;
-              <span style="color: #10b981;">● One-Euro Filtered</span>
-            </span>
-          </div>
-          <div style="width: 100%; height: 240px; background: #0f172a; border-radius: 8px; overflow: hidden;">
-            <canvas id="osc-canvas" width="460" height="240" style="width: 100%; height: 100%;"></canvas>
-          </div>
+        <div class="lab-header">
+          <h2>TELEMETRY LAB</h2>
+          <button id="lab-close" class="lab-close-btn">[ ESC // CLOSE ]</button>
         </div>
 
-        <!-- Card 3: 20-Byte Hex Packet Inspector -->
-        <div class="lab-card" style="grid-column: span 2;">
-          <div class="lab-card-title">
-            <span>20-BYTE ZERO-COPY BINARY INSPECTOR</span>
-            <span style="color: #a855f7;">Hot Path ArrayBuffer</span>
-          </div>
-          <div id="hex-display" class="hex-dump-box">
-            01 01 00 00 | 00 00 00 00 | 00 00 00 00 | 00 00 00 00 | 00 00 00 00
-          </div>
-          <div class="bitmask-badges" id="bitmask-display">
-            <span class="bit-badge" id="bit-boost">NITRO BOOST</span>
-            <span class="bit-badge" id="bit-brake">BRAKE</span>
-            <span class="bit-badge" id="bit-shake">SHAKE TO JUMP</span>
-            <span class="bit-badge" id="bit-recal">RECALIBRATED</span>
-          </div>
-          <div id="fields-display" style="font-family: monospace; font-size: 0.85rem; color: #94a3b8; margin-top: 0.8rem;">
-            Pitch: 0.0000 | Roll: 0.0000 | Yaw Rate: 0.0000 | Seq: 0 | Client Time: 0
+        <div class="lab-grid">
+          <!-- Card 1: 3D Wireframe Smartphone Gimbal -->
+          <div class="lab-card">
+            <div class="lab-card-title">
+              <span>[ 01 // 3D ORIENTATION GIMBAL ]</span>
+              <span style="color: #ffffff;">100 HZ IMU</span>
+            </div>
+            <div style="width: 100%; height: 230px; background: #000000; border: 1px solid #222222; overflow: hidden; display: flex; justify-content: center; align-items: center;">
+              <canvas id="phone-canvas" width="360" height="230"></canvas>
+            </div>
           </div>
 
-          <!-- Card 4: NTP Sync Metrics -->
-          <div class="metrics-row">
-            <div class="metric-pill">
-              <div id="metric-rtt" class="metric-value">-- ms</div>
-              <div class="metric-label">ROUND TRIP (RTT)</div>
+          <!-- Card 2: Dual-Trace Oscilloscope -->
+          <div class="lab-card">
+            <div class="lab-card-title">
+              <span>[ 02 // SENSOR OSCILLOSCOPE ]</span>
+              <span style="font-size: 0.72rem;">
+                <span style="color: #EA3323;">■ RAW</span>
+                &nbsp;|&nbsp;
+                <span style="color: #ffffff;">■ 1-EURO FILTER</span>
+              </span>
             </div>
-            <div class="metric-pill">
-              <div id="metric-skew" class="metric-value">-- ms</div>
-              <div class="metric-label">CLOCK SKEW (θ)</div>
+            <div style="width: 100%; height: 230px; background: #000000; border: 1px solid #222222; overflow: hidden;">
+              <canvas id="osc-canvas" width="460" height="230" style="width: 100%; height: 100%;"></canvas>
             </div>
-            <div class="metric-pill">
-              <div id="metric-hz" class="metric-value">60 Hz</div>
-              <div class="metric-label">PACKET RATE</div>
+          </div>
+
+          <!-- Card 3: 20-Byte Hex Packet Inspector -->
+          <div class="lab-card" style="grid-column: span 2;">
+            <div class="lab-card-title">
+              <span>[ 03 // 20-BYTE ZERO-COPY BINARY PACKET DUMP ]</span>
+              <span style="color: #EA3323;">HOT PATH ARRAYBUFFER</span>
             </div>
-            <div class="metric-pill">
-              <div id="metric-jitter" class="metric-value">-- ms</div>
-              <div class="metric-label">ARRIVAL JITTER</div>
+            <div id="hex-display" class="hex-dump-box">
+              01 01 00 00 | 00 00 00 00 | 00 00 00 00 | 00 00 00 00 | 00 00 00 00
+            </div>
+            <div class="bitmask-badges" id="bitmask-display">
+              <span class="bit-badge" id="bit-boost">[ NITRO BOOST ]</span>
+              <span class="bit-badge" id="bit-brake">[ BRAKE ]</span>
+              <span class="bit-badge" id="bit-shake">[ SHAKE TO JUMP ]</span>
+              <span class="bit-badge" id="bit-recal">[ RECALIBRATED ]</span>
+            </div>
+            <div id="fields-display" style="font-family: var(--font-mono); font-size: 0.78rem; color: #888888; margin-top: 0.8rem; letter-spacing: 0.04em;">
+              PITCH: 0.0000 | ROLL: 0.0000 | YAW RATE: 0.0000 | SEQ: 0 | CLIENT TIME: 0
+            </div>
+
+            <!-- Card 4: NTP Sync Metrics -->
+            <div class="metrics-row">
+              <div class="metric-pill">
+                <div id="metric-rtt" class="metric-value">-- ms</div>
+                <div class="metric-label">[ RTT // ROUND TRIP ]</div>
+              </div>
+              <div class="metric-pill">
+                <div id="metric-skew" class="metric-value">-- ms</div>
+                <div class="metric-label">[ CLOCK SKEW ]</div>
+              </div>
+              <div class="metric-pill">
+                <div id="metric-hz" class="metric-value">100 Hz</div>
+                <div class="metric-label">[ PACKET RATE ]</div>
+              </div>
+              <div class="metric-pill">
+                <div id="metric-jitter" class="metric-value">-- ms</div>
+                <div class="metric-label">[ ARRIVAL JITTER ]</div>
+              </div>
             </div>
           </div>
         </div>
@@ -262,7 +357,7 @@ export class TelemetryLab {
 
   private initPhone3D(): void {
     this.phoneScene = new THREE.Scene();
-    this.phoneCamera = new THREE.PerspectiveCamera(45, 360 / 240, 0.1, 100);
+    this.phoneCamera = new THREE.PerspectiveCamera(45, 360 / 230, 0.1, 100);
     this.phoneCamera.position.set(0, 0, 7);
 
     this.phoneRenderer = new THREE.WebGLRenderer({
@@ -270,43 +365,44 @@ export class TelemetryLab {
       alpha: true,
       antialias: true,
     });
-    this.phoneRenderer.setSize(360, 240);
+    this.phoneRenderer.setSize(360, 230);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+    const ambient = new THREE.AmbientLight(0xffffff, 1.0);
     this.phoneScene.add(ambient);
 
-    const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
-    dirLight.position.set(2, 4, 3);
-    this.phoneScene.add(dirLight);
-
-    // Build 3D Smartphone Model (Nothing Phone shape)
+    // Build 3D Smartphone Model (Monochrome Brutalist Nothing Phone wireframe)
     this.phoneMesh = new THREE.Group();
 
     // Body
     const bodyGeo = new THREE.BoxGeometry(2.4, 4.4, 0.25);
-    const bodyMat = new THREE.MeshStandardMaterial({
-      color: 0x1e293b,
-      metalness: 0.8,
-      roughness: 0.2,
+    const bodyMat = new THREE.MeshBasicMaterial({
+      color: 0x050505,
     });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     this.phoneMesh.add(body);
 
-    // Screen
-    const screenGeo = new THREE.PlaneGeometry(2.2, 4.2);
-    const screenMat = new THREE.MeshBasicMaterial({
-      color: 0x0284c7,
-      wireframe: true,
-    });
-    const screen = new THREE.Mesh(screenGeo, screenMat);
-    screen.position.z = 0.13;
-    this.phoneMesh.add(screen);
-
     // Wireframe edges
     const wireGeo = new THREE.EdgesGeometry(bodyGeo);
-    const wireMat = new THREE.LineBasicMaterial({ color: 0x38bdf8 });
+    const wireMat = new THREE.LineBasicMaterial({ color: 0xffffff });
     const wire = new THREE.LineSegments(wireGeo, wireMat);
     this.phoneMesh.add(wire);
+
+    // Screen glyph outline
+    const screenGeo = new THREE.PlaneGeometry(2.0, 3.8);
+    const screenWireGeo = new THREE.EdgesGeometry(screenGeo);
+    const screenWireMat = new THREE.LineBasicMaterial({ color: 0x444444 });
+    const screenWire = new THREE.LineSegments(screenWireGeo, screenWireMat);
+    screenWire.position.z = 0.13;
+    this.phoneMesh.add(screenWire);
+
+    // Red orientation ray
+    const rayGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 0, 2.5),
+    ]);
+    const rayMat = new THREE.LineBasicMaterial({ color: 0xEA3323 });
+    const ray = new THREE.Line(rayGeo, rayMat);
+    this.phoneMesh.add(ray);
 
     this.phoneScene.add(this.phoneMesh);
   }
@@ -339,7 +435,7 @@ export class TelemetryLab {
       recalEl.classList.toggle('active', hasButton(frame.buttonBitmask, BUTTON_RECALIBRATE));
 
       // 3. Update Fields summary
-      this.fieldsDisplayEl.textContent = `Pitch: ${frame.calibratedPitch.toFixed(4)} | Roll: ${frame.calibratedRoll.toFixed(4)} | Yaw Rate: ${frame.rawYawRate.toFixed(4)} | Seq: ${frame.sequenceNumber} | Time: ${frame.clientTimestamp}`;
+      this.fieldsDisplayEl.textContent = `PITCH: ${frame.calibratedPitch.toFixed(4)} | ROLL: ${frame.calibratedRoll.toFixed(4)} | YAW RATE: ${frame.rawYawRate.toFixed(4)} | SEQ: ${frame.sequenceNumber} | TIME: ${frame.clientTimestamp}`;
 
       // 4. Update 3D Phone Mesh Rotation
       if (this.isVisible) {
@@ -368,34 +464,44 @@ export class TelemetryLab {
     const w = this.oscCanvas.width;
     const h = this.oscCanvas.height;
 
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, w, h);
 
     // Draw Grid
-    ctx.strokeStyle = '#1e293b';
+    ctx.strokeStyle = '#181818';
     ctx.lineWidth = 1;
+
+    // Horizontal center line
     ctx.beginPath();
     ctx.moveTo(0, h / 2);
     ctx.lineTo(w, h / 2);
     ctx.stroke();
 
+    // Vertical subdivisions
+    const gridCols = 8;
+    for (let c = 1; c < gridCols; c++) {
+      ctx.beginPath();
+      ctx.moveTo((w / gridCols) * c, 0);
+      ctx.lineTo((w / gridCols) * c, h);
+      ctx.stroke();
+    }
+
     const stepX = w / (this.maxHistoryLen - 1);
 
-    // Trace 1: Raw Sensor (Red)
-    ctx.strokeStyle = '#ef4444';
+    // Trace 1: Raw Sensor (Nothing Red #EA3323)
+    ctx.strokeStyle = '#EA3323';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     for (let i = 0; i < this.rawHistory.length; i++) {
       const x = i * stepX;
-      // Map [-1.0, 1.0] to [h, 0]
       const y = h / 2 - this.rawHistory[i] * (h / 2.2);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
 
-    // Trace 2: Filtered Output (Neon Green)
-    ctx.strokeStyle = '#10b981';
+    // Trace 2: Filtered Output (Crisp White #ffffff)
+    ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2.0;
     ctx.beginPath();
     for (let i = 0; i < this.filteredHistory.length; i++) {
