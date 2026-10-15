@@ -34,8 +34,8 @@ export class LobbyUI {
         #lobby-modal {
           position: absolute;
           inset: 0;
-          background: rgba(11, 15, 25, 0.94);
-          backdrop-filter: blur(12px);
+          background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(56, 189, 248, 0.08), transparent 50%), rgba(11, 15, 25, 0.94);
+          backdrop-filter: blur(16px);
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -45,9 +45,12 @@ export class LobbyUI {
           color: #f3f4f6;
         }
         .lobby-panel {
-          background: #161e2e;
-          border: 1px solid #374151;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+          position: relative;
+          background: rgba(22, 30, 46, 0.85);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
           border-radius: 16px;
           max-width: 780px;
           width: 100%;
@@ -55,6 +58,29 @@ export class LobbyUI {
           display: flex;
           flex-direction: column;
           gap: 1.5rem;
+          overflow: hidden;
+        }
+        .lobby-panel::before {
+          content: '';
+          position: absolute;
+          inset: -1px;
+          border-radius: 17px;
+          padding: 1.5px;
+          background: conic-gradient(from var(--border-angle, 0deg), transparent 70%, #38bdf8 88%, #818cf8 95%, transparent 100%);
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          pointer-events: none;
+          animation: rotate-border 6s linear infinite;
+        }
+        @property --border-angle {
+          syntax: '<angle>';
+          inherits: false;
+          initial-value: 0deg;
+        }
+        @keyframes rotate-border {
+          to { --border-angle: 360deg; }
         }
         .lobby-header {
           text-align: center;
@@ -283,10 +309,40 @@ export class LobbyUI {
     labBtn.addEventListener('click', () => {
       this.callbacks.onOpenTelemetryLab();
     });
+
+    // ibelick / React Bits cursor spotlight tracking
+    const modal = this.container.querySelector('#lobby-modal') as HTMLElement;
+    if (modal) {
+      modal.addEventListener('mousemove', (e) => {
+        const rect = modal.getBoundingClientRect();
+        modal.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+        modal.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+      });
+    }
+  }
+
+  private animateDecryptedText(targetText: string): void {
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let iteration = 0;
+    const interval = setInterval(() => {
+      this.roomCodeElement.textContent = targetText
+        .split('')
+        .map((letter, index) => {
+          if (index < iteration) {
+            return targetText[index];
+          }
+          return chars[Math.floor(Math.random() * chars.length)];
+        })
+        .join(' ');
+      if (iteration >= targetText.length) {
+        clearInterval(interval);
+      }
+      iteration += 1 / 2;
+    }, 40);
   }
 
   public setRoomInfo(roomCode: string, lanIp: string, port: number): void {
-    this.roomCodeElement.textContent = roomCode;
+    this.animateDecryptedText(roomCode);
 
     // Payload formatted for phone scanner:
     const payload = JSON.stringify({
