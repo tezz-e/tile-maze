@@ -75,13 +75,13 @@ export class GameHUD {
           z-index: 10;
         }
 
-        /* Frosted Smoked Acrylic Glass Surface - Rounded organic capsules */
+        /* Frosted Smoked Acrylic Glass Surface - Rounded squircle capsules */
         .hud-glass-surface {
           background: rgba(12, 12, 16, 0.78);
           backdrop-filter: blur(28px) saturate(180%);
           -webkit-backdrop-filter: blur(28px) saturate(180%);
           border: 1px solid rgba(255, 255, 255, 0.16);
-          border-radius: 20px;
+          border-radius: 12px;
           box-shadow: 
             inset 0 1px 0 rgba(255, 255, 255, 0.22),
             0 12px 32px rgba(0, 0, 0, 0.6);
@@ -105,7 +105,7 @@ export class GameHUD {
           flex-direction: column;
           gap: 4px;
           min-width: 190px;
-          border-radius: 22px;
+          border-radius: 12px;
         }
 
         .hud-meta-label {
@@ -154,10 +154,10 @@ export class GameHUD {
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
           border: 1px solid rgba(255, 255, 255, 0.16);
-          border-radius: 9999px;
+          border-radius: 8px;
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
           color: #ffffff;
-          padding: 9px 18px;
+          padding: 8px 16px;
           font-family: var(--font-mono);
           font-size: 0.75rem;
           font-weight: 700;
@@ -182,7 +182,7 @@ export class GameHUD {
           flex-direction: column;
           align-items: flex-end;
           min-width: 150px;
-          border-radius: 22px;
+          border-radius: 12px;
         }
 
         .hud-checkpoint-digits {
@@ -204,7 +204,7 @@ export class GameHUD {
         .cp-pill {
           width: 14px;
           height: 5px;
-          border-radius: 9999px;
+          border-radius: 3px;
           background: rgba(255, 255, 255, 0.2);
           transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
@@ -232,7 +232,7 @@ export class GameHUD {
           backdrop-filter: blur(24px);
           -webkit-backdrop-filter: blur(24px);
           border: 1px solid rgba(234, 51, 35, 0.65);
-          border-radius: 9999px;
+          border-radius: 10px;
           color: #ffffff;
           padding: 0.75rem 2.2rem;
           font-size: 0.92rem;
@@ -282,32 +282,32 @@ export class GameHUD {
           position: absolute;
           inset: 4px 14px 4px 4px;
           background: rgba(12, 12, 16, 0.88);
-          border-radius: 9999px;
+          border-radius: 10px;
         }
 
         .island-droplet {
           position: absolute;
-          right: 2px;
+          right: 16px;
           top: 50%;
-          width: 18px;
-          height: 18px;
-          margin-top: -9px;
+          width: 14px;
+          height: 14px;
+          margin-top: -7px;
           border-radius: 50%;
           background: #EA3323;
-          opacity: 0.85;
+          opacity: 0;
           box-shadow: 0 0 12px #EA3323;
-          transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.25);
-          will-change: transform;
+          transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.25), opacity 0.25s;
+          will-change: transform, opacity;
         }
 
         .hud-tilt-pill {
           position: relative;
           z-index: 5;
-          padding: 12px 22px;
+          padding: 10px 18px;
           display: flex;
           align-items: center;
-          gap: 14px;
-          border-radius: 9999px;
+          gap: 12px;
+          border-radius: 10px;
           background: rgba(12, 12, 16, 0.78);
           backdrop-filter: blur(28px) saturate(180%);
           -webkit-backdrop-filter: blur(28px) saturate(180%);
@@ -369,7 +369,7 @@ export class GameHUD {
           flex-direction: column;
           align-items: flex-end;
           min-width: 160px;
-          border-radius: 22px;
+          border-radius: 12px;
         }
 
         .speedo-number {
@@ -392,7 +392,7 @@ export class GameHUD {
         .speedo-meter-track {
           width: 140px;
           height: 6px;
-          border-radius: 9999px;
+          border-radius: 4px;
           background: rgba(255, 255, 255, 0.12);
           overflow: hidden;
           margin-top: 6px;
@@ -403,7 +403,7 @@ export class GameHUD {
         .speedo-meter-fill {
           height: 100%;
           width: 0%;
-          border-radius: 9999px;
+          border-radius: 4px;
           background: linear-gradient(90deg, #ffffff 0%, #EA3323 100%);
           transition: width 0.08s ease-out;
           box-shadow: 0 0 12px rgba(234, 51, 35, 0.6);
@@ -430,7 +430,7 @@ export class GameHUD {
           backdrop-filter: blur(28px) saturate(180%);
           -webkit-backdrop-filter: blur(28px) saturate(180%);
           border: 1.5px solid rgba(255, 255, 255, 0.2);
-          border-radius: 28px;
+          border-radius: 16px;
           box-shadow: 
             inset 0 1px 0 rgba(255, 255, 255, 0.25),
             0 40px 90px rgba(0, 0, 0, 0.95);
@@ -477,7 +477,7 @@ export class GameHUD {
           background: #ffffff;
           color: #000000;
           border: 1.5px solid #ffffff;
-          border-radius: 9999px;
+          border-radius: 8px;
           padding: 0.95rem 1.8rem;
           font-family: var(--font-mono);
           font-size: 0.95rem;
@@ -500,7 +500,7 @@ export class GameHUD {
         .victory-btn-secondary {
           background: rgba(255, 255, 255, 0.06);
           border: 1px solid rgba(255, 255, 255, 0.16);
-          border-radius: 9999px;
+          border-radius: 8px;
           color: #ffffff;
           padding: 0.85rem 1.6rem;
           font-family: var(--font-mono);
@@ -692,18 +692,21 @@ export class GameHUD {
     if (speedKmH > 35) {
       this.tiltPillEl.classList.add('pulse');
       if (this.islandDropletEl) {
+        this.islandDropletEl.style.opacity = '0.9';
         this.islandDropletEl.style.transform = 'translateX(14px) scale(1.2)';
       }
-    } else if (speedKmH > 15) {
+    } else if (speedKmH > 10) {
       this.tiltPillEl.classList.remove('pulse');
       if (this.islandDropletEl) {
-        const offset = ((speedKmH - 15) / 20) * 8;
-        this.islandDropletEl.style.transform = `translateX(${offset}px) scale(1.05)`;
+        const offset = ((speedKmH - 10) / 25) * 8;
+        this.islandDropletEl.style.opacity = '0.75';
+        this.islandDropletEl.style.transform = `translateX(${offset}px) scale(1.0)`;
       }
     } else {
       this.tiltPillEl.classList.remove('pulse');
       if (this.islandDropletEl) {
-        this.islandDropletEl.style.transform = 'translateX(0px) scale(1)';
+        this.islandDropletEl.style.opacity = '0';
+        this.islandDropletEl.style.transform = 'translateX(0px) scale(0.8)';
       }
     }
   }
