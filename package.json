@@ -1,0 +1,26 @@
+{
+  "name": "tiltmaze-kinetic",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tiltmaze: Kinetic Edition - Motion-Controlled 3D Physics Labyrinth & Telemetry Ecosystem",
+  "workspaces": [
+    "packages/*",
+    "server",
+    "game"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -p \"[{name}]\" -n \"SERVER,GAME\" -c \"cyan,magenta\" \"npm run dev:server\" \"npm run dev:game\"",
+    "dev:server": "npm --workspace=server run dev",
+    "dev:game": "npm --workspace=game run dev",
+    "build": "npm run --workspaces --if-present build",
+    "start": "npm --workspace=server start",
+    "test": "vitest run",
+    "typecheck": "npm run --workspaces --if-present typecheck",
+    "lint": "npm run typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  }
+}
