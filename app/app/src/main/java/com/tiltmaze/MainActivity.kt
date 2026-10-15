@@ -3,7 +3,9 @@ package com.tiltmaze
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -190,7 +192,7 @@ fun ConnectionScreen(
         Column(
             modifier = Modifier
                 .widthIn(max = 480.dp)
-                .border(androidx.compose.foundation.BorderStroke(1.dp, Color.White), RoundedCornerShape(0.dp))
+                .border(BorderStroke(1.dp, Color.White), RoundedCornerShape(0.dp))
                 .background(Color(0xFF080808))
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -239,7 +241,7 @@ fun ConnectionScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEA3323)), RoundedCornerShape(0.dp))
+                        .border(BorderStroke(1.dp, Color(0xFFEA3323)), RoundedCornerShape(0.dp))
                         .background(Color(0xFF110000))
                         .padding(8.dp),
                     contentAlignment = Alignment.Center
