@@ -62,16 +62,23 @@ export class PhysicsWorld {
    * spring bouncers, boost ramps, and golden ring checkpoints.
    */
   public loadLevel(level: LevelDef): { startPos: { x: number; y: number; z: number } } {
-    // Clear previous colliders and rigid bodies
-    if (this.marbleBody) {
-      this.world.removeRigidBody(this.marbleBody);
+    // Clear ALL previous rigid bodies and colliders from the Rapier physics world
+    const bodiesToRemove: RAPIER.RigidBody[] = [];
+    this.world.forEachRigidBody((body) => {
+      bodiesToRemove.push(body);
+    });
+    for (const body of bodiesToRemove) {
+      this.world.removeRigidBody(body);
     }
-    for (const spin of this.spinners) {
-      this.world.removeRigidBody(spin.rigidBody);
+
+    const collidersToRemove: RAPIER.Collider[] = [];
+    this.world.forEachCollider((col) => {
+      collidersToRemove.push(col);
+    });
+    for (const col of collidersToRemove) {
+      this.world.removeCollider(col, false);
     }
-    for (const bnc of this.bouncers) {
-      this.world.removeRigidBody(bnc.rigidBody);
-    }
+
     this.spinners = [];
     this.bouncers = [];
     this.wallColliders = [];
@@ -209,6 +216,7 @@ export class PhysicsWorld {
       .setTranslation(startX, marbleRadius + 0.1, startZ)
       .setLinearDamping(0.3)
       .setAngularDamping(0.18)
+      .setCanSleep(false) // Never sleep during gameplay
       .setCcdEnabled(true); // Continuous Collision Detection
     this.marbleBody = this.world.createRigidBody(marbleDesc);
 
@@ -236,6 +244,9 @@ export class PhysicsWorld {
     const gy = BASE_GRAVITY * Math.cos(pitchRad) * Math.cos(rollRad);
 
     this.world.gravity = { x: gx, y: gy, z: gz };
+    if (this.marbleBody) {
+      this.marbleBody.wakeUp();
+    }
   }
 
   /**

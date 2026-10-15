@@ -80,4 +80,24 @@ describe('PhysicsWorld - Rotated Gravity & Stability', () => {
     // Vertical velocity should NOT increase because marble is not grounded
     expect(velMidAir.y).toBeCloseTo(0, 2);
   });
+
+  it('allows marble to move freely in Level 2 after transitioning from Level 1', () => {
+    physics.loadLevel(LEVELS[0]);
+    physics.step(0.016);
+
+    // Transition to Level 2
+    physics.loadLevel(LEVELS[1]);
+    const p0 = physics.getMarblePosition();
+
+    // In Level 2, the open path from 'S' is towards the right (+roll) along Row 9
+    physics.updateGravity(0.0, 1.0); // Tilt right
+
+    for (let i = 0; i < 40; i++) {
+      physics.step(0.016);
+    }
+
+    const p1 = physics.getMarblePosition();
+    const distMoved = Math.hypot(p1.x - p0.x, p1.z - p0.z);
+    expect(distMoved).toBeGreaterThan(0.2);
+  });
 });
