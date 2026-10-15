@@ -18,6 +18,7 @@ local.properties
 .navigation/
 captures/
 output.json
+*.apk
 
 # OS
 .DS_Store
