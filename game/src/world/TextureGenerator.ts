@@ -378,4 +378,30 @@ export class TextureGenerator {
     texture.needsUpdate = true;
     return texture;
   }
+
+  /**
+   * Generates a 128x128 soft radial dark blob shadow for the marble.
+   */
+  public static createBlobShadow(): THREE.Texture {
+    const c = this.createCanvas(128, 128);
+    if (!c) {
+      const tex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 180]), 1, 1);
+      tex.needsUpdate = true;
+      return tex;
+    }
+    const { canvas, ctx } = c;
+    const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0.0, 'rgba(15, 23, 42, 0.75)');
+    grad.addColorStop(0.45, 'rgba(15, 23, 42, 0.4)');
+    grad.addColorStop(0.8, 'rgba(15, 23, 42, 0.1)');
+    grad.addColorStop(1.0, 'rgba(15, 23, 42, 0.0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(64, 64, 64, 0, Math.PI * 2);
+    ctx.fill();
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
+  }
 }

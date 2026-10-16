@@ -12,6 +12,15 @@ import { GameHUD } from './ui/GameHUD.js';
 import { TelemetryLab } from './ui/TelemetryLab.js';
 import { ClickSpark } from './ui/ClickSpark.js';
 import { LEVELS, type LevelDef, checkCoachHints } from './levels/LevelData.js';
+import { EffectsManager } from './world/EffectsManager.js';
+
+export const GAME_FEEL_CONFIG = {
+  nitroFovEnabled: true,
+  nitroShakeEnabled: true,
+  baseFov: 56,
+  boostFov: 66,
+  boostShakeIntensity: 0.035,
+};
 
 class GameApp {
   // Three.js
@@ -20,14 +29,17 @@ class GameApp {
   private renderer!: THREE.WebGLRenderer;
   private environment!: SkyEnvironment;
 
-  // Follow Camera (Bruno Simon Lerp Target Formula)
+  // Follow Camera (Bruno Simon Lerp Target Formula - Preallocated for zero per-frame garbage)
   private cameraPosition = new THREE.Vector3();
   private cameraTarget = new THREE.Vector3();
+  private targetCamPos = new THREE.Vector3();
+  private targetCamTarget = new THREE.Vector3();
 
   // Game Systems
   private physics!: PhysicsWorld;
   private board!: Board;
   private marble!: Marble;
+  private effectsManager!: EffectsManager;
   private sounds!: SoundSynthesizer;
   private keyboard!: KeyboardController;
   private pitchFilter = new OneEuroFilter(1.2, 0.4);
@@ -48,6 +60,8 @@ class GameApp {
   private smoothedPitch = 0;
   private smoothedRoll = 0;
   private sessionShownHints = new Set<string>();
+  private wasAirborne = false;
+  private prevLinvelY = 0;
 
   constructor() {
     this.initGraphics();
@@ -102,6 +116,7 @@ class GameApp {
         this.hud.setCheckpoints(cp.current, cp.total);
         this.hud.showToast(`CHECKPOINT ${idx + 1} REACHED!`, '#38bdf8');
         this.network.sendHaptic(1, 'success', 80);
+        this.effectsManager.triggerCheckpointBurst(this.physics.getMarblePosition());
       },
       onGoalReached: () => {
         this.sounds.playWin();
@@ -126,6 +141,9 @@ class GameApp {
 
     this.marble = new Marble();
     this.scene.add(this.marble.mesh);
+
+    this.effectsManager = new EffectsManager();
+    this.scene.add(this.effectsManager.group);
 
     // 3. Controllers
     this.keyboard = new KeyboardController({
@@ -202,6 +220,9 @@ class GameApp {
     if (level.theme) {
       this.environment.applyTheme(level.theme, isNight);
     }
+    this.effectsManager?.reset();
+    this.wasAirborne = false;
+    this.prevLinvelY = 0;
     this.board.buildLevel(level);
     const { startPos } = this.physics.loadLevel(level);
     this.marble.mesh.position.set(startPos.x, startPos.y, startPos.z);
@@ -335,6 +356,18 @@ class GameApp {
         this.hud.showCoachToast(coachHint);
       }
 
+      // Landing detection
+      const isAirborne = marblePos.y > 0.44;
+      if (this.wasAirborne && !isAirborne && this.prevLinvelY < -1.0) {
+        this.effectsManager.triggerLandingPuff(marblePos);
+      }
+      this.wasAirborne = isAirborne;
+      const currentVel = this.physics.marbleBody ? this.physics.marbleBody.linvel() : { y: 0 };
+      this.prevLinvelY = currentVel.y;
+
+      // Update pooled particle effects (trail, radial burst, landing dust, blob shadow)
+      this.effectsManager.update(dt, marblePos, speed, boost);
+
       // 5. Visually tilt the 3D board
       this.board.setTilt(finalPitch, finalRoll);
 
@@ -342,16 +375,31 @@ class GameApp {
       this.board.update(dt, this.physics.getSpinners());
 
       // 7. Smooth 3rd-person spring follow-cam (Cinematic Low-Angle Camera)
-      const targetCamPos = new THREE.Vector3(marblePos.x, marblePos.y + 1.45, marblePos.z + 3.2);
-      const targetCamTarget = new THREE.Vector3(marblePos.x, marblePos.y + 0.65, marblePos.z - 5.5);
+      this.targetCamPos.set(marblePos.x, marblePos.y + 1.45, marblePos.z + 3.2);
+      this.targetCamTarget.set(marblePos.x, marblePos.y + 0.65, marblePos.z - 5.5);
 
-      this.cameraPosition.lerp(targetCamPos, 1 - Math.exp(-6.5 * dt));
-      this.cameraTarget.lerp(targetCamTarget, 1 - Math.exp(-8.5 * dt));
+      this.cameraPosition.lerp(this.targetCamPos, 1 - Math.exp(-6.5 * dt));
+      this.cameraTarget.lerp(this.targetCamTarget, 1 - Math.exp(-8.5 * dt));
 
       this.camera.position.copy(this.cameraPosition);
       this.camera.lookAt(this.cameraTarget);
       // Dynamic camera banking into steering turns
       this.camera.rotation.z = -finalRoll * 0.08;
+
+      // Nitro FOV & Shake (Toggleable via GAME_FEEL_CONFIG)
+      if (GAME_FEEL_CONFIG.nitroFovEnabled) {
+        const targetFov = boost ? GAME_FEEL_CONFIG.boostFov : GAME_FEEL_CONFIG.baseFov;
+        if (Math.abs(this.camera.fov - targetFov) > 0.02) {
+          this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, targetFov, 1 - Math.exp(-7.0 * dt));
+          this.camera.updateProjectionMatrix();
+        }
+      }
+
+      if (GAME_FEEL_CONFIG.nitroShakeEnabled && boost) {
+        const s = GAME_FEEL_CONFIG.boostShakeIntensity;
+        this.camera.position.x += (Math.random() - 0.5) * s;
+        this.camera.position.y += (Math.random() - 0.5) * s;
+      }
 
       // Track directional sun shadow camera to follow marble
       this.environment.dirLight.position.set(marblePos.x + 16, marblePos.y + 28, marblePos.z + 16);
