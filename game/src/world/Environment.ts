@@ -430,31 +430,36 @@ export class SkyEnvironment {
     });
   }
 
+  private decorativeRings: THREE.Mesh[] = [];
+
   /**
-   * Spawns decorative floating golden rings in the sky.
+   * Spawns decorative celestial rings in the deep background far from the track,
+   * clearly distinguished from golden course checkpoints (slender, muted silver-slate, slow rotation).
    */
   private createDecorativeSkyRings(): void {
     const ringMat = new THREE.MeshStandardMaterial({
-      color: 0xfacc15,
-      metalness: 0.95,
-      roughness: 0.15,
-      emissive: 0xca8a04,
-      emissiveIntensity: 0.4,
+      color: 0x94a3b8,
+      metalness: 0.65,
+      roughness: 0.35,
+      emissive: 0x000000,
+      emissiveIntensity: 0.0,
     });
     const skyRings = [
-      { x: -10, y: 7, z: -15, scale: 1.6, rotY: 0.3 },
-      { x: 12, y: 8, z: -22, scale: 2.0, rotY: -0.4 },
-      { x: -18, y: 11, z: -32, scale: 2.2, rotY: 0.8 },
-      { x: 15, y: 6, z: 5, scale: 1.4, rotY: 1.1 },
+      { x: -32, y: 15, z: -26, scale: 0.85, rotY: 0.4 },
+      { x: 34, y: 18, z: -38, scale: 1.0, rotY: -0.5 },
+      { x: -38, y: 19, z: 16, scale: 0.8, rotY: 0.8 },
+      { x: 36, y: 16, z: 24, scale: 0.9, rotY: 1.2 },
     ];
 
+    this.decorativeRings = [];
     skyRings.forEach((r) => {
-      const torusGeo = new THREE.TorusGeometry(0.8 * r.scale, 0.12 * r.scale, 16, 32);
+      const torusGeo = new THREE.TorusGeometry(0.55 * r.scale, 0.045 * r.scale, 16, 32);
       const ringMesh = new THREE.Mesh(torusGeo, ringMat);
       ringMesh.position.set(r.x, r.y, r.z);
       ringMesh.rotation.y = r.rotY;
-      ringMesh.castShadow = true;
+      ringMesh.castShadow = false;
       this.skyRingsGroup.add(ringMesh);
+      this.decorativeRings.push(ringMesh);
     });
   }
 
@@ -544,6 +549,11 @@ export class SkyEnvironment {
   public update(timeSec: number): void {
     for (const c of this.cloudClusters) {
       c.mesh.position.y = Math.sin(timeSec * 0.4 + c.phase) * 0.3;
+    }
+    for (let i = 0; i < this.decorativeRings.length; i++) {
+      const ring = this.decorativeRings[i];
+      ring.rotation.y += 0.002 * (i % 2 === 0 ? 1 : -1);
+      ring.rotation.x = Math.sin(timeSec * 0.15 + i) * 0.12;
     }
   }
 }
