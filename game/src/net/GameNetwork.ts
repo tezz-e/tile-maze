@@ -64,6 +64,10 @@ export class GameNetwork {
   private clockSkewMs: number = 0;
   private ntpInterval: number | null = null;
 
+  // Previous raw button bits per slot for rising-edge detection
+  private prevRawShake: Map<number, boolean> = new Map();
+  private prevRawRecalibrate: Map<number, boolean> = new Map();
+
   constructor(callbacks: NetworkCallbacks) {
     this.callbacks = callbacks;
   }
@@ -111,7 +115,7 @@ export class GameNetwork {
     };
   }
 
-  private handleBinaryTelemetry(buffer: ArrayBuffer): void {
+  public handleBinaryTelemetry(buffer: ArrayBuffer): void {
     if (buffer.byteLength < PACKET_SIZE) return;
 
     try {
@@ -147,9 +151,23 @@ export class GameNetwork {
 
       const boost = hasButton(frame.buttonBitmask, BUTTON_BOOST);
       const brake = hasButton(frame.buttonBitmask, BUTTON_BRAKE);
+
+      const rawShake = hasButton(frame.buttonBitmask, BUTTON_SHAKE);
+      const rawRecalibrate = hasButton(frame.buttonBitmask, BUTTON_RECALIBRATE);
+
+      const prevShake = this.prevRawShake.get(slot) ?? false;
+      const prevRecalibrate = this.prevRawRecalibrate.get(slot) ?? false;
+
+      this.prevRawShake.set(slot, rawShake);
+      this.prevRawRecalibrate.set(slot, rawRecalibrate);
+
+      // Rising-edge detection: pulse is triggered only when bit transitions from 0 to 1
+      const shakeEdge = rawShake && !prevShake;
+      const recalibrateEdge = rawRecalibrate && !prevRecalibrate;
+
       const prev = this.controllers.get(slot);
-      const shake = (prev?.shake ?? false) || hasButton(frame.buttonBitmask, BUTTON_SHAKE);
-      const recalibrate = (prev?.recalibrate ?? false) || hasButton(frame.buttonBitmask, BUTTON_RECALIBRATE);
+      const shake = (prev?.shake ?? false) || shakeEdge;
+      const recalibrate = (prev?.recalibrate ?? false) || recalibrateEdge;
 
       const state: ControllerState = {
         playerSlot: slot,
@@ -186,19 +204,27 @@ export class GameNetwork {
         break;
 
       case 'PLAYER_JOINED':
+        this.prevRawShake.delete(msg.playerSlot);
+        this.prevRawRecalibrate.delete(msg.playerSlot);
         this.callbacks.onPlayerJoined(msg);
         break;
 
       case 'PLAYER_DISCONNECTED':
+        this.prevRawShake.delete(msg.playerSlot);
+        this.prevRawRecalibrate.delete(msg.playerSlot);
         this.callbacks.onPlayerDisconnected(msg);
         break;
 
       case 'PLAYER_RECONNECTED':
+        this.prevRawShake.delete(msg.playerSlot);
+        this.prevRawRecalibrate.delete(msg.playerSlot);
         this.callbacks.onPlayerReconnected(msg);
         break;
 
       case 'PLAYER_LEFT':
         this.controllers.delete(msg.playerSlot);
+        this.prevRawShake.delete(msg.playerSlot);
+        this.prevRawRecalibrate.delete(msg.playerSlot);
         this.callbacks.onPlayerLeft(msg);
         break;
 
