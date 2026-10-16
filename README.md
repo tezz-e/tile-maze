@@ -61,14 +61,17 @@ Download the latest debug APK from [GitHub Releases](https://github.com/tezz-e/t
 
 #### Nothing Phone Glyph Matrix Setup (Optional)
 If running on a Nothing Phone (3) and utilizing the 25×25 Glyph Matrix LED mini-map:
-1. Obtain an API key from the Nothing Developer Portal.
-2. In `app/app/src/main/AndroidManifest.xml`, replace `YOUR_NOTHING_API_KEY_HERE` with your key:
-   ```xml
-   <meta-data
-       android:name="NothingKey"
-       android:value="YOUR_ACTUAL_KEY" />
-   ```
-On non-Nothing Android devices or when unconfigured, the app falls back gracefully to on-screen UI and standard vibration haptics.
+The build system injects the `NothingKey` into the manifest automatically from one of three sources (in priority order):
+1. **Gradle property:** Pass `-PNOTHING_API_KEY=your_key` or set `NOTHING_API_KEY=your_key` in `~/.gradle/gradle.properties`.
+2. **`local.properties`:** Add `NOTHING_API_KEY=your_key` to `app/local.properties` (untracked; see `local.properties.example`).
+3. **Default development fallback:** `"test"` (Nothing's debug key).
+
+> [!TIP]
+> The default `"test"` key works when Glyph debug mode is enabled on the phone via ADB:
+> ```bash
+> adb shell settings put global nt_glyph_interface_debug_enable 1
+> ```
+> If the Glyph service or hardware is unavailable, the app keeps working seamlessly with the on-screen UI and standard vibration haptics.
 
 ---
 
@@ -76,7 +79,7 @@ On non-Nothing Android devices or when unconfigured, the app falls back graceful
 
 - **60Hz Telemetry Stream:** The Android app captures orientation updates and streams 20-byte binary packets over WebSocket at a steady 60Hz period scheduled against a monotonic clock (`System.nanoTime`).
 - **Drop-When-Backed-Up:** To prevent packet queuing and rubber-banding during Wi-Fi jitter, frames are dropped on the sender if the socket send queue exceeds 512 bytes, and dropped on the relay server if the host socket buffer exceeds 2KB.
-- **Gravity-Relative Neutral Calibration:** Calibration samples screen-space gravity over a ~300ms stillness window (rejecting hand motion > 6°) to establish an orthonormal coordinate frame without gimbal lock or Euler cross-talk.
+- **Gravity-Relative Neutral Calibration:** Calibration samples screen-space gravity over a stillness window (~300ms) that restarts whenever motion exceeds ~3°. If no still window occurs within 800ms, the calibration is only accepted when all samples are within ~6° of their mean; otherwise the previous calibration is kept and the app shows "Hold still and tap Calibrate again".
 - **Sequence Numbering & Discarding:** Telemetry packets carry an 8-bit circular sequence counter; out-of-order and duplicate packets are discarded on arrival with circular wraparound handling.
 
 > [!NOTE]

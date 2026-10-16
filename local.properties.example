@@ -1,0 +1,8 @@
+## This file shows example local configuration for the Android project.
+## Copy to app/local.properties and customize as needed.
+
+# Location of the Android SDK (configured automatically by Android Studio)
+# sdk.dir=/path/to/Android/Sdk
+
+# Optional: Nothing Phone Developer API Key for Glyph Matrix
+# NOTHING_API_KEY=your_actual_api_key_here

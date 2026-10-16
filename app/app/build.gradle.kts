@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -8,6 +10,26 @@ android {
     namespace = "com.tiltmaze"
     compileSdk = 35
 
+    val nothingKey: String = run {
+        // 1. Gradle property: -PNOTHING_API_KEY=... or ~/.gradle/gradle.properties
+        val gradleProp = findProperty("NOTHING_API_KEY") as? String
+        if (!gradleProp.isNullOrBlank()) return@run gradleProp
+
+        // 2. local.properties file
+        val localPropsFile = rootProject.file("local.properties").takeIf { it.exists() }
+            ?: project.file("local.properties").takeIf { it.exists() }
+            ?: rootProject.file("../local.properties").takeIf { it.exists() }
+        if (localPropsFile != null) {
+            val properties = Properties()
+            localPropsFile.inputStream().use { properties.load(it) }
+            val prop = properties.getProperty("NOTHING_API_KEY")
+            if (!prop.isNullOrBlank()) return@run prop
+        }
+
+        // 3. Fallback to Nothing debug key
+        "test"
+    }
+
     defaultConfig {
         applicationId = "com.tiltmaze"
         minSdk = 26
@@ -16,6 +38,7 @@ android {
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["nothingKey"] = nothingKey
     }
 
     buildTypes {

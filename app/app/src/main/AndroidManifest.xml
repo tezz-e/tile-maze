@@ -24,7 +24,7 @@
         android:usesCleartextTraffic="true">
         <meta-data
             android:name="NothingKey"
-            android:value="YOUR_NOTHING_API_KEY_HERE" />
+            android:value="${nothingKey}" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
