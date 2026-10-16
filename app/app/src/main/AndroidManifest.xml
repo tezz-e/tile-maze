@@ -11,11 +11,11 @@
     <uses-permission android:name="com.nothing.ketchum.permission.ENABLE" />
 
     <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="true" />
-    <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="true" />
+    <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@android:drawable/sym_def_app_icon"
         android:label="Tiltmaze"
         android:roundIcon="@android:drawable/sym_def_app_icon"
@@ -24,7 +24,7 @@
         android:usesCleartextTraffic="true">
         <meta-data
             android:name="NothingKey"
-            android:value="test" />
+            android:value="YOUR_NOTHING_API_KEY_HERE" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

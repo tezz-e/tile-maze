@@ -59,6 +59,17 @@ Download the latest debug APK from [GitHub Releases](https://github.com/tezz-e/t
 3. Tap **"CALIBRATE"** to set your comfortable neutral holding posture.
 4. Tilt to steer the marble, shake to jump over obstacles, and hold **"NITRO"** to accelerate!
 
+#### Nothing Phone Glyph Matrix Setup (Optional)
+If running on a Nothing Phone (3) and utilizing the 25×25 Glyph Matrix LED mini-map:
+1. Obtain an API key from the Nothing Developer Portal.
+2. In `app/app/src/main/AndroidManifest.xml`, replace `YOUR_NOTHING_API_KEY_HERE` with your key:
+   ```xml
+   <meta-data
+       android:name="NothingKey"
+       android:value="YOUR_ACTUAL_KEY" />
+   ```
+On non-Nothing Android devices or when unconfigured, the app falls back gracefully to on-screen UI and standard vibration haptics.
+
 ---
 
 ## ⏱️ Latency & Calibration
