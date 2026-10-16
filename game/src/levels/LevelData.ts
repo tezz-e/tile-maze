@@ -27,6 +27,7 @@ export interface LevelTheme {
   wallStripeColor: number;
   wallStripeEmissive?: number;
   wallStripeEmissiveIntensity?: number;
+  pillarPalette: number[];
 }
 
 export interface LevelDef {
@@ -102,6 +103,7 @@ export const LEVELS: LevelDef[] = [
       wallStripeColor: 0x38bdf8, // Bright azure top stripe
       wallStripeEmissive: 0x0284c7,
       wallStripeEmissiveIntensity: 0.15,
+      pillarPalette: [0xfbcfe8, 0xbae6fd, 0xa7f3d0, 0xfef08a, 0xe2e8f0, 0xc7d2fe],
     },
   },
   {
@@ -140,6 +142,7 @@ export const LEVELS: LevelDef[] = [
       wallStripeColor: 0xfbbf24, // Bright warm golden top stripe
       wallStripeEmissive: 0xd97706,
       wallStripeEmissiveIntensity: 0.2,
+      pillarPalette: [0xc2410c, 0xfef3c7, 0xea580c, 0xfde68a, 0xd97736, 0xf5d0a9],
     },
   },
   {
@@ -178,6 +181,7 @@ export const LEVELS: LevelDef[] = [
       wallStripeColor: 0xf472b6, // Bright neon rose top stripe
       wallStripeEmissive: 0xdb2777,
       wallStripeEmissiveIntensity: 0.25,
+      pillarPalette: [0xf472b6, 0xc084fc, 0xdb2777, 0xe9d5ff, 0x7c3aed, 0xfbcfe8],
     },
   },
   {
@@ -218,6 +222,7 @@ export const LEVELS: LevelDef[] = [
       wallStripeColor: 0x06b6d4, // Strong cyan top edge line
       wallStripeEmissive: 0x00f5ff, // Emissive cyan neon glow
       wallStripeEmissiveIntensity: 1.8,
+      pillarPalette: [0x1e293b, 0x334155, 0x0f172a, 0x273549, 0x475569, 0x1e3a8a],
     },
   },
 ];

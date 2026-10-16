@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { TextureGenerator } from './TextureGenerator.js';
-import type { LevelTheme, LevelDef } from '../levels/LevelData.js';
+import { LEVELS, type LevelTheme, type LevelDef } from '../levels/LevelData.js';
 
 /**
  * Skyway Environment & Atmosphere
@@ -9,6 +9,8 @@ import type { LevelTheme, LevelDef } from '../levels/LevelData.js';
  */
 export class SkyEnvironment {
   public group: THREE.Group;
+  public pillarsGroup: THREE.Group = new THREE.Group();
+  public skyRingsGroup: THREE.Group = new THREE.Group();
   public dirLight!: THREE.DirectionalLight;
   public hemiLight!: THREE.HemisphereLight;
   public rimLight!: THREE.DirectionalLight;
@@ -29,11 +31,14 @@ export class SkyEnvironment {
     this.scene = scene;
     this.renderer = renderer;
     this.group = new THREE.Group();
+    this.group.add(this.pillarsGroup);
+    this.group.add(this.skyRingsGroup);
     scene.add(this.group);
 
     this.initSkyAndLighting(scene, renderer);
     this.createCloudSea();
-    this.createPastelPillars();
+    this.rebuildPillars(LEVELS[0].theme, false);
+    this.createDecorativeSkyRings();
   }
 
   private initSkyAndLighting(scene: THREE.Scene, renderer: THREE.WebGLRenderer): void {
@@ -271,48 +276,87 @@ export class SkyEnvironment {
   }
 
   /**
-   * Spawns the iconic pastel pillar blocks and floating landmarks from the reference artwork.
+   * Builds textured architectural monolith pillars according to the level theme palette,
+   * adding stone block seams, horizontal banding, subtle vertical gradient, grass caps/trees for day themes,
+   * and glowing window strips for night themes.
    */
-  private createPastelPillars(): void {
-    // Pastel color palette matching reference:
-    // blush pink, soft cyan, sky blue, pastel yellow, light slate stone, soft mint
-    const colors = [0xf472b6, 0x93c5fd, 0x60a5fa, 0xfde047, 0xcbd5e1, 0x86efac];
+  public rebuildPillars(theme: LevelTheme, isNight: boolean = false): void {
+    // 1. Clear and dispose old pillar hierarchy to prevent VRAM memory leaks
+    while (this.pillarsGroup.children.length > 0) {
+      const child = this.pillarsGroup.children[0];
+      this.pillarsGroup.remove(child);
+      child.traverse((node: any) => {
+        if (node.geometry) node.geometry.dispose();
+        if (node.material) {
+          if (Array.isArray(node.material)) {
+            node.material.forEach((m: any) => {
+              if (m.map) m.map.dispose();
+              if (m.emissiveMap) m.emissiveMap.dispose();
+              m.dispose();
+            });
+          } else {
+            if (node.material.map) node.material.map.dispose();
+            if (node.material.emissiveMap) node.material.emissiveMap.dispose();
+            node.material.dispose();
+          }
+        }
+      });
+    }
 
-    const pillarMatPool = colors.map(
-      (col) =>
-        new THREE.MeshStandardMaterial({
-          color: col,
-          roughness: 0.45,
-          metalness: 0.1,
-          flatShading: true,
-        })
-    );
+    // 2. Prepare themed materials with procedural stone textures and window strips
+    const palette = theme.pillarPalette || [0xfbcfe8, 0xbae6fd, 0xa7f3d0, 0xfef08a, 0xe2e8f0, 0xc7d2fe];
+    const windowTex = isNight ? TextureGenerator.createPillarWindowTexture() : null;
+
+    const pillarMatPool = palette.map((colHex) => {
+      const stoneTex = TextureGenerator.createPillarTexture(colHex, isNight);
+      const matParams: THREE.MeshStandardMaterialParameters = {
+        map: stoneTex,
+        roughness: isNight ? 0.45 : 0.6,
+        metalness: isNight ? 0.35 : 0.08,
+      };
+      if (isNight && windowTex) {
+        matParams.emissive = new THREE.Color(0xffffff);
+        matParams.emissiveMap = windowTex;
+        matParams.emissiveIntensity = 1.6;
+      }
+      return new THREE.MeshStandardMaterial(matParams);
+    });
 
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
-    const foliageMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.5, flatShading: true });
+    const treeFoliageColor = theme.fogColor === 0xfecdd3 ? 0x84cc16 : theme.fogColor === 0xe9d5ff ? 0xa855f7 : 0x16a34a;
+    const foliageMat = new THREE.MeshStandardMaterial({ color: treeFoliageColor, roughness: 0.5, flatShading: true });
 
-    // Stepped monolith definitions with multi-tier architecture
+    // Grass cap material for day themes
+    const grassColor = theme.fogColor === 0xfecdd3 ? 0xca8a04 : theme.fogColor === 0xe9d5ff ? 0xa855f7 : 0x22c55e;
+    const grassMat = new THREE.MeshStandardMaterial({ color: grassColor, roughness: 0.7, metalness: 0.05 });
+
+    // 3. Multi-tier architectural pillar definitions with varied widths, depths, and heights
     const pillarDefs = [
-      { x: -16, z: -10, w: 4.8, d: 4.8, h: 18, colorIdx: 0, hasTree: true, hasStep: true },
-      { x: -22, z: 8, w: 5.5, d: 5.5, h: 22, colorIdx: 1, hasTree: true, hasStep: false },
-      { x: 18, z: -14, w: 4.2, d: 4.2, h: 16, colorIdx: 3, hasTree: true, hasStep: true },
-      { x: 22, z: 12, w: 5.2, d: 5.2, h: 20, colorIdx: 4, hasTree: false, hasStep: true },
-      { x: -14, z: -26, w: 6.2, d: 6.2, h: 24, colorIdx: 2, hasTree: true, hasStep: true },
-      { x: 16, z: -30, w: 5.2, d: 5.2, h: 25, colorIdx: 0, hasTree: true, hasStep: false },
-      { x: -28, z: -18, w: 6.8, d: 6.8, h: 28, colorIdx: 4, hasTree: true, hasStep: true },
-      { x: 28, z: -4, w: 5.2, d: 5.2, h: 21, colorIdx: 1, hasTree: false, hasStep: false },
-      { x: 0, z: -38, w: 7.5, d: 7.5, h: 32, colorIdx: 4, hasTree: true, hasStep: true }, // Big stepped monolith behind finish
-      { x: -8, z: 22, w: 4.6, d: 4.6, h: 15, colorIdx: 5, hasTree: true, hasStep: false },
-      { x: 12, z: 24, w: 4.2, d: 4.2, h: 14, colorIdx: 3, hasTree: false, hasStep: false },
+      { x: -17, z: -10, w: 4.8, d: 4.8, h: 20, colorIdx: 0, hasTree: true, hasStep: true },
+      { x: -24, z: 8, w: 6.2, d: 5.5, h: 26, colorIdx: 1, hasTree: true, hasStep: false },
+      { x: 19, z: -14, w: 4.2, d: 4.6, h: 18, colorIdx: 3, hasTree: true, hasStep: true },
+      { x: 23, z: 12, w: 5.5, d: 5.5, h: 22, colorIdx: 4, hasTree: false, hasStep: true },
+      { x: -15, z: -26, w: 6.5, d: 6.5, h: 28, colorIdx: 2, hasTree: true, hasStep: true },
+      { x: 17, z: -32, w: 5.2, d: 5.2, h: 27, colorIdx: 0, hasTree: true, hasStep: false },
+      { x: -30, z: -18, w: 7.5, d: 7.5, h: 32, colorIdx: 4, hasTree: true, hasStep: true },
+      { x: 30, z: -4, w: 5.6, d: 5.6, h: 24, colorIdx: 1, hasTree: false, hasStep: false },
+      { x: 0, z: -42, w: 9.0, d: 9.0, h: 36, colorIdx: 4, hasTree: true, hasStep: true }, // Big stepped monolith behind finish
+      { x: -9, z: 24, w: 4.6, d: 4.6, h: 16, colorIdx: 5, hasTree: true, hasStep: false },
+      { x: 13, z: 26, w: 4.2, d: 4.2, h: 15, colorIdx: 3, hasTree: false, hasStep: false },
+      // Distant monoliths softly faded by fog
+      { x: -38, z: -38, w: 8.5, d: 8.5, h: 40, colorIdx: 2, hasTree: false, hasStep: true },
+      { x: 40, z: -30, w: 7.5, d: 7.5, h: 38, colorIdx: 5, hasTree: false, hasStep: true },
+      { x: -28, z: 22, w: 5.8, d: 5.8, h: 22, colorIdx: 0, hasTree: true, hasStep: false },
+      { x: 26, z: 32, w: 5.2, d: 5.2, h: 20, colorIdx: 1, hasTree: false, hasStep: false },
     ];
 
     pillarDefs.forEach((p) => {
       const geo = new THREE.BoxGeometry(p.w, p.h, p.d);
-      const mesh = new THREE.Mesh(geo, pillarMatPool[p.colorIdx]);
+      const mesh = new THREE.Mesh(geo, pillarMatPool[p.colorIdx % pillarMatPool.length]);
       mesh.position.set(p.x, p.h / 2 - 12, p.z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      this.group.add(mesh);
+      this.pillarsGroup.add(mesh);
 
       let topY = p.h - 12;
 
@@ -320,42 +364,76 @@ export class SkyEnvironment {
       if (p.hasStep) {
         const stepH = 2.4;
         const stepGeo = new THREE.BoxGeometry(p.w * 0.65, stepH, p.d * 0.65);
-        const stepMesh = new THREE.Mesh(stepGeo, pillarMatPool[(p.colorIdx + 1) % colors.length]);
+        const stepMesh = new THREE.Mesh(stepGeo, pillarMatPool[(p.colorIdx + 1) % pillarMatPool.length]);
         stepMesh.position.set(p.x, topY + stepH / 2, p.z);
         stepMesh.castShadow = true;
         stepMesh.receiveShadow = true;
-        this.group.add(stepMesh);
+        this.pillarsGroup.add(stepMesh);
         topY += stepH;
       }
 
-      // Low-poly Pine Tree on top
-      if (p.hasTree) {
-        const treeGroup = new THREE.Group();
-        treeGroup.position.set(p.x + (Math.random() - 0.5) * (p.w * 0.3), topY, p.z + (Math.random() - 0.5) * (p.d * 0.3));
+      if (!isNight) {
+        // Lush grass cap on top of pillar
+        const grassGeo = new THREE.BoxGeometry(p.w * (p.hasStep ? 0.68 : 1.03), 0.32, p.d * (p.hasStep ? 0.68 : 1.03));
+        const grassMesh = new THREE.Mesh(grassGeo, grassMat);
+        grassMesh.position.set(p.x, topY + 0.16, p.z);
+        grassMesh.castShadow = true;
+        grassMesh.receiveShadow = true;
+        this.pillarsGroup.add(grassMesh);
+        topY += 0.32;
 
-        // Trunk
-        const trunkGeo = new THREE.CylinderGeometry(0.2, 0.25, 0.8, 6);
-        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-        trunk.position.y = 0.4;
-        trunk.castShadow = true;
-        treeGroup.add(trunk);
+        // Low-poly Pine Tree on top
+        if (p.hasTree) {
+          const treeGroup = new THREE.Group();
+          treeGroup.position.set(p.x + (Math.random() - 0.5) * (p.w * 0.25), topY, p.z + (Math.random() - 0.5) * (p.d * 0.25));
 
-        // Foliage cone tiers
-        const tier1 = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.1, 6), foliageMat);
-        tier1.position.y = 1.1;
-        tier1.castShadow = true;
-        treeGroup.add(tier1);
+          // Trunk
+          const trunkGeo = new THREE.CylinderGeometry(0.2, 0.25, 0.8, 6);
+          const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+          trunk.position.y = 0.4;
+          trunk.castShadow = true;
+          treeGroup.add(trunk);
 
-        const tier2 = new THREE.Mesh(new THREE.ConeGeometry(0.7, 0.9, 6), foliageMat);
-        tier2.position.y = 1.7;
-        tier2.castShadow = true;
-        treeGroup.add(tier2);
+          // Foliage cone tiers
+          const tier1 = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.1, 6), foliageMat);
+          tier1.position.y = 1.1;
+          tier1.castShadow = true;
+          treeGroup.add(tier1);
 
-        this.group.add(treeGroup);
+          const tier2 = new THREE.Mesh(new THREE.ConeGeometry(0.7, 0.9, 6), foliageMat);
+          tier2.position.y = 1.7;
+          tier2.castShadow = true;
+          treeGroup.add(tier2);
+
+          this.pillarsGroup.add(treeGroup);
+        }
+      } else {
+        // Night theme: antenna mast & beacon on tall monoliths
+        if (p.hasTree || p.hasStep) {
+          const mastGeo = new THREE.CylinderGeometry(0.06, 0.08, 3.2, 8);
+          const mastMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8, roughness: 0.2 });
+          const mast = new THREE.Mesh(mastGeo, mastMat);
+          mast.position.set(p.x, topY + 1.6, p.z);
+          this.pillarsGroup.add(mast);
+
+          const beaconGeo = new THREE.SphereGeometry(0.2, 12, 12);
+          const beaconMat = new THREE.MeshStandardMaterial({
+            color: 0x00f5ff,
+            emissive: 0x00f5ff,
+            emissiveIntensity: 2.2,
+          });
+          const beacon = new THREE.Mesh(beaconGeo, beaconMat);
+          beacon.position.set(p.x, topY + 3.2, p.z);
+          this.pillarsGroup.add(beacon);
+        }
       }
     });
+  }
 
-    // Decorative floating golden rings in the sky (matching reference background)
+  /**
+   * Spawns decorative floating golden rings in the sky.
+   */
+  private createDecorativeSkyRings(): void {
     const ringMat = new THREE.MeshStandardMaterial({
       color: 0xfacc15,
       metalness: 0.95,
@@ -376,7 +454,7 @@ export class SkyEnvironment {
       ringMesh.position.set(r.x, r.y, r.z);
       ringMesh.rotation.y = r.rotY;
       ringMesh.castShadow = true;
-      this.group.add(ringMesh);
+      this.skyRingsGroup.add(ringMesh);
     });
   }
 
@@ -454,6 +532,9 @@ export class SkyEnvironment {
 
     // 7. Update Exposure
     this.renderer.toneMappingExposure = theme.exposure;
+
+    // 8. Rebuild Themed Monolith Pillars
+    this.rebuildPillars(theme, isNight);
   }
 
   /**

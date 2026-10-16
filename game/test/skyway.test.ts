@@ -97,6 +97,14 @@ describe('Skyway Obstacles & Physics Mechanics', () => {
 
     const checkTex = TextureGenerator.createFinishCheckered();
     expect(checkTex).toBeDefined();
+
+    const pillarTex = TextureGenerator.createPillarTexture(0xf472b6, false);
+    expect(pillarTex).toBeDefined();
+    pillarTex.dispose();
+
+    const windowTex = TextureGenerator.createPillarWindowTexture();
+    expect(windowTex).toBeDefined();
+    windowTex.dispose();
   });
 
   it('validates all 4 levels have distinct themes with valid lighting, sky and wall parameters', () => {
@@ -126,6 +134,10 @@ describe('Skyway Obstacles & Physics Mechanics', () => {
         // L4 neon edge glow
         expect(level.theme.wallStripeEmissiveIntensity).toBeGreaterThan(1.0);
       }
+
+      // Verify pillar palette
+      expect(level.theme.pillarPalette).toBeDefined();
+      expect(level.theme.pillarPalette.length).toBeGreaterThanOrEqual(6);
 
       const themedSky = TextureGenerator.createSkyEquirectangular(
         level.theme.skyTop,

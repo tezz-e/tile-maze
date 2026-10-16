@@ -409,4 +409,121 @@ export class TextureGenerator {
     texture.needsUpdate = true;
     return texture;
   }
+
+  /**
+   * Generates a 256x512 textured stone monolith map with stone block seams,
+   * horizontal architectural banding, and subtle vertical lighting gradient.
+   */
+  public static createPillarTexture(
+    baseColorHex: number,
+    isNight: boolean = false
+  ): THREE.Texture {
+    const c = this.createCanvas(256, 512);
+    if (!c) {
+      const tex = new THREE.DataTexture(new Uint8Array([150, 150, 150, 255]), 1, 1);
+      tex.needsUpdate = true;
+      return tex;
+    }
+    const { canvas, ctx } = c;
+
+    const baseColor = new THREE.Color(baseColorHex);
+    // Subtle vertical gradient (ground level is slightly deeper in tone, top catches sky light)
+    const topColor = baseColor.clone().offsetHSL(0, 0, 0.07).getStyle();
+    const bottomColor = baseColor.clone().offsetHSL(0, 0, -0.12).getStyle();
+
+    const grad = ctx.createLinearGradient(0, 512, 0, 0);
+    grad.addColorStop(0.0, bottomColor);
+    grad.addColorStop(1.0, topColor);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 256, 512);
+
+    // Architectural horizontal banding and stone seams
+    const bandHeight = 32;
+    for (let y = 0; y < 512; y += bandHeight) {
+      const isAlt = (y / bandHeight) % 2 === 0;
+      ctx.fillStyle = isAlt ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)';
+      ctx.fillRect(0, y, 256, bandHeight);
+
+      // Horizontal mortar seam groove
+      ctx.strokeStyle = isNight ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.16)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(256, y);
+      ctx.stroke();
+
+      // Sunlit edge highlight below groove
+      ctx.strokeStyle = isNight ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.22)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, y + 2);
+      ctx.lineTo(256, y + 2);
+      ctx.stroke();
+    }
+
+    // Vertical stone block seams (staggered by band)
+    const blockWidth = 64;
+    for (let y = 0; y < 512; y += bandHeight) {
+      const rowIdx = y / bandHeight;
+      const xOffset = (rowIdx % 2) * (blockWidth / 2);
+      for (let x = xOffset; x < 256; x += blockWidth) {
+        ctx.strokeStyle = isNight ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.14)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y + bandHeight);
+        ctx.stroke();
+
+        ctx.strokeStyle = isNight ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.18)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + 1, y);
+        ctx.lineTo(x + 1, y + bandHeight);
+        ctx.stroke();
+      }
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.needsUpdate = true;
+    return texture;
+  }
+
+  /**
+   * Generates a 256x512 emissive window strip map for Level 4 cyber monoliths.
+   */
+  public static createPillarWindowTexture(): THREE.Texture {
+    const c = this.createCanvas(256, 512);
+    if (!c) {
+      const tex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+      tex.needsUpdate = true;
+      return tex;
+    }
+    const { canvas, ctx } = c;
+
+    // Pitch black background (no emission)
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, 256, 512);
+
+    // Glowing vertical window columns
+    const colXPositions = [40, 84, 164, 208];
+    colXPositions.forEach((x, colIdx) => {
+      for (let y = 24; y < 490; y += 38) {
+        // Deterministic pseudo-random pattern of illuminated windows
+        const lit = ((x * 19 + y * 29) % 10) > 4;
+        if (lit) {
+          const isCyan = (colIdx + y) % 3 !== 0;
+          ctx.fillStyle = isCyan ? '#38bdf8' : '#f43f5e';
+          ctx.fillRect(x, y, 14, 22);
+        }
+      }
+    });
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.needsUpdate = true;
+    return texture;
+  }
 }
