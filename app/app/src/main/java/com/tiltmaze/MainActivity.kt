@@ -43,6 +43,7 @@ class MainActivity : ComponentActivity(), TelemetryListener {
     private var pitchState by mutableStateOf(0f)
     private var rollState by mutableStateOf(0f)
     private var calibrationFailedState by mutableStateOf(false)
+    private var screenRotatedHintState by mutableStateOf(false)
     private var errorMessageState by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,6 +65,7 @@ class MainActivity : ComponentActivity(), TelemetryListener {
                             pitchState = motion.pitch
                             rollState = motion.roll
                             calibrationFailedState = sensorManager.calibrationFailed
+                            screenRotatedHintState = sensorManager.screenRotatedHint
                             glyphController.updateBallPosition(rollState, pitchState)
                             delay(16)
                         }
@@ -76,6 +78,7 @@ class MainActivity : ComponentActivity(), TelemetryListener {
                         pitch = pitchState,
                         roll = rollState,
                         calibrationFailed = calibrationFailedState,
+                        screenRotatedHint = screenRotatedHintState,
                         onBoostChange = { socket.isBoostActive = it },
                         onBrakeChange = { socket.isBrakeActive = it },
                         onCalibrate = { sensorManager.calibrateNeutral() },

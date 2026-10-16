@@ -30,6 +30,7 @@ fun CockpitControllerScreen(
     pitch: Float,
     roll: Float,
     calibrationFailed: Boolean = false,
+    screenRotatedHint: Boolean = false,
     onBoostChange: (Boolean) -> Unit,
     onBrakeChange: (Boolean) -> Unit,
     onCalibrate: () -> Unit,
@@ -242,6 +243,14 @@ fun CockpitControllerScreen(
             if (calibrationFailed) {
                 Text(
                     text = "Hold still and tap Calibrate again",
+                    color = Color(0xFFEA3323),
+                    fontSize = 9.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            } else if (screenRotatedHint) {
+                Text(
+                    text = "Screen rotated, tap Calibrate",
                     color = Color(0xFFEA3323),
                     fontSize = 9.sp,
                     fontFamily = FontFamily.Monospace,

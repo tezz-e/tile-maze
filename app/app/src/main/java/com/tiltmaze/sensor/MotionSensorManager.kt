@@ -78,6 +78,9 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
     @Volatile var calibrationFailed: Boolean = false
         private set
 
+    @Volatile var screenRotatedHint: Boolean = false
+        private set
+
     // Calibration window state (runs over ~300ms of sensor time with 800ms max timeout)
     @Volatile private var pendingCalibration = true
     private var calibInitialRequestTimeNs = 0L
@@ -126,8 +129,8 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
             if (newRotation != currentDisplayRotation) {
                 currentDisplayRotation = newRotation
                 updateAxisRemap(newRotation)
-                // If display rotation changes at runtime, auto-trigger a recalibration
-                calibrateNeutral()
+                // Set hint for UI: do not auto-calibrate mid-game
+                screenRotatedHint = true
             }
         }
     }
@@ -179,6 +182,7 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
         calibRequested = true
         resetRequested = false
         calibrationFailed = false
+        screenRotatedHint = false
 
         rotationSensor?.let {
             sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST, handler)
@@ -198,11 +202,13 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
 
     fun calibrateNeutral() {
         calibrationFailed = false
+        screenRotatedHint = false
         calibRequested = true
     }
 
     fun resetToFlat() {
         calibrationFailed = false
+        screenRotatedHint = false
         resetRequested = true
     }
 
@@ -221,6 +227,7 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
                 resetRequested = false
                 calibRequested = false
                 calibrationFailed = false
+                screenRotatedHint = false
                 pendingCalibration = false
                 calibInitialRequestTimeNs = 0L
                 calibWindowStartTimeNs = 0L
@@ -235,6 +242,7 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
             } else if (calibRequested) {
                 calibRequested = false
                 calibrationFailed = false
+                screenRotatedHint = false
                 pendingCalibration = true
                 calibInitialRequestTimeNs = 0L
                 calibWindowStartTimeNs = 0L
