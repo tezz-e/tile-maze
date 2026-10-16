@@ -47,6 +47,41 @@ object GlyphMath {
     }
 
     /**
+     * Configurable axis mapping flags for the rear Glyph Matrix display.
+     * Default for landscape ROTATION_90 viewed from the back: swapXY = true, invertX = true, invertY = false.
+     */
+    data class AxisConfig(
+        val swapXY: Boolean = true,
+        val invertX: Boolean = true,
+        val invertY: Boolean = false
+    ) {
+        fun map(xNorm: Float, yNorm: Float): Pair<Float, Float> {
+            val rawX = if (invertX) -xNorm else xNorm
+            val rawY = if (invertY) -yNorm else yNorm
+            return if (swapXY) Pair(rawY, rawX) else Pair(rawX, rawY)
+        }
+    }
+
+    /**
+     * Draws an outer ring on the circle edge (r between 10.5 and 12.5).
+     */
+    fun renderOuterRing(targetFrame: IntArray, brightness: Int = PEAK_BRIGHTNESS) {
+        targetFrame.fill(0)
+        val rMinSq = 10.0f * 10.0f
+        val rMaxSq = RADIUS_SQ
+        for (y in 0 until GRID_SIZE) {
+            val dy = y - CENTER
+            for (x in 0 until GRID_SIZE) {
+                val dx = x - CENTER
+                val dSq = dx * dx + dy * dy
+                if (dSq in rMinSq..rMaxSq && isInsideCircle(x, y)) {
+                    targetFrame[y * GRID_SIZE + x] = brightness
+                }
+            }
+        }
+    }
+
+    /**
      * Converts a normalized 2D direction vector into the floating-point ball center on the matrix.
      * The center is placed at 12 + v * 10.5, ensuring a 3-pixel blob stays fully within the 12.5 radius circle.
      */

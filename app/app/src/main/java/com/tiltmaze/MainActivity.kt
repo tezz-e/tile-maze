@@ -83,7 +83,8 @@ class MainActivity : ComponentActivity(), TelemetryListener {
                         onBrakeChange = { socket.isBrakeActive = it },
                         onCalibrate = { sensorManager.calibrateNeutral() },
                         onResetFlat = { sensorManager.resetToFlat() },
-                        onDisconnect = { disconnect() }
+                        onDisconnect = { disconnect() },
+                        onGlyphTest = { glyphController.runGlyphTest() }
                     )
                 } else {
                     ConnectionScreen(

@@ -13,6 +13,7 @@ interface GlyphController {
     fun updateBallPosition(xNorm: Float, yNorm: Float)
     fun pulseSuccess()
     fun destroy()
+    fun runGlyphTest() {}
 }
 
 /**
@@ -22,6 +23,14 @@ interface GlyphController {
  * without throwing errors or interrupting gameplay.
  */
 class NothingGlyphController(private val context: Context) : GlyphController {
+    companion object {
+        var axisConfig = GlyphMath.AxisConfig(
+            swapXY = true,
+            invertX = true,
+            invertY = false
+        )
+    }
+
     private var glyphManager: GlyphMatrixManager? = null
     private var isRegistered = false
     private val TAG = "GlyphController"
@@ -33,6 +42,8 @@ class NothingGlyphController(private val context: Context) : GlyphController {
         maxSpeedPixelsPerSecond = 40.0f
     )
     private var lastSmoothTimeNs = 0L
+    private var isTestModeRunning = false
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private val glyphCallback = object : GlyphMatrixManager.Callback {
         override fun onServiceConnected(componentName: ComponentName) {
@@ -63,7 +74,7 @@ class NothingGlyphController(private val context: Context) : GlyphController {
     }
 
     override fun updateBallPosition(xNorm: Float, yNorm: Float) {
-        if (!isRegistered || glyphManager == null) return
+        if (!isRegistered || glyphManager == null || isTestModeRunning) return
         val now = System.currentTimeMillis()
         if (now - lastUpdateMs < 30) return // Throttle to ~33Hz to prevent IPC saturation
         lastUpdateMs = now
@@ -72,7 +83,8 @@ class NothingGlyphController(private val context: Context) : GlyphController {
         val dt = if (lastSmoothTimeNs == 0L) 0.033f else ((nowNs - lastSmoothTimeNs) / 1_000_000_000.0f)
         lastSmoothTimeNs = nowNs
 
-        val (targetX, targetY) = GlyphMath.getBallCenter(xNorm, yNorm)
+        val (mappedX, mappedY) = axisConfig.map(xNorm, yNorm)
+        val (targetX, targetY) = GlyphMath.getBallCenter(mappedX, mappedY)
         val (smoothX, smoothY) = smoother.update(targetX, targetY, dt)
         GlyphMath.renderGaussianBlob(smoothX, smoothY, currentFrame)
 
@@ -80,6 +92,49 @@ class NothingGlyphController(private val context: Context) : GlyphController {
             glyphManager?.setMatrixFrame(currentFrame)
         } catch (e: Throwable) {
             Log.w(TAG, "setMatrixFrame failed: ${e.message}")
+        }
+    }
+
+    override fun runGlyphTest() {
+        if (!isRegistered || glyphManager == null || isTestModeRunning) return
+        isTestModeRunning = true
+        Log.i(TAG, "[Glyph Test] Starting hardware alignment test...")
+
+        val steps = listOf(
+            Runnable {
+                Log.i(TAG, "[Glyph Test] Step 1/5: Outer Ring")
+                GlyphMath.renderOuterRing(currentFrame)
+                try { glyphManager?.setMatrixFrame(currentFrame) } catch (e: Throwable) {}
+            },
+            Runnable {
+                Log.i(TAG, "[Glyph Test] Step 2/5: TOP")
+                GlyphMath.renderGaussianBlob(GlyphMath.CENTER, GlyphMath.CENTER - GlyphMath.TRAVEL_RADIUS, currentFrame)
+                try { glyphManager?.setMatrixFrame(currentFrame) } catch (e: Throwable) {}
+            },
+            Runnable {
+                Log.i(TAG, "[Glyph Test] Step 3/5: RIGHT")
+                GlyphMath.renderGaussianBlob(GlyphMath.CENTER + GlyphMath.TRAVEL_RADIUS, GlyphMath.CENTER, currentFrame)
+                try { glyphManager?.setMatrixFrame(currentFrame) } catch (e: Throwable) {}
+            },
+            Runnable {
+                Log.i(TAG, "[Glyph Test] Step 4/5: BOTTOM")
+                GlyphMath.renderGaussianBlob(GlyphMath.CENTER, GlyphMath.CENTER + GlyphMath.TRAVEL_RADIUS, currentFrame)
+                try { glyphManager?.setMatrixFrame(currentFrame) } catch (e: Throwable) {}
+            },
+            Runnable {
+                Log.i(TAG, "[Glyph Test] Step 5/5: LEFT")
+                GlyphMath.renderGaussianBlob(GlyphMath.CENTER - GlyphMath.TRAVEL_RADIUS, GlyphMath.CENTER, currentFrame)
+                try { glyphManager?.setMatrixFrame(currentFrame) } catch (e: Throwable) {}
+            },
+            Runnable {
+                Log.i(TAG, "[Glyph Test] Completed, returning to live mode")
+                isTestModeRunning = false
+                smoother.snapTo(GlyphMath.CENTER, GlyphMath.CENTER)
+            }
+        )
+
+        steps.forEachIndexed { index, step ->
+            mainHandler.postDelayed(step, index * 1000L)
         }
     }
 

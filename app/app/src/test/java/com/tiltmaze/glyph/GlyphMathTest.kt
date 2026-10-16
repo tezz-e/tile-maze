@@ -142,4 +142,55 @@ class GlyphMathTest {
         assertEquals(12.0f, smoother.x, 1e-5f)
         assertEquals(12.0f, smoother.y, 1e-5f)
     }
+
+    @Test
+    fun testAxisConfigMapping() {
+        // Identity config
+        val identity = GlyphMath.AxisConfig(swapXY = false, invertX = false, invertY = false)
+        val (ix, iy) = identity.map(0.5f, -0.7f)
+        assertEquals(0.5f, ix, 1e-5f)
+        assertEquals(-0.7f, iy, 1e-5f)
+
+        // Landscape ROTATION_90 default config (swapXY = true, invertX = true, invertY = false)
+        val defaultCfg = GlyphMath.AxisConfig(swapXY = true, invertX = true, invertY = false)
+        val (dx, dy) = defaultCfg.map(0.5f, -0.7f)
+        // rawX = -0.5f, rawY = -0.7f -> swapped: Pair(-0.7f, -0.5f)
+        assertEquals(-0.7f, dx, 1e-5f)
+        assertEquals(-0.5f, dy, 1e-5f)
+
+        // Custom config: invert both, no swap
+        val custom = GlyphMath.AxisConfig(swapXY = false, invertX = true, invertY = true)
+        val (cx, cy) = custom.map(0.3f, -0.4f)
+        assertEquals(-0.3f, cx, 1e-5f)
+        assertEquals(0.4f, cy, 1e-5f)
+    }
+
+    @Test
+    fun testRenderOuterRing() {
+        val frame = IntArray(GlyphMath.TOTAL_LEDS)
+        GlyphMath.renderOuterRing(frame)
+
+        var litCount = 0
+        for (y in 0 until GlyphMath.GRID_SIZE) {
+            val dy = y - GlyphMath.CENTER
+            for (x in 0 until GlyphMath.GRID_SIZE) {
+                val idx = y * GlyphMath.GRID_SIZE + x
+                val dx = x - GlyphMath.CENTER
+                val dSq = dx * dx + dy * dy
+                if (frame[idx] > 0) {
+                    litCount++
+                    assertEquals("Lit ring pixel must be PEAK_BRIGHTNESS", GlyphMath.PEAK_BRIGHTNESS, frame[idx])
+                    assertTrue("Lit ring pixel must be inside physical circle", GlyphMath.CIRCLE_MASK[idx])
+                    assertTrue("Lit ring pixel radius squared must be >= 100", dSq >= 100.0f)
+                    assertTrue("Lit ring pixel radius squared must be <= 156.25", dSq <= GlyphMath.RADIUS_SQ)
+                } else {
+                    if (!GlyphMath.CIRCLE_MASK[idx]) {
+                        assertEquals("Pixels outside circle mask must be 0", 0, frame[idx])
+                    }
+                }
+            }
+        }
+        assertTrue("Outer ring must have lit LEDs", litCount > 0)
+    }
 }
+

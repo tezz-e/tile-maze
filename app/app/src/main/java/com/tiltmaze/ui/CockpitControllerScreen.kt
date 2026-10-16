@@ -35,7 +35,8 @@ fun CockpitControllerScreen(
     onBrakeChange: (Boolean) -> Unit,
     onCalibrate: () -> Unit,
     onResetFlat: () -> Unit,
-    onDisconnect: () -> Unit
+    onDisconnect: () -> Unit,
+    onGlyphTest: () -> Unit = {}
 ) {
     var isBraking by remember { mutableStateOf(false) }
     var isBoosting by remember { mutableStateOf(false) }
@@ -67,7 +68,10 @@ fun CockpitControllerScreen(
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
-                    letterSpacing = 1.sp
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.pointerInput(Unit) {
+                        detectTapGestures(onLongPress = { onGlyphTest() })
+                    }
                 )
                 Text(
                     text = "• SLOT 0$playerSlot",
@@ -258,20 +262,23 @@ fun CockpitControllerScreen(
                 )
             }
 
-            // Reset to Level Flat Horizon
-            Button(
-                onClick = onResetFlat,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Black,
-                    contentColor = Color(0xFF888888)
-                ),
-                border = BorderStroke(1.dp, Color(0xFF444444)),
-                shape = RoundedCornerShape(0.dp),
-                modifier = Modifier.size(width = 140.dp, height = 34.dp),
-                contentPadding = PaddingValues(0.dp)
+            // Reset to Level Flat Horizon (Tap: Reset flat, Long-press: Glyph Test)
+            Box(
+                modifier = Modifier
+                    .size(width = 140.dp, height = 34.dp)
+                    .border(BorderStroke(1.dp, Color(0xFF444444)), RoundedCornerShape(0.dp))
+                    .background(Color.Black)
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = { onResetFlat() },
+                            onLongPress = { onGlyphTest() }
+                        )
+                    },
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "RESET FLAT",
+                    color = Color(0xFF888888),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Normal,
                     fontFamily = FontFamily.Monospace
