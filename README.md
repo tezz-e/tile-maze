@@ -54,10 +54,23 @@ Run `open-firewall.bat` as Administrator to permit incoming connections on TCP p
 Download the latest debug APK from [GitHub Releases](https://github.com/tezz-e/tile-maze/releases) (or build from source with `cd app && ./gradlew assembleDebug` or `.\gradlew.bat assembleDebug`).
 
 #### Pairing & Play
-1. Open the Android app (`app/`).
-2. Point camera at the QR code displayed on the laptop screen, or enter the 4-digit room code manually.
-3. Tap **"CALIBRATE"** to set your comfortable neutral holding posture.
-4. Tilt to steer the marble, shake to jump over obstacles, and hold **"NITRO"** to accelerate!
+1. Launch the game on your laptop (`http://localhost:3000`). The lobby screen displays your host LAN IP, port (`3000`), a 4-character room code (e.g., `6UTP`), and an interactive QR code.
+2. Open the Tiltmaze app on your phone.
+3. Connect using either method:
+   - **QR Code Scan (Fastest):** Tap **`[ SCAN LAPTOP QR CODE ]`** and point your camera at the QR code displayed on the laptop screen (uses Google Code Scanner; zero extra permissions required).
+   - **Manual Entry:** Under **`— OR MANUAL IP ENTRY —`**, enter the **`LAN IP`** shown on your laptop screen (e.g. `192.168.1.X`), verify the **`Port`** (default `3000`), type the uppercase **`4-Char Room Code (e.g. 6UTP)`**, and tap **`[ CONNECT TO RELAY // COMMENCE ]`**.
+4. Once connected, tap **`[ CALIBRATE ]`** (or **`RESET FLAT`**) to set your comfortable neutral holding posture.
+5. Tilt to steer the marble, shake to jump over obstacles, and hold **`NITRO`** to accelerate!
+
+### 🔧 Troubleshooting
+- **Same Wi-Fi Network:** Ensure your phone and laptop are connected to the same local Wi-Fi network.
+- **Windows Firewall:** If the phone cannot connect, run `open-firewall.bat` as Administrator on Windows to permit incoming connections on TCP port 3000.
+- **Use LAN IP, Not Localhost:** Always enter the laptop's actual LAN IP (e.g., `192.168.1.45`) shown on the laptop display. `localhost` and `127.0.0.1` refer to the phone itself.
+- **Client Isolation / Campus / Guest Wi-Fi:** Many university and public guest networks enable AP isolation (preventing devices on the same Wi-Fi from talking to each other). If connection times out, enable your phone's personal mobile hotspot, connect your laptop to the hotspot, and re-launch `npm start`.
+- **Nothing Phone Glyph Debugging:** If using a Nothing Phone with the default `"test"` key, enable the OS debug flag via ADB:
+  ```bash
+  adb shell settings put global nt_glyph_interface_debug_enable 1
+  ```
 
 #### Nothing Phone Glyph Matrix Setup (Optional)
 If running on a Nothing Phone (3) and utilizing the 25×25 Glyph Matrix LED mini-map:
