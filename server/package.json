@@ -1,6 +1,7 @@
 {
   "name": "tiltmaze-server",
   "version": "1.0.0",
+  "license": "MIT",
   "description": "Ultra-thin WebSocket relay and static file server for Tiltmaze: Kinetic Edition",
   "type": "module",
   "main": "dist/index.js",

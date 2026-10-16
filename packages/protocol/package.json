@@ -1,6 +1,7 @@
 {
   "name": "@tiltmaze/protocol",
   "version": "1.0.0",
+  "license": "MIT",
   "type": "module",
   "description": "Shared 20-byte binary telemetry codec and JSON control plane protocol for Tiltmaze",
   "main": "dist/index.js",

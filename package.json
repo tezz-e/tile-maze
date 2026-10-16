@@ -1,6 +1,7 @@
 {
   "name": "tiltmaze-kinetic",
   "version": "1.0.0",
+  "license": "MIT",
   "private": true,
   "description": "Tiltmaze: Kinetic Edition - Motion-Controlled 3D Physics Labyrinth & Telemetry Ecosystem",
   "workspaces": [
