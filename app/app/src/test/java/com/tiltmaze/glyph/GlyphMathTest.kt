@@ -103,4 +103,43 @@ class GlyphMathTest {
         GlyphMath.renderGaussianBlob(22.5f, 12.0f, frame)
         assertTrue("Frame must never be all-zero", frame.any { it > 0 })
     }
+
+    @Test
+    fun testSmootherConvergenceAndSpeedLimit() {
+        val smoother = GlyphPositionSmoother(
+            timeConstantSeconds = 0.080f,
+            maxSpeedPixelsPerSecond = 40.0f,
+            initialX = 12.0f,
+            initialY = 12.0f
+        )
+
+        // 1. Instant jump target: (24.0f, 12.0f) is 12 pixels away.
+        // At dt = 0.016s (16ms), max allowed distance is 40 * 0.016 = 0.64 pixels.
+        val dt = 0.016f
+        val (x1, y1) = smoother.update(24.0f, 12.0f, dt)
+        val stepDist = hypot(x1 - 12.0f, y1 - 12.0f)
+        assertTrue(
+            "Smoother step ($stepDist) must be bounded by max speed (0.64)",
+            stepDist <= 40.0f * dt + 1e-4f
+        )
+
+        // 2. Convergence over time: after 1 second (over 12 time constants), position should reach target
+        for (i in 0 until 60) {
+            smoother.update(24.0f, 12.0f, 0.0166f)
+        }
+        assertEquals("Smoother must converge to target after 1s", 24.0f, smoother.x, 0.1f)
+        assertEquals(12.0f, smoother.y, 0.1f)
+
+        // 3. Ease to center
+        for (i in 0 until 60) {
+            smoother.update(12.0f, 12.0f, 0.0166f)
+        }
+        assertEquals("Smoother must ease back to center (12.0)", 12.0f, smoother.x, 0.1f)
+        assertEquals(12.0f, smoother.y, 0.1f)
+
+        // 4. Snap to center
+        smoother.snapTo(12.0f, 12.0f)
+        assertEquals(12.0f, smoother.x, 1e-5f)
+        assertEquals(12.0f, smoother.y, 1e-5f)
+    }
 }

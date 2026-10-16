@@ -28,6 +28,11 @@ class NothingGlyphController(private val context: Context) : GlyphController {
     private val cellsPerFrame = 25 * 25
     private val currentFrame = IntArray(cellsPerFrame)
     private var lastUpdateMs = 0L
+    private val smoother = GlyphPositionSmoother(
+        timeConstantSeconds = 0.080f,
+        maxSpeedPixelsPerSecond = 40.0f
+    )
+    private var lastSmoothTimeNs = 0L
 
     private val glyphCallback = object : GlyphMatrixManager.Callback {
         override fun onServiceConnected(componentName: ComponentName) {
@@ -63,8 +68,13 @@ class NothingGlyphController(private val context: Context) : GlyphController {
         if (now - lastUpdateMs < 30) return // Throttle to ~33Hz to prevent IPC saturation
         lastUpdateMs = now
 
-        val (ballX, ballY) = GlyphMath.getBallCenter(xNorm, yNorm)
-        GlyphMath.renderGaussianBlob(ballX, ballY, currentFrame)
+        val nowNs = System.nanoTime()
+        val dt = if (lastSmoothTimeNs == 0L) 0.033f else ((nowNs - lastSmoothTimeNs) / 1_000_000_000.0f)
+        lastSmoothTimeNs = nowNs
+
+        val (targetX, targetY) = GlyphMath.getBallCenter(xNorm, yNorm)
+        val (smoothX, smoothY) = smoother.update(targetX, targetY, dt)
+        GlyphMath.renderGaussianBlob(smoothX, smoothY, currentFrame)
 
         try {
             glyphManager?.setMatrixFrame(currentFrame)

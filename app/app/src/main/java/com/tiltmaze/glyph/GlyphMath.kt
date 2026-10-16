@@ -99,3 +99,52 @@ object GlyphMath {
         }
     }
 }
+
+/**
+ * Frame-rate-independent exponential smoother with max speed limit for the Glyph display.
+ * Prevents teleporting and provides smooth gliding motion on the rear matrix.
+ */
+class GlyphPositionSmoother(
+    val timeConstantSeconds: Float = 0.080f, // 80ms
+    val maxSpeedPixelsPerSecond: Float = 40.0f,
+    initialX: Float = GlyphMath.CENTER,
+    initialY: Float = GlyphMath.CENTER
+) {
+    var x: Float = initialX
+        private set
+    var y: Float = initialY
+        private set
+
+    fun snapTo(targetX: Float = GlyphMath.CENTER, targetY: Float = GlyphMath.CENTER) {
+        x = targetX
+        y = targetY
+    }
+
+    fun update(targetX: Float, targetY: Float, dtSeconds: Float): Pair<Float, Float> {
+        if (dtSeconds <= 0f) return Pair(x, y)
+        val dt = dtSeconds.coerceIn(0.001f, 0.2f)
+
+        // 1. Exponential smoothing
+        val alpha = 1.0f - kotlin.math.exp(-dt / timeConstantSeconds)
+        val nx = x + (targetX - x) * alpha
+        val ny = y + (targetY - y) * alpha
+
+        // 2. Max speed limit
+        val dx = nx - x
+        val dy = ny - y
+        val dist = kotlin.math.hypot(dx, dy)
+        val maxDist = maxSpeedPixelsPerSecond * dt
+
+        if (dist > maxDist && dist > 1e-6f) {
+            val scale = maxDist / dist
+            x += dx * scale
+            y += dy * scale
+        } else {
+            x = nx
+            y = ny
+        }
+
+        return Pair(x, y)
+    }
+}
+
