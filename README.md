@@ -153,11 +153,14 @@ tiltmaze-kinetic/
 ├── package.json                    # Workspace root (scripts: dev, build, start, test)
 ├── start.bat                       # 1-click startup
 ├── open-firewall.bat               # Windows Firewall port 3000 helper
+├── local.properties.example        # Android SDK and Nothing Developer key example
+├── LICENSE                         # MIT License
 ├── docs/
 │   ├── ARCHITECTURE.md             # In-depth architectural design
 │   ├── PROTOCOL.md                 # 20-Byte binary & JSON schemas
 │   ├── LATENCY.md                  # NTP clock sync math & 240fps slow-mo camera guide
-│   └── DECISIONS.md                # Record of architectural choices
+│   ├── DECISIONS.md                # Record of architectural choices
+│   └── planning/                   # Architecture planning and specification documents
 ├── packages/
 │   └── protocol/                   # Shared TypeScript protocol & 20-byte codec
 │       ├── src/binaryCodec.ts      # DataView encoder & decoder
@@ -165,7 +168,8 @@ tiltmaze-kinetic/
 ├── server/                         # Ultra-thin Node.js + ws relay & static server
 │   ├── src/index.ts                # Express/HTTP + WebSocket server on port 3000
 │   ├── src/RoomManager.ts          # 4-char codes, 2-player slots, 60s session recovery
-│   └── src/networkDiscovery.ts     # Prunes WSL/Docker/vEthernet, detects primary LAN IP
+│   ├── src/networkDiscovery.ts     # Prunes WSL/Docker/vEthernet, detects primary LAN IP
+│   └── src/ntpSync.ts              # NTP 4-timestamp latency & RTT estimator
 ├── game/                           # Vite + TypeScript + Three.js + Rapier 3D
 │   ├── src/main.ts                 # Game loop, rendering, physics sync
 │   ├── src/physics/                # Rapier 3D world, rotated gravity, CCD marble
@@ -174,15 +178,19 @@ tiltmaze-kinetic/
 │   ├── src/audio/                  # Web Audio synthesized sound generator
 │   └── src/ui/                     # Lobby, QR code, Game HUD, Telemetry Lab
 └── app/                            # Native Android App (Kotlin + Jetpack Compose)
-    ├── app/src/main/
-    │   ├── java/com/tiltmaze/
-    │   │   ├── MainActivity.kt     # Compose UI & QR Scanner
-    │   │   ├── sensor/             # 100Hz GameRotationVector, LinearAccel, OneEuroFilter
-    │   │   ├── net/                # OkHttp WebSocket, 20-byte binary streamer
-    │   │   ├── haptics/            # Custom VibrationEffect waveforms
-    │   │   └── glyph/              # Nothing Phone (3) 25x25 Glyph Matrix driver
-    │   └── AndroidManifest.xml
-    └── build.gradle.kts
+    ├── gradlew / gradlew.bat       # Gradle build wrapper
+    ├── settings.gradle.kts         # Root Gradle build settings
+    └── app/
+        ├── libs/glyph-matrix-sdk-2.0.aar # Nothing Glyph Matrix SDK AAR
+        ├── src/main/java/com/tiltmaze/
+        │   ├── MainActivity.kt     # Compose UI & QR Scanner
+        │   ├── sensor/             # 100Hz GameRotationVector, LinearAccel, OneEuroFilter
+        │   ├── net/                # OkHttp WebSocket, 20-byte binary streamer
+        │   ├── haptics/            # Custom VibrationEffect waveforms
+        │   ├── glyph/              # Nothing Phone (3) 25x25 Glyph Matrix driver & math
+        │   └── ui/                 # Cockpit HUD controller screen & brutalist theme
+        ├── src/test/java/          # JUnit tests for Glyph math, smoothing, and backoff
+        └── AndroidManifest.xml
 ```
 
 ---
@@ -199,6 +207,13 @@ npm test
 - **Server Tests:** Verifies 4-character room codes, 2-player slot capacity, 60-second disconnect recovery, and LAN interface ranking.
 - **Game Tests:** Automated BFS graph solver testing every single level to mathematically prove solvability from start to finish without hazard intersection.
 - **Filter Tests:** Verifies that the One Euro Filter suppresses micro-tremors at rest while maintaining instant response on fast flicks.
+
+Run Android JVM unit tests:
+```bash
+cd app && ./gradlew testDebugUnitTest
+```
+*(Windows: `cd app; .\gradlew.bat testDebugUnitTest`)*
+- **Android Tests:** Verifies circular matrix geometry (489 physical LEDs), radial vector clamping, sub-pixel Gaussian blob balance, exponential smoothing convergence, and reconnect backoff progression.
 
 ---
 
