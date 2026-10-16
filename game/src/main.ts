@@ -62,12 +62,35 @@ class GameApp {
   private sessionShownHints = new Set<string>();
   private wasAirborne = false;
   private prevLinvelY = 0;
+  private cameraMode: 'standard' | 'cinematic' = 'standard';
 
   constructor() {
+    this.loadCameraPreference();
     this.initGraphics();
     this.initSystems();
     this.setupResize();
     this.loop();
+  }
+
+  private loadCameraPreference(): void {
+    try {
+      const saved = localStorage.getItem('tiltmaze_camera_view');
+      if (saved === 'cinematic' || saved === 'standard') {
+        this.cameraMode = saved;
+      }
+    } catch {
+      this.cameraMode = 'standard';
+    }
+  }
+
+  private toggleCameraView(): void {
+    this.cameraMode = this.cameraMode === 'standard' ? 'cinematic' : 'standard';
+    try {
+      localStorage.setItem('tiltmaze_camera_view', this.cameraMode);
+    } catch {
+      // Ignore localStorage errors
+    }
+    this.hud.showToast(`CAMERA // ${this.cameraMode.toUpperCase()}`);
   }
 
   private initGraphics(): void {
@@ -148,6 +171,7 @@ class GameApp {
     // 3. Controllers
     this.keyboard = new KeyboardController({
       onToggleTelemetryLab: () => this.telemetryLab.toggle(),
+      onToggleCameraView: () => this.toggleCameraView(),
     });
 
     // 4. UI
@@ -158,6 +182,7 @@ class GameApp {
       onRestartLevel: () => this.startLevel(this.currentLevelIndex),
       onReturnToLobby: () => this.returnToLobby(),
       onToggleTelemetryLab: () => this.telemetryLab.toggle(),
+      onToggleCameraView: () => this.toggleCameraView(),
     });
 
     this.lobbyUI = new LobbyUI(uiLayer, {
@@ -227,8 +252,12 @@ class GameApp {
     const { startPos } = this.physics.loadLevel(level);
     this.marble.mesh.position.set(startPos.x, startPos.y, startPos.z);
 
-    // Cinematic low-angle follow camera initial setup
-    this.cameraPosition.set(startPos.x, startPos.y + 1.45, startPos.z + 3.2);
+    // Follow camera initial setup (standard vs cinematic view)
+    const isStandard = this.cameraMode === 'standard';
+    const camOffsetY = isStandard ? 2.3 : 1.45;
+    const camOffsetZ = isStandard ? 4.2 : 3.2;
+
+    this.cameraPosition.set(startPos.x, startPos.y + camOffsetY, startPos.z + camOffsetZ);
     this.cameraTarget.set(startPos.x, startPos.y + 0.65, startPos.z - 5.5);
     this.camera.position.copy(this.cameraPosition);
     this.camera.lookAt(this.cameraTarget);
@@ -374,8 +403,14 @@ class GameApp {
       // 6. Update visual obstacle animations (spinners & golden rings)
       this.board.update(dt, this.physics.getSpinners());
 
-      // 7. Smooth 3rd-person spring follow-cam (Cinematic Low-Angle Camera)
-      this.targetCamPos.set(marblePos.x, marblePos.y + 1.45, marblePos.z + 3.2);
+      // 7. Smooth 3rd-person spring follow-cam (Standard vs Cinematic View)
+      const isStandard = this.cameraMode === 'standard';
+      const camOffsetY = isStandard ? 2.3 : 1.45;
+      const camOffsetZ = isStandard ? 4.2 : 3.2;
+
+      // Keep camera safe above cloud geometry
+      const safeCamY = Math.max(1.2, marblePos.y + camOffsetY);
+      this.targetCamPos.set(marblePos.x, safeCamY, marblePos.z + camOffsetZ);
       this.targetCamTarget.set(marblePos.x, marblePos.y + 0.65, marblePos.z - 5.5);
 
       this.cameraPosition.lerp(this.targetCamPos, 1 - Math.exp(-6.5 * dt));

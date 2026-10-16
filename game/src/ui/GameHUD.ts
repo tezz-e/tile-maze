@@ -6,6 +6,7 @@ export interface HUDCallbacks {
   onRestartLevel: () => void;
   onReturnToLobby: () => void;
   onToggleTelemetryLab: () => void;
+  onToggleCameraView?: () => void;
 }
 
 export class GameHUD {
@@ -595,6 +596,7 @@ export class GameHUD {
 
         <!-- Top-Right: Controls & Checkpoint Badge -->
         <div class="hud-top-right-group">
+          <button id="hud-btn-view" class="hud-btn-util">VIEW // V</button>
           <button id="hud-btn-lobby" class="hud-btn-util">LOBBY // ESC</button>
           <button id="hud-btn-lab" class="hud-btn-util">TELEMETRY // F3</button>
 
@@ -694,6 +696,10 @@ export class GameHUD {
     this.tiltTitleEl = this.container.querySelector('#hud-tilt-title')!;
     this.tiltSubEl = this.container.querySelector('#hud-tilt-sub')!;
     this.islandDropletEl = this.container.querySelector('#island-droplet')!;
+
+    this.container.querySelector('#hud-btn-view')!.addEventListener('click', () => {
+      this.callbacks.onToggleCameraView?.();
+    });
 
     this.container.querySelector('#hud-btn-lab')!.addEventListener('click', () => {
       this.callbacks.onToggleTelemetryLab();
@@ -805,10 +811,10 @@ export class GameHUD {
     if (this.tiltTitleEl && this.tiltSubEl) {
       if (isKeyboard) {
         this.tiltTitleEl.textContent = 'KEYBOARD // WASD';
-        this.tiltSubEl.textContent = 'STEER WITH KEYS • SHIFT: NITRO';
+        this.tiltSubEl.textContent = 'WASD: STEER • V: VIEW • SHIFT: NITRO';
       } else {
         this.tiltTitleEl.textContent = 'MOTION CONTROLLER // ACTIVE';
-        this.tiltSubEl.textContent = `${hz}HZ STREAM • ${Math.round(rttMs)}MS RTT`;
+        this.tiltSubEl.textContent = `${hz}HZ STREAM • ${Math.round(rttMs)}MS RTT • V: VIEW`;
       }
     }
   }

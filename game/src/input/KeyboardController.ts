@@ -16,6 +16,11 @@ export interface ControllerInputState {
   isKeyboard: boolean;    // Whether active input source is keyboard
 }
 
+export interface KeyboardControllerOptions {
+  onToggleTelemetryLab?: () => void;
+  onToggleCameraView?: () => void;
+}
+
 export class KeyboardController {
   private keys: Record<string, boolean> = {};
   private targetPitch = 0;
@@ -25,9 +30,11 @@ export class KeyboardController {
   private shakeTriggered = false;
   private recalibrateTriggered = false;
   private onToggleTelemetryLab?: () => void;
+  private onToggleCameraView?: () => void;
 
-  constructor(options?: { onToggleTelemetryLab?: () => void }) {
+  constructor(options?: KeyboardControllerOptions) {
     this.onToggleTelemetryLab = options?.onToggleTelemetryLab;
+    this.onToggleCameraView = options?.onToggleCameraView;
     this.setupListeners();
   }
 
@@ -46,6 +53,10 @@ export class KeyboardController {
 
       if (e.code === 'KeyT' && !e.repeat) {
         this.onToggleTelemetryLab?.();
+      }
+
+      if (e.code === 'KeyV' && !e.repeat) {
+        this.onToggleCameraView?.();
       }
     });
 

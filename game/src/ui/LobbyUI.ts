@@ -615,6 +615,11 @@ export class LobbyUI {
           <button id="play-keyboard-btn" class="btn-kbd">[ KEYBOARD // WASD ]</button>
           <button id="telemetry-lab-btn" class="btn-telemetry">[ TELEMETRY // F3 ]</button>
         </div>
+
+        <div class="lobby-controls-bar" style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 0.75rem; font-size: 0.72rem; color: #888888; display: flex; justify-content: space-between; letter-spacing: 0.06em; text-transform: uppercase;">
+          <span>CONTROLS: WASD / ARROWS: STEER • SPACE: JUMP • SHIFT: NITRO</span>
+          <span style="color: #cbd5e1;">V: TOGGLE VIEW • C: CALIBRATE • T: TELEMETRY</span>
+        </div>
       </div>
     `;
 
