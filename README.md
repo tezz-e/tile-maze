@@ -75,6 +75,12 @@ flowchart LR
 | ![Level 4 Start](docs/media/level-4-start.png) | ![Level 4 Action](docs/media/level-4-action.png) |
 | *Navy-slate curbs with glowing cyan neon top edges & soft clouds* | *High-speed navigation through dark chicanes & glowing skyscraper towers* |
 
+### Level Completion Celebration & Results Card
+<p align="center">
+  <img src="docs/media/level-complete.png" alt="Level Complete Celebration" width="800" />
+  <br><em>Celebratory victory burst, camera celebration ease, and mission debrief card</em>
+</p>
+
 ---
 
 ## 🌟 Key Highlights

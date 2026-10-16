@@ -36,7 +36,7 @@ export class PhysicsWorld {
   > = new Map();
   private spinners: SpinnerObject[] = [];
   private bouncers: BouncerObject[] = [];
-  private callbacks: CollisionCallbacks;
+  public callbacks: CollisionCallbacks;
   private eventQueue!: RAPIER.EventQueue;
 
   private isInitialized = false;

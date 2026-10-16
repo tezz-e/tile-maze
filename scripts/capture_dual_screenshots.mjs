@@ -135,6 +135,23 @@ async function main() {
       await page.keyboard.up('KeyW');
       await page.keyboard.up('ShiftLeft');
     }
+
+    // 3. Level-Complete Celebration Screenshot
+    console.log('\n=== Triggering Level-Complete Celebration for Screenshot ===');
+    await page.evaluate(() => {
+      const game = window.game;
+      if (!game) return;
+      if (game.physics && game.physics.callbacks && game.physics.callbacks.onGoalReached) {
+        game.physics.callbacks.onGoalReached();
+      } else if (game.hud) {
+        game.hud.showVictory();
+      }
+    });
+    // Wait for celebratory burst, camera ease, and results card
+    await page.waitForTimeout(1400);
+    const completePath = path.join(mediaDir, 'level-complete.png');
+    await page.screenshot({ path: completePath });
+    console.log('Saved level-complete.png');
   } finally {
     await browser.close();
     serverProc.kill();
