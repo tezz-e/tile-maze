@@ -140,7 +140,13 @@ export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buff
   // =========================================================================
   // 2. CONTROL PLANE: JSON Message Dispatcher
   // =========================================================================
-  const text = raw.toString();
+  const text = Buffer.isBuffer(raw)
+    ? raw.toString('utf-8')
+    : Array.isArray(raw)
+      ? Buffer.concat(raw).toString('utf-8')
+      : raw instanceof ArrayBuffer
+        ? Buffer.from(raw).toString('utf-8')
+        : String(raw);
   const msg = parseControlMessage(text);
   if (!msg) {
     console.warn(`[WebSocket] Dropped malformed message: ${text.length > 256 ? text.slice(0, 256) + '...' : text}`);
