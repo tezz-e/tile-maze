@@ -167,6 +167,9 @@ class GameApp {
       onWallImpact: (intensity) => {
         this.sounds.playImpact(intensity);
         this.network.sendHaptic(1, intensity > 0.5 ? 'impactHeavy' : 'impactLight', 50, intensity);
+        if (intensity >= 0.45) {
+          this.effectsManager.triggerImpactSpark(this.physics.getMarblePosition(), intensity);
+        }
       },
       onHoleFall: () => {
         this.sounds.playHoleFall();

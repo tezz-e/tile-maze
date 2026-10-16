@@ -41,9 +41,11 @@ export class EffectsManager {
 
   // 1. Marble Trail
   private readonly MAX_TRAIL = 40;
+  private readonly TRAIL_SPEED_THRESHOLD = 0.85;
   private maxTrailActive = 40;
   private trailParticles: TrailParticle[] = [];
   private trailMesh!: THREE.InstancedMesh;
+  private trailMat!: THREE.MeshBasicMaterial;
   private trailTimer = 0;
 
   // 2. Golden Ring / Checkpoint Burst
@@ -74,12 +76,12 @@ export class EffectsManager {
 
   private initTrail(): void {
     const geo = new THREE.SphereGeometry(0.08, 8, 8);
-    const mat = new THREE.MeshBasicMaterial({
+    this.trailMat = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
       opacity: 0.65,
     });
-    this.trailMesh = new THREE.InstancedMesh(geo, mat, this.MAX_TRAIL);
+    this.trailMesh = new THREE.InstancedMesh(geo, this.trailMat, this.MAX_TRAIL);
     this.trailMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
     for (let i = 0; i < this.MAX_TRAIL; i++) {
@@ -199,8 +201,12 @@ export class EffectsManager {
       // Marble fell off track
       this.shadowMat.opacity = 0;
     } else {
-      const scale = Math.max(0.2, 1.0 - heightAboveTrack * 0.28);
-      const opacity = Math.max(0.0, 0.55 - heightAboveTrack * 0.22);
+      // Jump shadow softness & diffusion:
+      // Contact: compact & crisp (scale 1.0, opacity 0.60)
+      // High jump: diffuses softly (scale up to 1.70, opacity decreases smoothly)
+      const diffusion = Math.min(0.7, heightAboveTrack * 0.45);
+      const scale = 1.0 + diffusion;
+      const opacity = Math.max(0.0, 0.60 / (1.0 + heightAboveTrack * 2.5));
       this.shadowMesh.scale.set(scale, scale, 1);
       this.shadowMat.opacity = opacity;
     }
@@ -224,42 +230,51 @@ export class EffectsManager {
     marbleSpeed: number,
     isBoosting: boolean
   ): void {
-    // Spawn trail particles when moving
     this.trailTimer += dt;
-    // Faster speed = higher spawn rate
-    const spawnInterval = isBoosting ? 0.015 : marbleSpeed > 2.0 ? 0.03 : 0.06;
 
-    if (marbleSpeed > 0.6 && this.trailTimer >= spawnInterval) {
-      this.trailTimer = 0;
-      // Find inactive or oldest particle within active range
-      let slot = -1;
-      for (let i = 0; i < this.maxTrailActive; i++) {
-        if (!this.trailParticles[i].active) {
-          slot = i;
-          break;
-        }
-      }
-      if (slot === -1) {
-        // Recycle oldest
-        let lowestLife = Infinity;
-        slot = 0;
+    // Below threshold: do not spawn new particles, smoothly fade trail material opacity
+    if (marbleSpeed <= this.TRAIL_SPEED_THRESHOLD && !isBoosting) {
+      this.trailMat.opacity = Math.max(0.0, this.trailMat.opacity - dt * 2.0);
+    } else {
+      // Above threshold: smoothly scale opacity and trail length with speed
+      const speedFactor = Math.min(1.0, (marbleSpeed - this.TRAIL_SPEED_THRESHOLD) / 7.5);
+      const targetOpacity = isBoosting ? 0.75 : 0.25 + speedFactor * 0.42;
+      this.trailMat.opacity = THREE.MathUtils.lerp(this.trailMat.opacity, targetOpacity, 0.15);
+
+      const spawnInterval = isBoosting ? 0.015 : Math.max(0.02, 0.055 - speedFactor * 0.035);
+
+      if (this.trailTimer >= spawnInterval) {
+        this.trailTimer = 0;
+        // Find inactive or oldest particle within active range
+        let slot = -1;
         for (let i = 0; i < this.maxTrailActive; i++) {
-          if (this.trailParticles[i].life < lowestLife) {
-            lowestLife = this.trailParticles[i].life;
+          if (!this.trailParticles[i].active) {
             slot = i;
+            break;
           }
         }
-      }
+        if (slot === -1) {
+          // Recycle oldest
+          let lowestLife = Infinity;
+          slot = 0;
+          for (let i = 0; i < this.maxTrailActive; i++) {
+            if (this.trailParticles[i].life < lowestLife) {
+              lowestLife = this.trailParticles[i].life;
+              slot = i;
+            }
+          }
+        }
 
-      const p = this.trailParticles[slot];
-      p.active = true;
-      p.x = marblePos.x;
-      p.y = marblePos.y;
-      p.z = marblePos.z;
-      // Trail lifetime scales with speed (fade quickly at low speed)
-      p.maxLife = isBoosting ? 0.45 : Math.min(0.35, 0.12 + (marbleSpeed / 12) * 0.23);
-      p.life = p.maxLife;
-      p.scale = isBoosting ? 1.3 : 1.0;
+        const p = this.trailParticles[slot];
+        p.active = true;
+        p.x = marblePos.x;
+        p.y = marblePos.y;
+        p.z = marblePos.z;
+        // Trail length (lifetime) and scale smoothly scale with speed
+        p.maxLife = isBoosting ? 0.45 : 0.12 + speedFactor * 0.26;
+        p.life = p.maxLife;
+        p.scale = isBoosting ? 1.3 : 0.45 + speedFactor * 0.65;
+      }
     }
 
     // Step active trail particles
@@ -341,6 +356,51 @@ export class EffectsManager {
       }
       p.life = p.maxLife;
     }
+  }
+
+  /**
+   * Small friction spark burst on hard wall impact.
+   * Reuses the existing pooled InstancedMesh burst particles with zero allocations.
+   */
+  public triggerImpactSpark(pos: { x: number; y: number; z: number }, intensity: number): void {
+    if (intensity < 0.45) return;
+    const sparkCount = Math.min(8, Math.max(3, Math.round(intensity * 8)));
+
+    let spawned = 0;
+    // Prefer inactive burst particles first
+    for (let i = 0; i < this.MAX_BURST && spawned < sparkCount; i++) {
+      const p = this.burstParticles[i];
+      if (!p.active) {
+        this.initSparkParticle(p, pos, intensity);
+        spawned++;
+      }
+    }
+
+    // If pool is fully active, recycle particles closest to expiration
+    if (spawned < sparkCount) {
+      for (let i = 0; i < this.MAX_BURST && spawned < sparkCount; i++) {
+        const p = this.burstParticles[i];
+        if (p.life < 0.12) {
+          this.initSparkParticle(p, pos, intensity);
+          spawned++;
+        }
+      }
+    }
+  }
+
+  private initSparkParticle(p: BurstParticle, pos: { x: number; y: number; z: number }, intensity: number): void {
+    p.active = true;
+    p.x = pos.x;
+    p.y = pos.y + 0.05;
+    p.z = pos.z;
+
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 2.0 + Math.random() * 3.4 * intensity;
+    p.vx = Math.cos(angle) * speed;
+    p.vy = 1.0 + Math.random() * 2.2 * intensity;
+    p.vz = Math.sin(angle) * speed;
+    p.maxLife = 0.16 + Math.random() * 0.12; // Snappy spark life
+    p.life = p.maxLife;
   }
 
   private updateBurst(dt: number): void {
