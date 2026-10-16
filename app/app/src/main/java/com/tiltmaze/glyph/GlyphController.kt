@@ -3,6 +3,7 @@ package com.tiltmaze.glyph
 import android.content.ComponentName
 import android.content.Context
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
 import android.util.Log
 import com.nothing.ketchum.Glyph
@@ -14,6 +15,8 @@ interface GlyphController {
     fun pulseSuccess()
     fun destroy()
     fun runGlyphTest() {}
+    fun onPause() {}
+    fun onResume() {}
 }
 
 /**
@@ -36,7 +39,6 @@ class NothingGlyphController(private val context: Context) : GlyphController {
     private val TAG = "GlyphController"
     private val cellsPerFrame = 25 * 25
     private val currentFrame = IntArray(cellsPerFrame)
-    private var lastUpdateMs = 0L
     private val smoother = GlyphPositionSmoother(
         timeConstantSeconds = 0.080f,
         maxSpeedPixelsPerSecond = 40.0f
@@ -54,6 +56,33 @@ class NothingGlyphController(private val context: Context) : GlyphController {
     private var isDestroyed = false
     private var isSupportedHardware = true
     private val reconnectRunnable = Runnable { attemptReconnect() }
+
+    private var renderThread: HandlerThread? = null
+    private var renderHandler: Handler? = null
+    @Volatile private var latestTargetX = 0f
+    @Volatile private var latestTargetY = 0f
+    @Volatile private var isPaused = false
+
+    private val renderRunnable = object : Runnable {
+        override fun run() {
+            if (isDestroyed) return
+            if (!isPaused && isRegistered && glyphManager != null && !isTestModeRunning) {
+                val nowNs = System.nanoTime()
+                val dt = if (lastSmoothTimeNs == 0L) 0.033f else ((nowNs - lastSmoothTimeNs) / 1_000_000_000.0f)
+                lastSmoothTimeNs = nowNs
+
+                val (mappedX, mappedY) = axisConfig.map(latestTargetX, latestTargetY)
+                val (targetX, targetY) = GlyphMath.getBallCenter(mappedX, mappedY)
+                val (smoothX, smoothY) = smoother.update(targetX, targetY, dt)
+                GlyphMath.renderGaussianBlob(smoothX, smoothY, currentFrame)
+
+                safeSetMatrixFrame(currentFrame)
+            }
+            if (!isDestroyed && !isPaused) {
+                renderHandler?.postDelayed(this, 33L)
+            }
+        }
+    }
 
     private val glyphCallback = object : GlyphMatrixManager.Callback {
         override fun onServiceConnected(componentName: ComponentName) {
@@ -97,9 +126,21 @@ class NothingGlyphController(private val context: Context) : GlyphController {
         init()
     }
 
+    private fun startRenderThread() {
+        if (renderThread == null || !renderThread!!.isAlive) {
+            val thread = HandlerThread("GlyphRenderer").apply { start() }
+            renderThread = thread
+            val handler = Handler(thread.looper)
+            renderHandler = handler
+            lastSmoothTimeNs = System.nanoTime()
+            handler.post(renderRunnable)
+        }
+    }
+
     override fun init() {
         if (!isSupportedHardware) return
         isDestroyed = false
+        startRenderThread()
         try {
             glyphManager = GlyphMatrixManager.getInstance(context.applicationContext)
             glyphManager?.init(glyphCallback)
@@ -143,21 +184,8 @@ class NothingGlyphController(private val context: Context) : GlyphController {
     }
 
     override fun updateBallPosition(xNorm: Float, yNorm: Float) {
-        if (!isRegistered || glyphManager == null || isTestModeRunning) return
-        val now = System.currentTimeMillis()
-        if (now - lastUpdateMs < 30) return // Throttle to ~33Hz to prevent IPC saturation
-        lastUpdateMs = now
-
-        val nowNs = System.nanoTime()
-        val dt = if (lastSmoothTimeNs == 0L) 0.033f else ((nowNs - lastSmoothTimeNs) / 1_000_000_000.0f)
-        lastSmoothTimeNs = nowNs
-
-        val (mappedX, mappedY) = axisConfig.map(xNorm, yNorm)
-        val (targetX, targetY) = GlyphMath.getBallCenter(mappedX, mappedY)
-        val (smoothX, smoothY) = smoother.update(targetX, targetY, dt)
-        GlyphMath.renderGaussianBlob(smoothX, smoothY, currentFrame)
-
-        safeSetMatrixFrame(currentFrame)
+        latestTargetX = xNorm
+        latestTargetY = yNorm
     }
 
     override fun runGlyphTest() {
@@ -195,36 +223,66 @@ class NothingGlyphController(private val context: Context) : GlyphController {
                 Log.i(TAG, "[Glyph Test] Completed, returning to live mode")
                 isTestModeRunning = false
                 smoother.snapTo(GlyphMath.CENTER, GlyphMath.CENTER)
+                lastSmoothTimeNs = System.nanoTime()
             }
         )
 
         steps.forEachIndexed { index, step ->
-            mainHandler.postDelayed(step, index * 1000L)
+            renderHandler?.postDelayed(step, index * 1000L)
         }
     }
 
     override fun pulseSuccess() {
         if (!isRegistered || glyphManager == null) return
-        val pulseFrame = IntArray(cellsPerFrame) { idx ->
-            if (GlyphMath.CIRCLE_MASK[idx]) 4095 else 0
+        renderHandler?.post {
+            val pulseFrame = IntArray(cellsPerFrame) { idx ->
+                if (GlyphMath.CIRCLE_MASK[idx]) 4095 else 0
+            }
+            safeSetMatrixFrame(pulseFrame)
+            renderHandler?.postDelayed({
+                currentFrame.fill(0)
+                safeSetMatrixFrame(currentFrame)
+            }, 180L)
         }
-        safeSetMatrixFrame(pulseFrame)
-        mainHandler.postDelayed({
-            currentFrame.fill(0)
-            safeSetMatrixFrame(currentFrame)
-        }, 180L)
+    }
+
+    override fun onPause() {
+        isPaused = true
+        renderHandler?.removeCallbacks(renderRunnable)
+        renderHandler?.post {
+            try {
+                currentFrame.fill(0)
+                safeSetMatrixFrame(currentFrame)
+                glyphManager?.turnOff()
+            } catch (e: Throwable) {
+                // ignore
+            }
+        }
+    }
+
+    override fun onResume() {
+        if (isDestroyed) return
+        isPaused = false
+        lastSmoothTimeNs = System.nanoTime()
+        renderHandler?.removeCallbacks(renderRunnable)
+        renderHandler?.post(renderRunnable)
     }
 
     override fun destroy() {
         isDestroyed = true
         mainHandler.removeCallbacks(reconnectRunnable)
+        renderHandler?.removeCallbacksAndMessages(null)
         try {
             glyphManager?.turnOff()
             glyphManager?.unInit()
         } catch (e: Throwable) {
             // ignore
         }
+        renderThread?.quitSafely()
+        renderThread = null
+        renderHandler = null
         glyphManager = null
         isRegistered = false
     }
 }
+

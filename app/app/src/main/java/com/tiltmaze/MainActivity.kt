@@ -180,6 +180,20 @@ class MainActivity : ComponentActivity(), TelemetryListener {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        if (::glyphController.isInitialized) {
+            glyphController.onPause()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::glyphController.isInitialized) {
+            glyphController.onResume()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         socket.stop()
