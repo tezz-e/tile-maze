@@ -22,6 +22,11 @@ export interface LevelTheme {
   hemiGround: number;
   cloudTint: number;
   exposure: number;
+  wallSideColor: number;
+  wallTopColor: number;
+  wallStripeColor: number;
+  wallStripeEmissive?: number;
+  wallStripeEmissiveIntensity?: number;
 }
 
 export interface LevelDef {
@@ -92,6 +97,11 @@ export const LEVELS: LevelDef[] = [
       hemiGround: 0xfef08a,
       cloudTint: 0xffffff,
       exposure: 1.15,
+      wallSideColor: 0xe2e8f0, // Light cream/white stone sides
+      wallTopColor: 0xffffff, // Pure white stone top cap
+      wallStripeColor: 0x38bdf8, // Bright azure top stripe
+      wallStripeEmissive: 0x0284c7,
+      wallStripeEmissiveIntensity: 0.15,
     },
   },
   {
@@ -125,6 +135,11 @@ export const LEVELS: LevelDef[] = [
       hemiGround: 0xfbbf24,
       cloudTint: 0xffedd5,
       exposure: 1.12,
+      wallSideColor: 0xf5d0a9, // Light warm sandstone sides
+      wallTopColor: 0xfffbeb, // Very light warm sandstone top face
+      wallStripeColor: 0xfbbf24, // Bright warm golden top stripe
+      wallStripeEmissive: 0xd97706,
+      wallStripeEmissiveIntensity: 0.2,
     },
   },
   {
@@ -151,13 +166,18 @@ export const LEVELS: LevelDef[] = [
       skyBottom: '#8b5cf6',
       fogColor: 0xe9d5ff,
       fogNear: 35,
-      fogFar: 155,
+      fogFar: 150,
       sunColor: 0xfbcfe8,
       sunIntensity: 2.2,
       hemiSky: 0xc084fc,
       hemiGround: 0x67e8f9,
       cloudTint: 0xf5d0fe,
       exposure: 1.10,
+      wallSideColor: 0xc4b5fd, // Light lavender sides
+      wallTopColor: 0xf5f3ff, // Light lavender-white top face
+      wallStripeColor: 0xf472b6, // Bright neon rose top stripe
+      wallStripeEmissive: 0xdb2777,
+      wallStripeEmissiveIntensity: 0.25,
     },
   },
   {
@@ -193,6 +213,11 @@ export const LEVELS: LevelDef[] = [
       hemiGround: 0x0f172a,
       cloudTint: 0x334155,
       exposure: 1.05,
+      wallSideColor: 0x0f172a, // Dark navy sides
+      wallTopColor: 0x1e293b, // Slate-navy top face (lighter than sides)
+      wallStripeColor: 0x06b6d4, // Strong cyan top edge line
+      wallStripeEmissive: 0x00f5ff, // Emissive cyan neon glow
+      wallStripeEmissiveIntensity: 1.8,
     },
   },
 ];

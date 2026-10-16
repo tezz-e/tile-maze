@@ -99,13 +99,33 @@ describe('Skyway Obstacles & Physics Mechanics', () => {
     expect(checkTex).toBeDefined();
   });
 
-  it('validates all 4 levels have distinct themes with valid lighting and sky parameters', () => {
+  it('validates all 4 levels have distinct themes with valid lighting, sky and wall parameters', () => {
     LEVELS.forEach((level) => {
       expect(level.theme).toBeDefined();
       expect(level.theme.skyTop).toMatch(/^#[0-9a-fA-F]{6}$/);
       expect(level.theme.skyBottom).toMatch(/^#[0-9a-fA-F]{6}$/);
       expect(level.theme.sunIntensity).toBeGreaterThan(0);
       expect(level.theme.exposure).toBeGreaterThan(0.5);
+
+      // Verify wall colors: top face must be lighter than side face
+      expect(level.theme.wallSideColor).toBeDefined();
+      expect(level.theme.wallTopColor).toBeDefined();
+      expect(level.theme.wallStripeColor).toBeDefined();
+
+      const topCol = new THREE.Color(level.theme.wallTopColor);
+      const sideCol = new THREE.Color(level.theme.wallSideColor);
+      // Top face luminance is greater than side face for readability
+      const topLum = 0.299 * topCol.r + 0.587 * topCol.g + 0.114 * topCol.b;
+      const sideLum = 0.299 * sideCol.r + 0.587 * sideCol.g + 0.114 * sideCol.b;
+      expect(topLum).toBeGreaterThan(sideLum);
+
+      // L1-L3 walls must not be near-black (side luminance > 0.25)
+      if (level.id < 4) {
+        expect(sideLum).toBeGreaterThan(0.25);
+      } else {
+        // L4 neon edge glow
+        expect(level.theme.wallStripeEmissiveIntensity).toBeGreaterThan(1.0);
+      }
 
       const themedSky = TextureGenerator.createSkyEquirectangular(
         level.theme.skyTop,

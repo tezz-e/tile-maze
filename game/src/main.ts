@@ -299,8 +299,8 @@ class GameApp {
 
     // Follow camera initial setup (standard vs cinematic view)
     const isStandard = this.cameraMode === 'standard';
-    const camOffsetY = isStandard ? 2.3 : 1.45;
-    const camOffsetZ = isStandard ? 4.2 : 3.2;
+    const camOffsetY = isStandard ? 2.3 : 1.6;
+    const camOffsetZ = isStandard ? 4.2 : 3.4;
 
     this.cameraPosition.set(startPos.x, startPos.y + camOffsetY, startPos.z + camOffsetZ);
     this.cameraTarget.set(startPos.x, startPos.y + 0.65, startPos.z - 5.5);
@@ -493,8 +493,8 @@ class GameApp {
 
       // 7. Smooth 3rd-person spring follow-cam (Standard vs Cinematic View)
       const isStandard = this.cameraMode === 'standard';
-      const camOffsetY = isStandard ? 2.3 : 1.45;
-      const camOffsetZ = isStandard ? 4.2 : 3.2;
+      const camOffsetY = isStandard ? 2.3 : 1.6;
+      const camOffsetZ = isStandard ? 4.2 : 3.4;
 
       // Keep camera safe above cloud geometry
       const safeCamY = Math.max(1.2, marblePos.y + camOffsetY);

@@ -12,6 +12,7 @@ export class Board {
   private blueTileTexture!: THREE.Texture;
   private blueTileMat!: THREE.MeshStandardMaterial;
   private yellowCurbMat!: THREE.MeshStandardMaterial;
+  private levelMaterials: THREE.Material[] = [];
 
   constructor() {
     this.group = new THREE.Group();
@@ -52,8 +53,8 @@ export class Board {
   }
 
   private disposeMaterial(mat: THREE.Material): void {
-    // Preserve persistent shared tile and curb materials
-    if (mat === this.blueTileMat || mat === this.yellowCurbMat) {
+    // Preserve persistent shared tile and curb materials, and level-shared materials disposed in buildLevel
+    if (mat === this.blueTileMat || mat === this.yellowCurbMat || this.levelMaterials.includes(mat)) {
       return;
     }
     const standardMat = mat as THREE.MeshStandardMaterial;
@@ -70,6 +71,10 @@ export class Board {
       this.group.remove(child);
       this.disposeHierarchy(child);
     }
+    for (const m of this.levelMaterials) {
+      m.dispose();
+    }
+    this.levelMaterials = [];
     this.spinnerMeshes = [];
     this.goldenRings = [];
     this.bouncerGroups = [];
@@ -177,6 +182,33 @@ export class Board {
       emissiveIntensity: isNight ? 0.85 : 0.35,
     });
 
+    const theme = level.theme;
+    const wallSideMat = new THREE.MeshStandardMaterial({
+      color: theme?.wallSideColor ?? 0xe2e8f0,
+      roughness: isNight ? 0.35 : 0.3,
+      metalness: isNight ? 0.4 : 0.15,
+      envMapIntensity: 1.2,
+    });
+    const wallTopMat = new THREE.MeshStandardMaterial({
+      color: theme?.wallTopColor ?? 0xffffff,
+      roughness: 0.22,
+      metalness: isNight ? 0.3 : 0.1,
+      envMapIntensity: 1.4,
+    });
+    const wallStripeMat = new THREE.MeshStandardMaterial({
+      color: theme?.wallStripeColor ?? 0x38bdf8,
+      emissive: new THREE.Color(theme?.wallStripeEmissive ?? 0x000000),
+      emissiveIntensity: theme?.wallStripeEmissiveIntensity ?? 0.0,
+      roughness: 0.15,
+      metalness: 0.3,
+      envMapIntensity: 1.6,
+    });
+    this.levelMaterials.push(wallSideMat, wallTopMat, wallStripeMat);
+
+    const baseH = 0.16;
+    const capH = 0.04;
+    const stripeH = 0.015;
+
     let spinnerCount = 0;
 
     // Populate Level Grid Tiles & Obstacles
@@ -199,40 +231,32 @@ export class Board {
         this.addCurbsIfNeeded(grid, r, c, rows, cols, cx, cz, cellSize);
 
         if (cell === '#') {
-          // Wall Barrier: Modern slate pillar with yellow curb base and chamfered cap
+          // Low curb barrier (43% visual height), slightly beveled top cap, bright top stripe
           const wallGroup = new THREE.Group();
           wallGroup.position.set(cx, 0, cz);
 
-          const wallCapGeo = new THREE.BoxGeometry(cellSize * 0.96, level.wallHeight, cellSize * 0.96);
-          const wallCapMat = new THREE.MeshStandardMaterial({
-            color: 0x334155,
-            roughness: 0.35,
-            metalness: 0.5,
-          });
-          const wallCap = new THREE.Mesh(wallCapGeo, wallCapMat);
-          wallCap.position.y = level.wallHeight / 2;
+          // Lower curb body
+          const baseGeo = new THREE.BoxGeometry(cellSize * 0.96, baseH, cellSize * 0.96);
+          const wallBase = new THREE.Mesh(baseGeo, wallSideMat);
+          wallBase.position.y = baseH / 2;
+          wallBase.castShadow = true;
+          wallBase.receiveShadow = true;
+          wallGroup.add(wallBase);
+
+          // Slightly beveled upper cap (lighter than sides for top-down maze readability)
+          const capGeo = new THREE.BoxGeometry(cellSize * 0.88, capH, cellSize * 0.88);
+          const wallCap = new THREE.Mesh(capGeo, wallTopMat);
+          wallCap.position.y = baseH + capH / 2;
           wallCap.castShadow = true;
           wallCap.receiveShadow = true;
           wallGroup.add(wallCap);
 
-          // Chamfered dark top capstone
-          const capstoneGeo = new THREE.BoxGeometry(cellSize * 0.92, 0.08, cellSize * 0.92);
-          const capstoneMat = new THREE.MeshStandardMaterial({
-            color: 0x1e293b,
-            roughness: 0.3,
-            metalness: 0.7,
-          });
-          const capstone = new THREE.Mesh(capstoneGeo, capstoneMat);
-          capstone.position.y = level.wallHeight + 0.04;
-          capstone.castShadow = true;
-          wallGroup.add(capstone);
-
-          // Yellow curb base accent
-          const wallBaseGeo = new THREE.BoxGeometry(cellSize, 0.12, cellSize);
-          const wallBase = new THREE.Mesh(wallBaseGeo, this.yellowCurbMat);
-          wallBase.position.y = 0.06;
-          wallBase.castShadow = true;
-          wallGroup.add(wallBase);
+          // Bright top stripe (emissive neon glow in L4)
+          const stripeGeo = new THREE.BoxGeometry(cellSize * 0.76, stripeH, cellSize * 0.76);
+          const wallStripe = new THREE.Mesh(stripeGeo, wallStripeMat);
+          wallStripe.position.y = baseH + capH + stripeH / 2;
+          wallStripe.castShadow = true;
+          wallGroup.add(wallStripe);
 
           this.group.add(wallGroup);
         } else if (cell === 'S') {
@@ -552,7 +576,7 @@ export class Board {
     cz: number,
     cellSize: number
   ): void {
-    const curbHeight = 0.32;
+    const curbHeight = 0.22;
     const curbThickness = 0.22;
     const curbLength = cellSize;
 
