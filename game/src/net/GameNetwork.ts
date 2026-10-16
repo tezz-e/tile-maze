@@ -147,8 +147,9 @@ export class GameNetwork {
 
       const boost = hasButton(frame.buttonBitmask, BUTTON_BOOST);
       const brake = hasButton(frame.buttonBitmask, BUTTON_BRAKE);
-      const shake = hasButton(frame.buttonBitmask, BUTTON_SHAKE);
-      const recalibrate = hasButton(frame.buttonBitmask, BUTTON_RECALIBRATE);
+      const prev = this.controllers.get(slot);
+      const shake = (prev?.shake ?? false) || hasButton(frame.buttonBitmask, BUTTON_SHAKE);
+      const recalibrate = (prev?.recalibrate ?? false) || hasButton(frame.buttonBitmask, BUTTON_RECALIBRATE);
 
       const state: ControllerState = {
         playerSlot: slot,
@@ -292,6 +293,15 @@ export class GameNetwork {
     const ctrl = this.controllers.get(slot);
     if (ctrl && ctrl.shake) {
       ctrl.shake = false;
+      return true;
+    }
+    return false;
+  }
+
+  public consumeRecalibrate(slot: number = 1): boolean {
+    const ctrl = this.controllers.get(slot);
+    if (ctrl && ctrl.recalibrate) {
+      ctrl.recalibrate = false;
       return true;
     }
     return false;

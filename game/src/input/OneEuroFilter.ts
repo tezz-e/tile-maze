@@ -13,23 +13,31 @@ class LowPassFilter {
   private s: number | null = null;
 
   public filter(val: number, alpha: number): number {
-    if (this.y === null) {
+    this.y = val;
+    if (this.s === null) {
       this.s = val;
-      this.y = val;
       return val;
     }
-    this.y = val;
-    this.s = alpha * val + (1.0 - alpha) * (this.s as number);
+    this.s = alpha * val + (1.0 - alpha) * this.s;
     return this.s;
   }
 
-  public last(): number | null {
+  public lastRaw(): number | null {
+    return this.y;
+  }
+
+  public lastFiltered(): number | null {
     return this.s;
   }
 
-  public reset(): void {
-    this.y = null;
-    this.s = null;
+  public reset(val?: number): void {
+    if (val !== undefined) {
+      this.y = val;
+      this.s = val;
+    } else {
+      this.y = null;
+      this.s = null;
+    }
   }
 }
 
@@ -67,14 +75,19 @@ export class OneEuroFilter {
 
     // Convert ms to seconds if timestamp delta is in milliseconds (> 0.5ms)
     const rawDt = timestamp - this.lastTime;
-    this.lastTime = timestamp;
     const dt = rawDt > 0.5 ? rawDt / 1000.0 : rawDt;
 
+    if (dt <= 0) {
+      return this.xFilter.lastFiltered() ?? x;
+    }
+
+    this.lastTime = timestamp;
     const rate = dt > 0.0001 ? 1.0 / dt : 60.0;
 
-    // Estimate derivative (speed of change)
-    const prevX = this.xFilter.last() ?? x;
-    const dx = (x - prevX) * rate;
+    // Estimate derivative from previous RAW sample (Casiez et al. 2012)
+    const prevRaw = this.xFilter.lastRaw() ?? x;
+    const dx = (x - prevRaw) * rate;
+
     const edx = this.dxFilter.filter(dx, this.alpha(rate, this.dCutoff));
 
     // Dynamic cutoff frequency
@@ -84,9 +97,18 @@ export class OneEuroFilter {
     return this.xFilter.filter(x, this.alpha(rate, cutoff));
   }
 
-  public reset(): void {
-    this.xFilter.reset();
-    this.dxFilter.reset();
+  public reset(value?: number): void {
+    if (value !== undefined) {
+      this.xFilter.reset(value);
+      this.dxFilter.reset(0);
+    } else {
+      this.xFilter.reset();
+      this.dxFilter.reset();
+    }
     this.lastTime = null;
+  }
+
+  public get lastDerivative(): number {
+    return this.dxFilter.lastFiltered() ?? 0;
   }
 }

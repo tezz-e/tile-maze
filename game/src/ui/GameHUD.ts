@@ -75,16 +75,16 @@ export class GameHUD {
           z-index: 10;
         }
 
-        /* Frosted Smoked Acrylic Glass Surface - Rounded squircle capsules */
+        /* Frosted Smoked Glass Capsules - Rounded modern racing pills */
         .hud-glass-surface {
-          background: rgba(12, 12, 16, 0.78);
-          backdrop-filter: blur(28px) saturate(180%);
-          -webkit-backdrop-filter: blur(28px) saturate(180%);
-          border: 1px solid rgba(255, 255, 255, 0.16);
-          border-radius: 12px;
+          background: rgba(15, 23, 42, 0.72);
+          backdrop-filter: blur(24px) saturate(190%);
+          -webkit-backdrop-filter: blur(24px) saturate(190%);
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          border-radius: 16px;
           box-shadow: 
-            inset 0 1px 0 rgba(255, 255, 255, 0.22),
-            0 12px 32px rgba(0, 0, 0, 0.6);
+            inset 0 1px 0 rgba(255, 255, 255, 0.24),
+            0 14px 36px rgba(0, 0, 0, 0.5);
           pointer-events: auto;
           box-sizing: border-box;
           transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.4, 1), box-shadow 0.2s;
@@ -100,28 +100,36 @@ export class GameHUD {
 
         /* Top-Left: Time & Best Card */
         .hud-time-card {
-          padding: 12px 18px;
+          padding: 12px 20px;
           display: flex;
           flex-direction: column;
           gap: 4px;
-          min-width: 190px;
-          border-radius: 12px;
+          min-width: 200px;
+          border-radius: 16px;
+        }
+
+        .hud-meta-header {
+          display: flex;
+          align-items: center;
+          gap: 6px;
         }
 
         .hud-meta-label {
           font-size: 0.68rem;
           font-weight: 700;
           letter-spacing: 0.08em;
-          color: #888888;
+          color: #94a3b8;
           text-transform: uppercase;
         }
 
         .hud-timer-digits {
-          font-size: 1.85rem;
+          font-size: 1.95rem;
           font-weight: 700;
           color: #ffffff;
           letter-spacing: -0.02em;
           line-height: 1.1;
+          font-variant-numeric: tabular-nums;
+          text-shadow: 0 2px 10px rgba(56, 189, 248, 0.35);
         }
 
         .hud-best-row {
@@ -129,17 +137,16 @@ export class GameHUD {
           align-items: center;
           gap: 6px;
           padding-top: 6px;
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
           font-size: 0.75rem;
-          color: #888888;
+          color: #cbd5e1;
           letter-spacing: 0.04em;
           text-transform: uppercase;
         }
 
-        .hud-best-row .red-dot {
-          color: #EA3323;
-          font-weight: 700;
-          font-size: 0.65rem;
+        .hud-best-row .crown-icon {
+          display: inline-flex;
+          align-items: center;
         }
 
         /* Top-Right: Controls & Checkpoint Badge */
@@ -150,14 +157,14 @@ export class GameHUD {
         }
 
         .hud-btn-util {
-          background: rgba(14, 14, 20, 0.72);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.16);
-          border-radius: 8px;
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+          background: rgba(15, 23, 42, 0.70);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          border-radius: 12px;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 8px 24px rgba(0, 0, 0, 0.4);
           color: #ffffff;
-          padding: 8px 16px;
+          padding: 10px 18px;
           font-family: var(--font-mono);
           font-size: 0.75rem;
           font-weight: 700;
@@ -173,45 +180,46 @@ export class GameHUD {
           color: #000000;
           border-color: #ffffff;
           transform: translateY(-1px);
-          box-shadow: 0 4px 16px rgba(255, 255, 255, 0.3);
+          box-shadow: 0 6px 20px rgba(255, 255, 255, 0.35);
         }
 
         .hud-checkpoint-badge {
-          padding: 12px 18px;
+          padding: 12px 20px;
           display: flex;
           flex-direction: column;
           align-items: flex-end;
-          min-width: 150px;
-          border-radius: 12px;
+          min-width: 155px;
+          border-radius: 16px;
         }
 
         .hud-checkpoint-digits {
-          font-size: 1.35rem;
+          font-size: 1.45rem;
           font-weight: 700;
           color: #ffffff;
           letter-spacing: 0.04em;
           line-height: 1.1;
           margin-top: 2px;
+          text-shadow: 0 2px 8px rgba(244, 63, 94, 0.35);
         }
 
         .hud-checkpoint-meter-row {
           display: flex;
           align-items: center;
-          gap: 5px;
+          gap: 6px;
           margin-top: 6px;
         }
 
         .cp-pill {
-          width: 14px;
-          height: 5px;
+          width: 15px;
+          height: 6px;
           border-radius: 3px;
           background: rgba(255, 255, 255, 0.2);
           transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
         .cp-pill.reached {
-          background: #EA3323;
-          box-shadow: 0 0 10px #EA3323, 0 0 18px rgba(234, 51, 35, 0.6);
+          background: #f43f5e;
+          box-shadow: 0 0 10px #f43f5e, 0 0 18px rgba(244, 63, 94, 0.6);
         }
 
         .cp-pill.current {
@@ -228,19 +236,19 @@ export class GameHUD {
         /* Center Toast (Floating Liquid Capsule) */
         .hud-center-toast {
           align-self: center;
-          background: rgba(10, 10, 14, 0.92);
+          background: rgba(15, 23, 42, 0.88);
           backdrop-filter: blur(24px);
           -webkit-backdrop-filter: blur(24px);
-          border: 1px solid rgba(234, 51, 35, 0.65);
-          border-radius: 10px;
+          border: 1px solid rgba(56, 189, 248, 0.65);
+          border-radius: 14px;
           color: #ffffff;
-          padding: 0.75rem 2.2rem;
-          font-size: 0.92rem;
+          padding: 0.85rem 2.4rem;
+          font-size: 0.95rem;
           font-weight: 700;
           letter-spacing: 0.08em;
           text-transform: uppercase;
           box-shadow: 
-            0 0 30px rgba(234, 51, 35, 0.4),
+            0 0 30px rgba(56, 189, 248, 0.4),
             0 16px 40px rgba(0, 0, 0, 0.7);
           opacity: 0;
           transform: translateY(14px) scale(0.94);
@@ -267,7 +275,7 @@ export class GameHUD {
           display: inline-flex;
           align-items: center;
           pointer-events: auto;
-          filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.6));
+          filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.5));
         }
 
         .hud-goo-layer {
@@ -281,8 +289,8 @@ export class GameHUD {
         .island-main-capsule {
           position: absolute;
           inset: 4px 14px 4px 4px;
-          background: rgba(12, 12, 16, 0.88);
-          border-radius: 10px;
+          background: rgba(15, 23, 42, 0.85);
+          border-radius: 14px;
         }
 
         .island-droplet {
@@ -293,9 +301,9 @@ export class GameHUD {
           height: 14px;
           margin-top: -7px;
           border-radius: 50%;
-          background: #EA3323;
+          background: #38bdf8;
           opacity: 0;
-          box-shadow: 0 0 12px #EA3323;
+          box-shadow: 0 0 12px #38bdf8;
           transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.25), opacity 0.25s;
           will-change: transform, opacity;
         }
@@ -303,40 +311,40 @@ export class GameHUD {
         .hud-tilt-pill {
           position: relative;
           z-index: 5;
-          padding: 10px 18px;
+          padding: 11px 20px;
           display: flex;
           align-items: center;
           gap: 12px;
-          border-radius: 10px;
-          background: rgba(12, 12, 16, 0.78);
-          backdrop-filter: blur(28px) saturate(180%);
-          -webkit-backdrop-filter: blur(28px) saturate(180%);
-          border: 1px solid rgba(255, 255, 255, 0.16);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+          border-radius: 16px;
+          background: rgba(15, 23, 42, 0.72);
+          backdrop-filter: blur(24px) saturate(190%);
+          -webkit-backdrop-filter: blur(24px) saturate(190%);
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
           transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s, border-color 0.2s;
         }
 
         .hud-tilt-pill.pulse {
           transform: scale(1.04);
-          border-color: rgba(234, 51, 35, 0.6);
+          border-color: rgba(56, 189, 248, 0.6);
           box-shadow: 
             inset 0 1px 0 rgba(255, 255, 255, 0.3),
-            0 0 25px rgba(234, 51, 35, 0.45);
+            0 0 25px rgba(56, 189, 248, 0.45);
         }
 
         .hud-phone-indicator {
-          width: 9px;
-          height: 9px;
+          width: 10px;
+          height: 10px;
           border-radius: 50%;
-          background: #EA3323;
+          background: #38bdf8;
           border: 1.5px solid #ffffff;
-          box-shadow: 0 0 10px #EA3323;
+          box-shadow: 0 0 10px #38bdf8;
           animation: dot-breathe 2s infinite ease-in-out;
         }
 
         @keyframes dot-breathe {
           0%, 100% { opacity: 0.75; transform: scale(0.95); }
-          50% { opacity: 1; transform: scale(1.1); box-shadow: 0 0 14px #EA3323; }
+          50% { opacity: 1; transform: scale(1.1); box-shadow: 0 0 14px #38bdf8; }
         }
 
         .hud-tilt-text {
@@ -357,40 +365,46 @@ export class GameHUD {
           font-size: 0.72rem;
           font-weight: 400;
           letter-spacing: 0.04em;
-          color: #888888;
+          color: #94a3b8;
           text-transform: uppercase;
           margin-top: 2px;
         }
 
-        /* Bottom-Right: Rounded Speedometer Group */
+        /* Bottom-Right: Speedometer Pill */
         .hud-speedometer-group {
-          padding: 12px 20px;
+          padding: 12px 22px;
           display: flex;
           flex-direction: column;
           align-items: flex-end;
-          min-width: 160px;
-          border-radius: 12px;
+          min-width: 170px;
+          border-radius: 16px;
+        }
+
+        .speedo-row {
+          display: flex;
+          align-items: baseline;
+          gap: 6px;
         }
 
         .speedo-number {
-          font-size: 2.2rem;
+          font-size: 2.3rem;
           font-weight: 700;
           color: #ffffff;
           line-height: 1.0;
           letter-spacing: -0.03em;
+          font-variant-numeric: tabular-nums;
         }
 
         .speedo-unit {
-          font-size: 0.72rem;
+          font-size: 0.75rem;
           font-weight: 700;
           letter-spacing: 0.08em;
-          color: #888888;
+          color: #94a3b8;
           text-transform: uppercase;
-          margin-top: 2px;
         }
 
         .speedo-meter-track {
-          width: 140px;
+          width: 150px;
           height: 6px;
           border-radius: 4px;
           background: rgba(255, 255, 255, 0.12);
@@ -404,9 +418,9 @@ export class GameHUD {
           height: 100%;
           width: 0%;
           border-radius: 4px;
-          background: linear-gradient(90deg, #ffffff 0%, #EA3323 100%);
+          background: linear-gradient(90deg, #38bdf8 0%, #fbbf24 60%, #ef4444 100%);
           transition: width 0.08s ease-out;
-          box-shadow: 0 0 12px rgba(234, 51, 35, 0.6);
+          box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
         }
 
         /* Victory Modal */
@@ -426,11 +440,11 @@ export class GameHUD {
         }
 
         .victory-card {
-          background: rgba(12, 12, 16, 0.86);
+          background: rgba(15, 23, 42, 0.88);
           backdrop-filter: blur(28px) saturate(180%);
           -webkit-backdrop-filter: blur(28px) saturate(180%);
           border: 1.5px solid rgba(255, 255, 255, 0.2);
-          border-radius: 16px;
+          border-radius: 20px;
           box-shadow: 
             inset 0 1px 0 rgba(255, 255, 255, 0.25),
             0 40px 90px rgba(0, 0, 0, 0.95);
@@ -452,7 +466,7 @@ export class GameHUD {
         }
 
         .victory-card p {
-          color: #888888;
+          color: #94a3b8;
           font-size: 0.9rem;
           letter-spacing: 0.04em;
           text-transform: uppercase;
@@ -477,7 +491,7 @@ export class GameHUD {
           background: #ffffff;
           color: #000000;
           border: 1.5px solid #ffffff;
-          border-radius: 8px;
+          border-radius: 12px;
           padding: 0.95rem 1.8rem;
           font-family: var(--font-mono);
           font-size: 0.95rem;
@@ -490,17 +504,17 @@ export class GameHUD {
         }
 
         .victory-btn-primary:hover {
-          background: #EA3323;
-          border-color: #EA3323;
-          color: #ffffff;
-          box-shadow: 0 6px 24px rgba(234, 51, 35, 0.45);
+          background: #38bdf8;
+          border-color: #38bdf8;
+          color: #000000;
+          box-shadow: 0 6px 24px rgba(56, 189, 248, 0.45);
           transform: translateY(-1px);
         }
 
         .victory-btn-secondary {
           background: rgba(255, 255, 255, 0.06);
           border: 1px solid rgba(255, 255, 255, 0.16);
-          border-radius: 8px;
+          border-radius: 12px;
           color: #ffffff;
           padding: 0.85rem 1.6rem;
           font-family: var(--font-mono);
@@ -524,22 +538,40 @@ export class GameHUD {
       <div class="hud-top-bar">
         <!-- Top-Left: Time & Best Card -->
         <div class="hud-glass-surface hud-time-card">
-          <span class="hud-meta-label">[ 01 // CHRONO ]</span>
+          <div class="hud-meta-header">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="14" r="8"/>
+              <line x1="12" y1="14" x2="12" y2="10"/>
+              <line x1="12" y1="2" x2="12" y2="4"/>
+              <line x1="10" y1="2" x2="14" y2="2"/>
+            </svg>
+            <span class="hud-meta-label">TIME</span>
+          </div>
           <span id="hud-timer" class="hud-timer-digits">00:00.00</span>
           <div class="hud-best-row">
-            <span class="red-dot">■</span>
-            <span>RECORD:</span>
-            <span id="hud-best">01:15.20</span>
+            <span class="crown-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="#facc15" stroke="#facc15" stroke-width="1.5">
+                <polygon points="12 2 15 9 22 9 17 14 19 21 12 17 5 21 7 14 2 9 9 9 12 2"/>
+              </svg>
+            </span>
+            <span style="color: #94a3b8;">RECORD:</span>
+            <span id="hud-best" style="font-weight: 700; color: #ffffff;">01:15.20</span>
           </div>
         </div>
 
         <!-- Top-Right: Controls & Checkpoint Badge -->
         <div class="hud-top-right-group">
-          <button id="hud-btn-lobby" class="hud-btn-util">[ LOBBY // ESC ]</button>
-          <button id="hud-btn-lab" class="hud-btn-util">[ TELEMETRY // F3 ]</button>
+          <button id="hud-btn-lobby" class="hud-btn-util">LOBBY // ESC</button>
+          <button id="hud-btn-lab" class="hud-btn-util">TELEMETRY // F3</button>
 
           <div class="hud-glass-surface hud-checkpoint-badge">
-            <span class="hud-meta-label">[ 02 // CHECKPOINT ]</span>
+            <div class="hud-meta-header">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                <line x1="4" y1="22" x2="4" y2="15"/>
+              </svg>
+              <span class="hud-meta-label">CHECKPOINT</span>
+            </div>
             <span id="hud-checkpoint" class="hud-checkpoint-digits">0 / 4</span>
             <div id="hud-checkpoint-meter" class="hud-checkpoint-meter-row"></div>
           </div>
@@ -568,8 +600,21 @@ export class GameHUD {
 
         <!-- Bottom-Right: Segmented LED Speedometer -->
         <div class="hud-glass-surface hud-speedometer-group">
-          <span class="hud-meta-label">[ VELOCITY // KM/H ]</span>
-          <span id="speedo-value" class="speedo-number">0</span>
+          <div class="hud-meta-header" style="justify-content: flex-end; width: 100%;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v2"/>
+              <path d="M4.93 4.93l1.41 1.41"/>
+              <path d="M20 12h2"/>
+              <path d="M19.07 4.93l-1.41 1.41"/>
+              <path d="M15.54 8.46a5 5 0 0 0-7.07 0"/>
+              <path d="M12 14v-4"/>
+            </svg>
+            <span class="hud-meta-label">SPEED</span>
+          </div>
+          <div class="speedo-row">
+            <span id="speedo-value" class="speedo-number">0</span>
+            <span class="speedo-unit">KM/H</span>
+          </div>
           <div class="speedo-meter-track">
             <div id="speedo-meter-fill" class="speedo-meter-fill"></div>
           </div>
@@ -579,19 +624,19 @@ export class GameHUD {
       <!-- VICTORY MODAL -->
       <div id="victory-modal">
         <div class="victory-card">
-          <span class="hud-meta-label" style="color: #EA3323;">[ MISSION DEBRIEF // SECTOR COMPLETE ]</span>
+          <span class="hud-meta-label" style="color: #38bdf8;">[ MISSION DEBRIEF // SECTOR COMPLETE ]</span>
           <h2 style="margin-top: 0.5rem;">SECTOR CLEARED</h2>
           <div id="victory-time" class="victory-time-display">00:00.00</div>
           <p>PHYSICAL MOTION CONTROLLER PERFORMANCE LOGGED</p>
           <div class="victory-actions">
             <button id="victory-next-btn" class="victory-btn-primary">
-              [ NEXT SECTOR &rarr; ]
+              NEXT SECTOR &rarr;
             </button>
             <button id="victory-retry-btn" class="victory-btn-secondary">
-              [ REPLAY SECTOR ]
+              REPLAY SECTOR
             </button>
             <button id="victory-lobby-btn" class="victory-btn-secondary">
-              [ RETURN TO LOBBY ]
+              RETURN TO LOBBY
             </button>
           </div>
         </div>

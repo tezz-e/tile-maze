@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import { TextureGenerator } from './TextureGenerator.js';
 
 /**
  * Liquid-Mirror Chrome Marble
- * High-polish reflective chrome sphere reflecting sky, clouds, and track tiles.
+ * High-polish reflective chrome sphere reflecting sky, clouds, and track tiles,
+ * accented with a golden-orange racing decal insignia.
  */
 export class Marble {
   public mesh: THREE.Mesh;
@@ -10,12 +12,14 @@ export class Marble {
   constructor(radius: number = 0.32) {
     const geometry = new THREE.SphereGeometry(radius, 64, 64);
 
+    const decalTex = TextureGenerator.createMarbleDecal();
+
     // Liquid-mirror chrome material reflecting the PMREM sky and track
     const material = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      metalness: 1.0,
-      roughness: 0.02,
-      envMapIntensity: 2.2,
+      map: decalTex,
+      metalness: 0.95,
+      roughness: 0.04,
+      envMapIntensity: 2.5,
     });
 
     this.mesh = new THREE.Mesh(geometry, material);

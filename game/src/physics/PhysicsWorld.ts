@@ -250,9 +250,9 @@ export class PhysicsWorld {
   }
 
   /**
-   * Applies discrete actions (Nitro boost, shake jump).
+   * Applies discrete actions (Nitro boost, shake jump, brake).
    */
-  public applyAction(boost: boolean, shake: boolean, dt: number = 0.016): void {
+  public applyAction(boost: boolean, shake: boolean, dt: number = 0.016, brake: boolean = false): void {
     if (!this.marbleBody) return;
 
     if (shake) {
@@ -268,7 +268,11 @@ export class PhysicsWorld {
     const vel = this.marbleBody.linvel();
     const speed = Math.hypot(vel.x, vel.z);
 
-    if (boost) {
+    if (brake && speed > 0.05) {
+      // Actively dampen marble velocity when brake is held
+      const brakeDamp = Math.max(0.0, 1.0 - 6.0 * dt);
+      this.marbleBody.setLinvel({ x: vel.x * brakeDamp, y: vel.y, z: vel.z * brakeDamp }, true);
+    } else if (boost) {
       if (speed > 0.1 && speed < MAX_BOOST_SPEED) {
         const dirX = vel.x / speed;
         const dirZ = vel.z / speed;

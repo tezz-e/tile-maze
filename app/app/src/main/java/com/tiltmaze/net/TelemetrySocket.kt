@@ -13,6 +13,7 @@ interface TelemetryListener {
     fun onDisconnected()
     fun onLatencyUpdate(rttMs: Long)
     fun onHapticTrigger(effect: String, durationMs: Long, intensity: Float)
+    fun onCalibrateRequest()
     fun onError(message: String)
 }
 
@@ -81,6 +82,9 @@ class TelemetrySocket(private val listener: TelemetryListener) {
                             val intensity = json.optDouble("intensity", 0.5).toFloat()
                             listener.onHapticTrigger(effect, duration, intensity)
                         }
+                        "CALIBRATE_REQUEST" -> {
+                            listener.onCalibrateRequest()
+                        }
                         "ERROR" -> {
                             listener.onError(json.optString("message", "Unknown server error"))
                         }
@@ -133,8 +137,17 @@ class TelemetrySocket(private val listener: TelemetryListener) {
                 byteBuffer.putFloat(motion.yawRate)                  // Bytes 12-15: rawYawRate (Float32 LE)
                 byteBuffer.putInt((System.currentTimeMillis() and 0xFFFFFFFFL).toInt()) // Bytes 16-19: clientTimestamp
 
-                val byteString = ByteString.of(*byteBuffer.array())
-                webSocket?.send(byteString)
+                val ws = webSocket
+                if (ws != null) {
+                    // Skip the frame if queueSize exceeds ~512 bytes (~25 frames)
+                    // so a Wi-Fi stall never builds a backlog that bursts later.
+                    if (ws.queueSize() > 512L) {
+                        delay(16)
+                        continue
+                    }
+                    val byteString = ByteString.of(*byteBuffer.array())
+                    ws.send(byteString)
+                }
 
                 // 60Hz ticker (~16.6ms)
                 delay(16)

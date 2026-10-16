@@ -46,6 +46,7 @@ class MainActivity : ComponentActivity(), TelemetryListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         sensorManager = MotionSensorManager(this)
         hapticManager = HapticManager(this)
@@ -138,7 +139,7 @@ class MainActivity : ComponentActivity(), TelemetryListener {
             this.errorMessageState = null
 
             sensorManager.start()
-            socket.startStreaming { sensorManager.getCurrentMotionData() }
+            socket.startStreaming { sensorManager.takeFrameForStream() }
             hapticManager.trigger("success", 80L, 0.7f)
         }
     }
@@ -158,6 +159,12 @@ class MainActivity : ComponentActivity(), TelemetryListener {
 
     override fun onHapticTrigger(effect: String, durationMs: Long, intensity: Float) {
         hapticManager.trigger(effect, durationMs, intensity)
+    }
+
+    override fun onCalibrateRequest() {
+        runOnUiThread {
+            sensorManager.calibrateNeutral()
+        }
     }
 
     override fun onError(message: String) {

@@ -45,6 +45,8 @@ class GameApp {
   private isPlaying = false;
   private lastTime = performance.now();
   private lastRawBuffer: ArrayBuffer | null = null;
+  private smoothedPitch = 0;
+  private smoothedRoll = 0;
 
   constructor() {
     this.initGraphics();
@@ -58,8 +60,8 @@ class GameApp {
 
     this.scene = new THREE.Scene();
 
-    this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 150);
-    this.camera.position.set(0, 4, 8);
+    this.camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.1, 150);
+    this.camera.position.set(0, 3, 6);
     this.camera.lookAt(0, 0, -5);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -68,7 +70,7 @@ class GameApp {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 1.15;
     container.appendChild(this.renderer.domElement);
 
     // Initialize Sky Island & Cloud Sea Environment (Lighting, PMREM Reflections, Clouds, Monoliths)
@@ -198,9 +200,9 @@ class GameApp {
     const { startPos } = this.physics.loadLevel(level);
     this.marble.mesh.position.set(startPos.x, startPos.y, startPos.z);
 
-    // Bruno Simon follow camera initial setup
-    this.cameraPosition.set(startPos.x, startPos.y + 2.5, startPos.z + 5.2);
-    this.cameraTarget.set(startPos.x, startPos.y + 0.8, startPos.z - 4.5);
+    // Cinematic low-angle follow camera initial setup
+    this.cameraPosition.set(startPos.x, startPos.y + 1.45, startPos.z + 3.2);
+    this.cameraTarget.set(startPos.x, startPos.y + 0.65, startPos.z - 5.5);
     this.camera.position.copy(this.cameraPosition);
     this.camera.lookAt(this.cameraTarget);
 
@@ -246,36 +248,58 @@ class GameApp {
 
     // Determine Input: Mobile Controller or Keyboard Fallback
     const kb = this.keyboard.update(dt);
+    if (kb.recalibrate) {
+      this.network.sendCalibrateRequest(1);
+      this.pitchFilter.reset(0);
+      this.rollFilter.reset(0);
+      this.smoothedPitch = 0;
+      this.smoothedRoll = 0;
+    }
+
+    if (this.network.consumeRecalibrate(1)) {
+      this.smoothedPitch = 0;
+      this.smoothedRoll = 0;
+    }
+
     const phoneCtrl = this.network.getController(1);
 
-    let rawPitch = 0;
-    let rawRoll = 0;
+    let finalPitch = 0;
+    let finalRoll = 0;
     let boost = false;
+    let brake = false;
     let shake = false;
     let isKeyboard = true;
 
     // Use phone input if recently received (within last 500ms) and keyboard is not overriding
     if (phoneCtrl && (now - phoneCtrl.lastPacketTime < 500) && !kb.isKeyboard) {
-      rawPitch = phoneCtrl.pitch;
-      rawRoll = phoneCtrl.roll;
       boost = phoneCtrl.boost;
+      brake = phoneCtrl.brake;
       shake = this.network.consumeShake(1);
       isKeyboard = false;
+
+      // Frame-rate-independent exponential smoother to interpolate between 60Hz packets
+      const k = 1 - Math.exp(-dt / 0.02);
+      this.smoothedPitch += (phoneCtrl.pitch - this.smoothedPitch) * k;
+      this.smoothedRoll += (phoneCtrl.roll - this.smoothedRoll) * k;
+
+      finalPitch = this.smoothedPitch;
+      finalRoll = this.smoothedRoll;
     } else {
-      rawPitch = kb.pitch;
-      rawRoll = kb.roll;
       boost = kb.boost;
+      brake = kb.brake;
       shake = kb.shake;
       isKeyboard = true;
-    }
 
-    // Adaptive One-Euro Filtering
-    const filteredPitch = this.pitchFilter.filter(rawPitch, now);
-    const filteredRoll = this.rollFilter.filter(rawRoll, now);
+      // Adaptive One-Euro Filtering for keyboard input
+      finalPitch = this.pitchFilter.filter(kb.pitch, now);
+      finalRoll = this.rollFilter.filter(kb.roll, now);
+      this.smoothedPitch = finalPitch;
+      this.smoothedRoll = finalRoll;
+    }
 
     // Update Telemetry Lab if visible
     if (this.telemetryLab.isOpen() && this.lastRawBuffer) {
-      this.telemetryLab.updatePacket(this.lastRawBuffer, filteredPitch);
+      this.telemetryLab.updatePacket(this.lastRawBuffer, finalPitch);
     }
 
     // Update Environment (clouds breathing)
@@ -283,10 +307,10 @@ class GameApp {
 
     if (this.isPlaying) {
       // 1. Update Physics Gravity with rotated vector
-      this.physics.updateGravity(filteredPitch, filteredRoll);
+      this.physics.updateGravity(finalPitch, finalRoll);
 
-      // 2. Apply discrete impulses (jump / nitro)
-      this.physics.applyAction(boost, shake, dt);
+      // 2. Apply discrete impulses (jump / nitro / brake)
+      this.physics.applyAction(boost, shake, dt, brake);
 
       // 3. Step Rapier World (kinematic obstacles & physics)
       this.physics.step(dt);
@@ -299,22 +323,22 @@ class GameApp {
       this.marble.update(marblePos, marbleRot, speed);
 
       // 5. Visually tilt the 3D board
-      this.board.setTilt(filteredPitch, filteredRoll);
+      this.board.setTilt(finalPitch, finalRoll);
 
       // 6. Update visual obstacle animations (spinners & golden rings)
       this.board.update(dt, this.physics.getSpinners());
 
-      // 7. Smooth 3rd-person spring follow-cam (Bruno Simon Lerp Formula)
-      const targetCamPos = new THREE.Vector3(marblePos.x, marblePos.y + 2.5, marblePos.z + 5.2);
-      const targetCamTarget = new THREE.Vector3(marblePos.x, marblePos.y + 0.8, marblePos.z - 4.5);
+      // 7. Smooth 3rd-person spring follow-cam (Cinematic Low-Angle Camera)
+      const targetCamPos = new THREE.Vector3(marblePos.x, marblePos.y + 1.45, marblePos.z + 3.2);
+      const targetCamTarget = new THREE.Vector3(marblePos.x, marblePos.y + 0.65, marblePos.z - 5.5);
 
-      this.cameraPosition.lerp(targetCamPos, 1 - Math.exp(-6.0 * dt));
-      this.cameraTarget.lerp(targetCamTarget, 1 - Math.exp(-8.0 * dt));
+      this.cameraPosition.lerp(targetCamPos, 1 - Math.exp(-6.5 * dt));
+      this.cameraTarget.lerp(targetCamTarget, 1 - Math.exp(-8.5 * dt));
 
       this.camera.position.copy(this.cameraPosition);
       this.camera.lookAt(this.cameraTarget);
       // Dynamic camera banking into steering turns
-      this.camera.rotation.z = -filteredRoll * 0.05;
+      this.camera.rotation.z = -finalRoll * 0.08;
 
       // Track directional sun shadow camera to follow marble
       this.environment.dirLight.position.set(marblePos.x + 16, marblePos.y + 28, marblePos.z + 16);

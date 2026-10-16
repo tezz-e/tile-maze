@@ -8,65 +8,86 @@ private class LowPassFilter {
     private var s: Float? = null
 
     fun filter(value: Float, alpha: Float): Float {
-        if (y == null) {
+        y = value
+        val prev = s
+        if (prev == null) {
             s = value
-            y = value
             return value
         }
-        y = value
-        s = alpha * value + (1.0f - alpha) * s!!
-        return s!!
+        val next = alpha * value + (1.0f - alpha) * prev
+        s = next
+        return next
     }
 
-    fun last(): Float? = s
+    fun lastRaw(): Float? = y
+    fun lastFiltered(): Float? = s
 
-    fun reset() {
-        y = null
-        s = null
+    fun reset(value: Float? = null) {
+        y = value
+        s = value
     }
 }
 
 /**
  * Adaptive One Euro Filter in Kotlin.
  * Eliminates hand tremors at rest while providing zero-lag tracking during fast motions.
+ *
+ * Tuned for normalized [-1.0, 1.0] motion signals.
+ * Reference: Casiez et al., "1 € Filter: A Simple Speed-based Low-pass Filter
+ * for Noisy Input in Human-Computer Interaction", CHI 2012.
  */
 class OneEuroFilter(
-    var minCutoff: Float = 1.0f,
-    var beta: Float = 0.05f,
-    var dCutoff: Float = 1.0f
+    var minCutoff: Float = DEFAULT_MIN_CUTOFF,
+    var beta: Float = DEFAULT_BETA,
+    var dCutoff: Float = DEFAULT_D_CUTOFF
 ) {
-    private val xFilter = LowPassFilter()
-    private val dxFilter = LowPassFilter()
-    private var lastTime: Long? = null
-
-    private fun alpha(rate: Float, cutoff: Float): Float {
-        val tau = 1.0f / (2.0f * PI.toFloat() * cutoff)
-        val te = 1.0f / rate
-        return 1.0f / (1.0f + tau / te)
+    companion object {
+        const val DEFAULT_MIN_CUTOFF = 1.5f
+        const val DEFAULT_BETA = 1.5f
+        const val DEFAULT_D_CUTOFF = 1.0f
     }
 
-    fun filter(x: Float, timestampMs: Long): Float {
-        if (lastTime == null) {
-            lastTime = timestampMs
+    private val xFilter = LowPassFilter()
+    private val dxFilter = LowPassFilter()
+    private var lastTime: Double? = null
+
+    private fun alpha(rate: Double, cutoff: Float): Float {
+        val tau = 1.0 / (2.0 * Math.PI * cutoff)
+        val te = 1.0 / rate
+        return (1.0 / (1.0 + tau / te)).toFloat()
+    }
+
+    fun filter(x: Float, timestampSec: Double): Float {
+        val prevTime = lastTime
+        if (prevTime == null) {
+            lastTime = timestampSec
             dxFilter.filter(0.0f, 1.0f)
             return xFilter.filter(x, 1.0f)
         }
 
-        val dt = (timestampMs - lastTime!!) / 1000.0f
-        lastTime = timestampMs
-        val rate = if (dt > 0.0f) 1.0f / dt else 60.0f
+        val rawDt = timestampSec - prevTime
+        if (rawDt <= 0.0) {
+            // Ignore dt <= 0 (return the last filtered output)
+            return xFilter.lastFiltered() ?: x
+        }
 
-        val prevX = xFilter.last() ?: x
-        val dx = (x - prevX) * rate
+        val dt = rawDt.coerceIn(0.001, 0.1)
+        lastTime = timestampSec
+        val rate = 1.0 / dt
+
+        // Compute dx from the previous RAW sample (xFilter.lastRaw())
+        val prevRaw = xFilter.lastRaw() ?: x
+        val dx = ((x - prevRaw) / dt).toFloat()
+
         val edx = dxFilter.filter(dx, alpha(rate, dCutoff))
-
         val cutoff = minCutoff + beta * abs(edx)
+
         return xFilter.filter(x, alpha(rate, cutoff))
     }
 
-    fun reset() {
-        xFilter.reset()
-        dxFilter.reset()
+    fun reset(value: Float = 0.0f) {
+        xFilter.reset(value)
+        dxFilter.reset(0.0f)
         lastTime = null
     }
 }

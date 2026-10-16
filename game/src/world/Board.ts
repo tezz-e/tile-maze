@@ -21,15 +21,16 @@ export class Board {
     const tileTex = TextureGenerator.createBlueTiles();
     this.blueTileMat = new THREE.MeshStandardMaterial({
       map: tileTex,
-      roughness: 0.22,
-      metalness: 0.12,
-      envMapIntensity: 1.3,
+      roughness: 0.12,
+      metalness: 0.22,
+      envMapIntensity: 1.8,
     });
 
     this.yellowCurbMat = new THREE.MeshStandardMaterial({
       color: 0xfacc15, // Radiant warm yellow curb
-      roughness: 0.35,
-      metalness: 0.15,
+      roughness: 0.22,
+      metalness: 0.2,
+      envMapIntensity: 1.3,
     });
   }
 
@@ -88,24 +89,48 @@ export class Board {
     // Materials for obstacles
     const redArmMat = new THREE.MeshStandardMaterial({
       color: 0xef4444, // Bright red rotor arms
-      roughness: 0.25,
-      metalness: 0.2,
+      roughness: 0.2,
+      metalness: 0.15,
     });
     const darkPivotMat = new THREE.MeshStandardMaterial({
       color: 0x1e293b,
-      roughness: 0.3,
+      roughness: 0.25,
       metalness: 0.8,
+    });
+    const chromeCapMat = new THREE.MeshStandardMaterial({
+      color: 0xe2e8f0,
+      roughness: 0.15,
+      metalness: 0.95,
+      envMapIntensity: 2.0,
+    });
+    const darkCollarMat = new THREE.MeshStandardMaterial({
+      color: 0x0f172a,
+      roughness: 0.4,
+      metalness: 0.5,
     });
     const chevronMat = new THREE.MeshStandardMaterial({
       map: TextureGenerator.createChevrons(),
-      roughness: 0.3,
+      roughness: 0.25,
+      metalness: 0.1,
+      emissive: 0xd97706,
+      emissiveIntensity: 0.35,
+      side: THREE.DoubleSide,
+    });
+    const bouncerTargetMat = new THREE.MeshStandardMaterial({
+      map: TextureGenerator.createTargetBouncer(),
+      roughness: 0.25,
+      metalness: 0.1,
+      emissive: 0xf43f5e,
+      emissiveIntensity: 0.2,
+      envMapIntensity: 1.2,
+      side: THREE.DoubleSide,
     });
     const ringMat = new THREE.MeshStandardMaterial({
-      color: 0xfacc15,
-      metalness: 0.95,
-      roughness: 0.15,
-      emissive: 0xca8a04,
-      emissiveIntensity: 0.45,
+      color: 0xfbbf24,
+      metalness: 1.0,
+      roughness: 0.08,
+      emissive: 0xb45309,
+      emissiveIntensity: 0.35,
     });
 
     let spinnerCount = 0;
@@ -130,21 +155,33 @@ export class Board {
         this.addCurbsIfNeeded(grid, r, c, rows, cols, cx, cz, cellSize);
 
         if (cell === '#') {
-          // Wall Barrier: Modern slate pillar with yellow curb base
+          // Wall Barrier: Modern slate pillar with yellow curb base and chamfered cap
           const wallGroup = new THREE.Group();
           wallGroup.position.set(cx, 0, cz);
 
           const wallCapGeo = new THREE.BoxGeometry(cellSize * 0.96, level.wallHeight, cellSize * 0.96);
           const wallCapMat = new THREE.MeshStandardMaterial({
             color: 0x334155,
-            roughness: 0.4,
-            metalness: 0.6,
+            roughness: 0.35,
+            metalness: 0.5,
           });
           const wallCap = new THREE.Mesh(wallCapGeo, wallCapMat);
           wallCap.position.y = level.wallHeight / 2;
           wallCap.castShadow = true;
           wallCap.receiveShadow = true;
           wallGroup.add(wallCap);
+
+          // Chamfered dark top capstone
+          const capstoneGeo = new THREE.BoxGeometry(cellSize * 0.92, 0.08, cellSize * 0.92);
+          const capstoneMat = new THREE.MeshStandardMaterial({
+            color: 0x1e293b,
+            roughness: 0.3,
+            metalness: 0.7,
+          });
+          const capstone = new THREE.Mesh(capstoneGeo, capstoneMat);
+          capstone.position.y = level.wallHeight + 0.04;
+          capstone.castShadow = true;
+          wallGroup.add(capstone);
 
           // Yellow curb base accent
           const wallBaseGeo = new THREE.BoxGeometry(cellSize, 0.12, cellSize);
@@ -174,37 +211,52 @@ export class Board {
           ringMesh.position.set(cx, 0.03, cz);
           this.group.add(ringMesh);
         } else if (cell === 'P') {
-          // Bruno Simon BlockSpinner: Yellow base + Dark pivot + Red dual-arm rotor
+          // Chunky Turnstile Rotor: Wide yellow floor rim + dark collar + slate hub + chrome cap + thick red bumper arms
           const spinGroup = new THREE.Group();
           spinGroup.position.set(cx, 0, cz);
 
-          // Yellow round base
-          const baseCylGeo = new THREE.CylinderGeometry(cellSize * 0.38, cellSize * 0.42, 0.08, 32);
+          // Wide yellow floor hazard collar
+          const baseCylGeo = new THREE.CylinderGeometry(cellSize * 0.48, cellSize * 0.52, 0.08, 32);
           const baseCyl = new THREE.Mesh(baseCylGeo, this.yellowCurbMat);
           baseCyl.position.y = 0.04;
           baseCyl.castShadow = true;
           spinGroup.add(baseCyl);
 
-          // Dark center pivot cylinder
-          const pivotGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.48, 24);
+          // Recessed dark charcoal collar
+          const collarGeo = new THREE.CylinderGeometry(cellSize * 0.34, cellSize * 0.36, 0.09, 32);
+          const collar = new THREE.Mesh(collarGeo, darkCollarMat);
+          collar.position.y = 0.045;
+          collar.castShadow = true;
+          spinGroup.add(collar);
+
+          // Slate center pivot cylinder hub
+          const pivotGeo = new THREE.CylinderGeometry(0.22, 0.25, 0.52, 32);
           const pivot = new THREE.Mesh(pivotGeo, darkPivotMat);
-          pivot.position.y = 0.24;
+          pivot.position.y = 0.26;
           pivot.castShadow = true;
           spinGroup.add(pivot);
 
+          // Chrome top nut/pivot pin
+          const topCapGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.06, 24);
+          const topCap = new THREE.Mesh(topCapGeo, chromeCapMat);
+          topCap.position.y = 0.53;
+          topCap.castShadow = true;
+          spinGroup.add(topCap);
+
           // Rotating dual arm group
           const rotorGroup = new THREE.Group();
-          rotorGroup.position.y = 0.25;
+          rotorGroup.position.y = 0.26;
 
-          const armLength = cellSize * 1.45;
-          const armGeo = new THREE.CylinderGeometry(0.1, 0.1, armLength, 16);
+          const armRadius = 0.14;
+          const armLength = cellSize * 1.5;
+          const armGeo = new THREE.CylinderGeometry(armRadius, armRadius, armLength, 24);
           armGeo.rotateZ(Math.PI / 2); // Lie horizontal across X axis
           const rotorArm = new THREE.Mesh(armGeo, redArmMat);
           rotorArm.castShadow = true;
           rotorGroup.add(rotorArm);
 
-          // Red rounded end caps
-          const capGeo = new THREE.SphereGeometry(0.1, 16, 16);
+          // Thick rounded hemispherical end caps
+          const capGeo = new THREE.SphereGeometry(armRadius, 24, 24);
           const cap1 = new THREE.Mesh(capGeo, redArmMat);
           cap1.position.x = armLength / 2;
           rotorGroup.add(cap1);
@@ -218,50 +270,44 @@ export class Board {
 
           this.spinnerMeshes.push({ group: rotorGroup, index: spinnerCount++ });
         } else if (cell === 'J') {
-          // Bruno Simon BlockBouncer: Circular grey disc with pink target bullseye rings
+          // Circular Spring Target Bouncer: Yellow spring base + Charcoal platform + Bullseye target pad
           const bncGroup = new THREE.Group();
           bncGroup.position.set(cx, 0, cz);
 
-          // Yellow spring base cylinder
-          const springGeo = new THREE.CylinderGeometry(cellSize * 0.28, cellSize * 0.32, 0.12, 24);
+          // Yellow spring pedestal base
+          const springGeo = new THREE.CylinderGeometry(cellSize * 0.32, cellSize * 0.38, 0.12, 32);
           const spring = new THREE.Mesh(springGeo, this.yellowCurbMat);
           spring.position.y = 0.06;
+          spring.castShadow = true;
           bncGroup.add(spring);
 
           // Dark rim platform disc
-          const discGeo = new THREE.CylinderGeometry(cellSize * 0.44, cellSize * 0.44, 0.08, 32);
-          const discMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4 });
+          const discGeo = new THREE.CylinderGeometry(cellSize * 0.45, cellSize * 0.45, 0.08, 32);
+          const discMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.35, metalness: 0.6 });
           const disc = new THREE.Mesh(discGeo, discMat);
           disc.position.y = 0.12;
           disc.castShadow = true;
           bncGroup.add(disc);
 
-          // Concentric Bullseye rings
-          const pinkMat = new THREE.MeshBasicMaterial({ color: 0xf43f5e, side: THREE.DoubleSide });
-          const whiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+          // Bullseye concentric target disc with planar circular UVs
+          const targetPadGeo = new THREE.CircleGeometry(cellSize * 0.42, 32);
+          const targetPad = new THREE.Mesh(targetPadGeo, bouncerTargetMat);
+          targetPad.rotation.x = -Math.PI / 2;
+          targetPad.position.y = 0.165;
+          targetPad.castShadow = true;
+          bncGroup.add(targetPad);
 
-          // Outer pink ring
-          const r1 = new THREE.Mesh(new THREE.RingGeometry(cellSize * 0.28, cellSize * 0.42, 32), pinkMat);
-          r1.rotation.x = -Math.PI / 2;
-          r1.position.y = 0.165;
-          bncGroup.add(r1);
-
-          // Middle white ring
-          const r2 = new THREE.Mesh(new THREE.RingGeometry(cellSize * 0.14, cellSize * 0.28, 32), whiteMat);
-          r2.rotation.x = -Math.PI / 2;
-          r2.position.y = 0.166;
-          bncGroup.add(r2);
-
-          // Center pink core button
-          const r3 = new THREE.Mesh(new THREE.CircleGeometry(cellSize * 0.14, 32), pinkMat);
-          r3.rotation.x = -Math.PI / 2;
-          r3.position.y = 0.167;
-          bncGroup.add(r3);
+          // Outer yellow accent bevel ring
+          const ringGeo = new THREE.RingGeometry(cellSize * 0.41, cellSize * 0.45, 32);
+          const ringMesh = new THREE.Mesh(ringGeo, this.yellowCurbMat);
+          ringMesh.rotation.x = -Math.PI / 2;
+          ringMesh.position.y = 0.181;
+          bncGroup.add(ringMesh);
 
           this.group.add(bncGroup);
           this.bouncerGroups.push(bncGroup);
         } else if (cell === 'R' || cell === 'B') {
-          // Speed Boost Ramp: Incline wedge with white chevron arrows (>>)
+          // Speed Boost Ramp: Incline wedge with white chevron arrows (>>) and side curbs
           const rampGroup = new THREE.Group();
           rampGroup.position.set(cx, 0, cz);
 
@@ -294,23 +340,52 @@ export class Board {
           wedge.castShadow = true;
           rampGroup.add(wedge);
 
-          // Chevrons overlay on inclined plane
+          // Chevrons overlay on inclined plane (facing up and backwards along slope)
           const chevPlaneGeo = new THREE.PlaneGeometry(rampWidth * 0.88, rampLength * 0.95);
           const chevMesh = new THREE.Mesh(chevPlaneGeo, chevronMat);
-          chevMesh.rotation.x = -Math.PI / 2 - Math.atan2(rampHeight, rampLength);
-          chevMesh.position.set(0, rampHeight / 2 + 0.03, 0);
+          chevMesh.rotation.x = -Math.PI / 2 + Math.atan2(rampHeight, rampLength);
+          chevMesh.position.set(0, rampHeight / 2 + 0.05, 0);
           rampGroup.add(chevMesh);
+
+          // Yellow side guide rails along flanks
+          const guideRailGeo = new THREE.BoxGeometry(0.1, 0.15, rampLength);
+          const leftRail = new THREE.Mesh(guideRailGeo, this.yellowCurbMat);
+          leftRail.position.set(-rampWidth / 2 + 0.05, rampHeight / 2 + 0.04, 0);
+          leftRail.rotation.x = -Math.atan2(rampHeight, rampLength);
+          leftRail.castShadow = true;
+          rampGroup.add(leftRail);
+
+          const rightRail = new THREE.Mesh(guideRailGeo, this.yellowCurbMat);
+          rightRail.position.set(rampWidth / 2 - 0.05, rampHeight / 2 + 0.04, 0);
+          rightRail.rotation.x = -Math.atan2(rampHeight, rampLength);
+          rightRail.castShadow = true;
+          rampGroup.add(rightRail);
 
           this.group.add(rampGroup);
         } else if (cell === 'C' || cell === 'O') {
           // Floating Golden Ring Checkpoint Gate
+          const ringGroup = new THREE.Group();
+          ringGroup.position.set(cx, 0.65, cz);
+
           const ringMesh = new THREE.Mesh(
-            new THREE.TorusGeometry(cellSize * 0.35, 0.065, 16, 32),
+            new THREE.TorusGeometry(cellSize * 0.38, 0.075, 24, 48),
             ringMat
           );
-          ringMesh.position.set(cx, 0.65, cz);
           ringMesh.castShadow = true;
-          this.group.add(ringMesh);
+          ringGroup.add(ringMesh);
+
+          // Inner golden glow aura disc
+          const auraGeo = new THREE.RingGeometry(cellSize * 0.08, cellSize * 0.32, 32);
+          const auraMat = new THREE.MeshBasicMaterial({
+            color: 0xfef08a,
+            transparent: true,
+            opacity: 0.35,
+            side: THREE.DoubleSide,
+          });
+          const auraMesh = new THREE.Mesh(auraGeo, auraMat);
+          ringGroup.add(auraMesh);
+
+          this.group.add(ringGroup);
           this.goldenRings.push(ringMesh);
 
           // Floor circular accent
@@ -433,8 +508,8 @@ export class Board {
     cz: number,
     cellSize: number
   ): void {
-    const curbHeight = 0.26;
-    const curbThickness = 0.2;
+    const curbHeight = 0.32;
+    const curbThickness = 0.22;
     const curbLength = cellSize;
 
     // Check North (r - 1)
@@ -476,9 +551,10 @@ export class Board {
       }
     }
 
-    // 2. Animate floating golden rings
+    // 2. Animate floating golden rings (rotation + gentle vertical bobbing)
     for (const ring of this.goldenRings) {
       ring.rotation.y += dt * 1.5;
+      ring.position.y = 0.65 + Math.sin(ring.rotation.y * 1.5) * 0.06;
     }
   }
 

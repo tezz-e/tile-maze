@@ -22,7 +22,7 @@ async function main() {
   await page.goto('http://127.0.0.1:3000', { waitUntil: 'load' });
   await page.waitForTimeout(1000);
 
-  const outDir = path.resolve('C:/Users/manee/.gemini/antigravity/brain/4c0265de-0a07-4401-8f42-08702c661591/scratch');
+  const outDir = path.resolve('C:/Users/manee/.gemini/antigravity/brain/7720831f-0b37-4703-83fd-2dace7b584da/scratch');
   if (!fs.existsSync(outDir)) {
     fs.mkdirSync(outDir, { recursive: true });
   }

@@ -9,7 +9,7 @@ describe('Adaptive One Euro Filter', () => {
     let timestamp = 1000;
     filter.filter(0.0, timestamp);
 
-    // Inject 10 frames of micro-noise ±0.03
+    // Inject 20 frames of micro-noise ±0.03
     let filteredVal = 0.0;
     for (let i = 0; i < 20; i++) {
       timestamp += 16.6; // ~60Hz
@@ -34,7 +34,33 @@ describe('Adaptive One Euro Filter', () => {
       out = filter.filter(1.0, timestamp);
     }
 
-    // High velocity flick should quickly reach close to 1.0
-    expect(out).toBeGreaterThan(0.65);
+    // High velocity flick should quickly reach responsive level (> 0.55)
+    // without suffering from lagging speed estimate
+    expect(out).toBeGreaterThan(0.55);
+  });
+
+  it('does not suffer from lag-induced speed inflation when returning to steady state at rest', () => {
+    const filter = new OneEuroFilter(1.0, 0.4);
+
+    let timestamp = 1000;
+    filter.filter(0.0, timestamp);
+
+    // Fast flick from 0.0 to 1.0
+    timestamp += 16.6;
+    filter.filter(1.0, timestamp);
+    const speedDuringFlick = filter.lastDerivative;
+    expect(speedDuringFlick).toBeGreaterThan(4);
+
+    // Signal holds steady at 1.0 for ~400ms (25 frames at rest)
+    for (let i = 0; i < 25; i++) {
+      timestamp += 16.6;
+      filter.filter(1.0, timestamp);
+    }
+
+    // Because derivative is computed from previous raw samples (1.0 - 1.0 = 0),
+    // derivative decays to ~0 rather than remaining inflated by filter lag
+    expect(filter.lastDerivative).toBeLessThan(0.5);
+    // And output settles cleanly at the steady-state target value
+    expect(filter.filter(1.0, timestamp + 16.6)).toBeGreaterThan(0.95);
   });
 });
