@@ -6,6 +6,15 @@ describe('Level Geometry & Solvability Validator', () => {
     expect(LEVELS.length).toBe(4);
   });
 
+  it('ensures every row of every level has the same length as the first row', () => {
+    LEVELS.forEach((level) => {
+      const expectedLen = level.grid[0].length;
+      level.grid.forEach((row, rowIndex) => {
+        expect(row.length, `Level ${level.id} row ${rowIndex} should have length ${expectedLen}`).toBe(expectedLen);
+      });
+    });
+  });
+
   LEVELS.forEach((level) => {
     it(`validates that Level ${level.id} ("${level.name}") is solvable via BFS`, () => {
       const result = validateLevelSolvability(level);
