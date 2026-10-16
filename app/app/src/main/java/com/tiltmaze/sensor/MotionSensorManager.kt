@@ -71,6 +71,10 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
     @Volatile private var calibPitchAngle = 0.0f
     @Volatile private var calibRollAngle = 0.0f
 
+    // Volatile request flags set from UI/network threads
+    @Volatile private var calibRequested = false
+    @Volatile private var resetRequested = false
+
     // Calibration window state (runs over ~300ms of sensor time with 800ms max timeout)
     @Volatile private var pendingCalibration = true
     private var calibInitialRequestTimeNs = 0L
@@ -164,10 +168,8 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
         updateAxisRemap(currentDisplayRotation)
         displayManager.registerDisplayListener(displayListener, handler)
 
-        pendingCalibration = true
-        calibInitialRequestTimeNs = 0L
-        calibWindowStartTimeNs = 0L
-        calibSampleCount = 0
+        calibRequested = true
+        resetRequested = false
 
         rotationSensor?.let {
             sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST, handler)
@@ -186,24 +188,11 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
     }
 
     fun calibrateNeutral() {
-        pendingCalibration = true
-        calibInitialRequestTimeNs = 0L
-        calibWindowStartTimeNs = 0L
-        calibSampleCount = 0
+        calibRequested = true
     }
 
     fun resetToFlat() {
-        pendingCalibration = false
-        calibInitialRequestTimeNs = 0L
-        calibWindowStartTimeNs = 0L
-        calibSampleCount = 0
-        calibPitchAngle = 0.0f
-        calibRollAngle = 0.0f
-        pitchFilter.reset(0.0f)
-        rollFilter.reset(0.0f)
-        currentPitch = 0.0f
-        currentRoll = 0.0f
-        recalibratePulse.set(true)
+        resetRequested = true
     }
 
     private fun wrapAngleRad(angle: Float): Float {
@@ -217,6 +206,28 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
         if (event == null) return
 
         if (event.sensor.type == Sensor.TYPE_GAME_ROTATION_VECTOR || event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
+            if (resetRequested) {
+                resetRequested = false
+                calibRequested = false
+                pendingCalibration = false
+                calibInitialRequestTimeNs = 0L
+                calibWindowStartTimeNs = 0L
+                calibSampleCount = 0
+                calibPitchAngle = 0.0f
+                calibRollAngle = 0.0f
+                pitchFilter.reset(0.0f)
+                rollFilter.reset(0.0f)
+                currentPitch = 0.0f
+                currentRoll = 0.0f
+                recalibratePulse.set(true)
+            } else if (calibRequested) {
+                calibRequested = false
+                pendingCalibration = true
+                calibInitialRequestTimeNs = 0L
+                calibWindowStartTimeNs = 0L
+                calibSampleCount = 0
+            }
+
             SensorManager.getRotationMatrixFromVector(worldRotMatrix, event.values)
             SensorManager.remapCoordinateSystem(worldRotMatrix, axisX, axisY, screenRotMatrix)
 
