@@ -4,6 +4,7 @@ import {
   PACKET_TYPE_TELEMETRY,
   BUTTON_BOOST,
   BUTTON_SHAKE,
+  BUTTON_RECALIBRATE,
   encodeTelemetry,
   type TelemetryFrame,
 } from '@tiltmaze/protocol';
@@ -93,6 +94,54 @@ describe('GameNetwork - Pulse Rising Edge Latching', () => {
     // Next packet arriving with shake bit is treated as a new rising edge
     net.handleBinaryTelemetry(makeFrame(1, 2, BUTTON_SHAKE));
     expect(net.consumeShake(1)).toBe(true);
+  });
+
+  it('fires consumeRecalibrate exactly once when 3 consecutive packets have recalibrate bit set', () => {
+    const net = new GameNetwork({
+      onRoomCreated: () => {},
+      onPlayerJoined: () => {},
+      onPlayerDisconnected: () => {},
+      onPlayerReconnected: () => {},
+      onPlayerLeft: () => {},
+      onLatencyUpdate: () => {},
+    });
+
+    // Packet 1: recalibrate bit = 1
+    net.handleBinaryTelemetry(makeFrame(1, 1, BUTTON_RECALIBRATE));
+    expect(net.consumeRecalibrate(1)).toBe(true);
+
+    // Packet 2: recalibrate bit = 1 (repeated for redundancy)
+    net.handleBinaryTelemetry(makeFrame(1, 2, BUTTON_RECALIBRATE));
+    expect(net.consumeRecalibrate(1)).toBe(false);
+
+    // Packet 3: recalibrate bit = 1
+    net.handleBinaryTelemetry(makeFrame(1, 3, BUTTON_RECALIBRATE));
+    expect(net.consumeRecalibrate(1)).toBe(false);
+  });
+
+  it('detects recalibrate rising edge from second packet if first packet is dropped', () => {
+    const net = new GameNetwork({
+      onRoomCreated: () => {},
+      onPlayerJoined: () => {},
+      onPlayerDisconnected: () => {},
+      onPlayerReconnected: () => {},
+      onPlayerLeft: () => {},
+      onLatencyUpdate: () => {},
+    });
+
+    // Baseline packet without recalibrate
+    net.handleBinaryTelemetry(makeFrame(1, 1, 0));
+    expect(net.consumeRecalibrate(1)).toBe(false);
+
+    // Packet 2 (the first recalibrate packet) was dropped in transit
+
+    // Packet 3 (the second recalibrate packet) arrives
+    net.handleBinaryTelemetry(makeFrame(1, 3, BUTTON_RECALIBRATE));
+    expect(net.consumeRecalibrate(1)).toBe(true);
+
+    // Packet 4 (the third recalibrate packet) arrives
+    net.handleBinaryTelemetry(makeFrame(1, 4, BUTTON_RECALIBRATE));
+    expect(net.consumeRecalibrate(1)).toBe(false);
   });
 });
 

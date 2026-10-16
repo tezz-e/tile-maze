@@ -97,7 +97,7 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
     private val calibSamplesZ = FloatArray(128)
 
     // Pulse states
-    private val recalibratePulse = AtomicBoolean(false)
+    private val recalibrateFramesRemaining = AtomicInteger(0)
     private val shakeFramesRemaining = AtomicInteger(0)
 
     // Current output values
@@ -238,7 +238,7 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
                 rollFilter.reset(0.0f)
                 currentPitch = 0.0f
                 currentRoll = 0.0f
-                recalibratePulse.set(true)
+                recalibrateFramesRemaining.set(3)
             } else if (calibRequested) {
                 calibRequested = false
                 calibrationFailed = false
@@ -330,7 +330,7 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
                             rollFilter.reset(0.0f)
                             currentPitch = 0.0f
                             currentRoll = 0.0f
-                            recalibratePulse.set(true)
+                            recalibrateFramesRemaining.set(3)
                             calibrationFailed = false
                             pendingCalibration = false
                         } else if (isTimedOut) {
@@ -364,7 +364,7 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
                                 rollFilter.reset(0.0f)
                                 currentPitch = 0.0f
                                 currentRoll = 0.0f
-                                recalibratePulse.set(true)
+                                recalibrateFramesRemaining.set(3)
                                 calibrationFailed = false
                             } else {
                                 // Calibration failed: keep previous calibration, don't send recalibrate pulse
@@ -438,7 +438,7 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
             roll = currentRoll,
             yaw = currentYaw,
             shakeTriggered = shakeFramesRemaining.get() > 0,
-            recalibratedPulse = recalibratePulse.get()
+            recalibratedPulse = recalibrateFramesRemaining.get() > 0
         )
     }
 
@@ -446,15 +446,23 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
      * Consumes one-shot pulses (shake frames, recalibrate pulse) for network streaming.
      */
     fun takeFrameForStream(): MotionData {
-        var frames = shakeFramesRemaining.get()
-        while (frames > 0) {
-            if (shakeFramesRemaining.compareAndSet(frames, frames - 1)) {
+        var shakeFrames = shakeFramesRemaining.get()
+        while (shakeFrames > 0) {
+            if (shakeFramesRemaining.compareAndSet(shakeFrames, shakeFrames - 1)) {
                 break
             }
-            frames = shakeFramesRemaining.get()
+            shakeFrames = shakeFramesRemaining.get()
         }
-        val isShake = frames > 0
-        val isRecal = recalibratePulse.getAndSet(false)
+        val isShake = shakeFrames > 0
+
+        var recalFrames = recalibrateFramesRemaining.get()
+        while (recalFrames > 0) {
+            if (recalibrateFramesRemaining.compareAndSet(recalFrames, recalFrames - 1)) {
+                break
+            }
+            recalFrames = recalibrateFramesRemaining.get()
+        }
+        val isRecal = recalFrames > 0
 
         return MotionData(
             pitch = currentPitch,
