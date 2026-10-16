@@ -16,9 +16,13 @@
 | :--- | :--- |
 | **Demo Video** | `<VIDEO_URL>` |
 | **Download APK** | [GitHub Releases](https://github.com/tezz-e/tile-maze/releases) |
+| **Project Page** | [docs/index.html](docs/index.html) *(enable GitHub Pages from `/docs`)* |
 | **Architecture** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | **Protocol** | [docs/PROTOCOL.md](docs/PROTOCOL.md) |
 | **Latency Guide** | [docs/LATENCY.md](docs/LATENCY.md) |
+| **Release Guide** | [docs/RELEASE.md](docs/RELEASE.md) |
+
+> **Project page:** Enable GitHub Pages from `/docs` for the web showcase. (Note: the 3D physics labyrinth itself requires the local Node.js WebSocket relay server to stream live 60Hz IMU frames from the phone).
 
 ### 💡 What's the Challenge Twist?
 Instead of using a standard gamepad or touchscreen joystick, **Tiltmaze turns an everyday smartphone into a real-time physical tilt instrument**. The phone streams 60Hz orientation sensor frames over a custom 20-byte binary protocol, with sub-frame latency tracking, active haptic telemetry feedback from in-game collisions, and live dual-trace oscilloscope measurement built directly into the game.

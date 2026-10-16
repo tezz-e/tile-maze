@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tiltmaze: Kinetic Edition // Anything but a Game Controller</title>
+  <style>
+    :root {
+      --bg: #050505;
+      --card-bg: #0d0d0d;
+      --accent: #EA3323;
+      --accent-glow: rgba(234, 51, 35, 0.25);
+      --text: #f0f0f0;
+      --muted: #888888;
+      --border: #262626;
+      --border-focus: #444444;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      padding: 40px 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      max-width: 860px;
+      width: 100%;
+    }
+
+    header {
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      padding: 32px;
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .meta-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: var(--accent);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-family: var(--font-mono);
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      color: #ffffff;
+    }
+
+    .pitch {
+      font-size: 17px;
+      color: #cccccc;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .badge-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      background: #000000;
+      color: var(--muted);
+    }
+
+    .badge strong {
+      color: #ffffff;
+    }
+
+    .actions {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }
+
+    .btn {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 12px 24px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+      border: 1px solid transparent;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: var(--accent);
+    }
+
+    .btn-primary:hover {
+      background: #cc2516;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+
+    .btn-secondary {
+      background: #000000;
+      color: #ffffff;
+      border-color: var(--border-focus);
+    }
+
+    .btn-secondary:hover {
+      border-color: #ffffff;
+    }
+
+    .section {
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title::before {
+      content: "";
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+    }
+
+    .video-frame {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000000;
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .video-placeholder {
+      font-family: var(--font-mono);
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .video-subtext {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+    }
+
+    .step-card {
+      background: #000000;
+      border: 1px solid var(--border);
+      padding: 20px;
+    }
+
+    .step-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 900;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .step-title {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #ffffff;
+    }
+
+    .step-desc {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .tech-card {
+      background: #000000;
+      border: 1px solid var(--border);
+      padding: 16px;
+    }
+
+    .tech-card h4 {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+
+    .tech-card p {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .callout {
+      border-left: 2px solid var(--accent);
+      background: #110505;
+      padding: 16px;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #bbbbbb;
+      font-family: var(--font-mono);
+    }
+
+    footer {
+      text-align: center;
+      padding: 24px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    footer a {
+      color: #ffffff;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="meta-tag">[ SYS // CHALLENGE SUBMISSION // 2026 ]</div>
+      <h1>Tiltmaze: Kinetic Edition</h1>
+      <p class="pitch">
+        A smartphone becomes the physical tilt &amp; shake controller for a 3D marble game running in the browser over local WebSockets.
+      </p>
+
+      <div class="badge-bar">
+        <span class="badge">CHALLENGE: <strong>Anything but a Game Controller</strong></span>
+        <span class="badge">TELEMETRY: <strong>60Hz Binary (20-byte)</strong></span>
+        <span class="badge">PHYSICS: <strong>Rapier 3D (Rotated Gravity)</strong></span>
+        <span class="badge">HARDWARE: <strong>Nothing Glyph Matrix (25×25)</strong></span>
+      </div>
+
+      <div class="actions">
+        <a href="https://github.com/tezz-e/tile-maze/releases" class="btn btn-primary">[ DOWNLOAD APK ]</a>
+        <a href="https://github.com/tezz-e/tile-maze" class="btn btn-secondary">[ VIEW GITHUB REPOSITORY ]</a>
+      </div>
+    </header>
+
+    <!-- Demo Video Section -->
+    <section class="section">
+      <div class="section-title">Submission Screen Recording</div>
+      <div class="video-frame">
+        <div class="video-placeholder">&lt;VIDEO_URL&gt;</div>
+        <div class="video-subtext">Drop screen recording embed or hosted video link here</div>
+      </div>
+    </section>
+
+    <!-- Setup Steps -->
+    <section class="section">
+      <div class="section-title">4-Step Setup &amp; Play</div>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-num">01 // INSTALL</div>
+          <div class="step-title">Install Controller APK</div>
+          <div class="step-desc">
+            Download <code>tiltmaze-v1.0.0.apk</code> from Releases and install on any phone running Android 8.0+.
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-num">02 // HOST</div>
+          <div class="step-title">Run Relay on Laptop</div>
+          <div class="step-desc">
+            Run <code>npm start</code> on your computer. The game and relay server launch together on port <code>3000</code>.
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-num">03 // PAIR</div>
+          <div class="step-title">Scan Lobby QR Code</div>
+          <div class="step-desc">
+            Tap <code>[ SCAN LAPTOP QR CODE ]</code> in the app to pair in under 1 second via Google Code Scanner.
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-num">04 // TILT</div>
+          <div class="step-title">Zero IMU &amp; Steer</div>
+          <div class="step-desc">
+            Tap <code>[ CALIBRATE ]</code> for neutral posture, tilt to steer the marble, shake to jump, and hold NITRO!
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>ARCHITECTURAL NOTE:</strong> The web game requires the local low-latency Node.js WebSocket relay server to receive live 60Hz binary IMU frames from the physical phone. The game is not playable standalone on this static page without running the local server.
+      </div>
+    </section>
+
+    <!-- Technical Architecture -->
+    <section class="section">
+      <div class="section-title">System Architecture</div>
+      <div class="tech-grid">
+        <div class="tech-card">
+          <h4>20-Byte Binary Protocol</h4>
+          <p>Orientation, button states, sequence counters, and client timestamps packed into 20 bytes with zero GC allocations.</p>
+        </div>
+        <div class="tech-card">
+          <h4>Rotated Gravity Physics</h4>
+          <p>Rapier 3D simulation dynamically rotates the gravity vector with continuous collision detection (CCD) for marble physics.</p>
+        </div>
+        <div class="tech-card">
+          <h4>Adaptive 1€ Filtering</h4>
+          <p>Filters hand micro-tremors at rest while eliminating phase lag during quick physical tilt flicks.</p>
+        </div>
+        <div class="tech-card">
+          <h4>Nothing Phone (3) Glyph Matrix</h4>
+          <p>Drives the 489 physical circular LEDs with sub-pixel Gaussian blobs and a dedicated 30Hz render thread.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Tiltmaze: Kinetic Edition &bull; Licensed under <a href="https://opensource.org/licenses/MIT">MIT License</a> &bull;
+      <a href="https://github.com/tezz-e/tile-maze">GitHub Repo</a>
+    </footer>
+  </div>
+</body>
+</html>
