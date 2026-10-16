@@ -25,7 +25,7 @@ const HOST = '0.0.0.0'; // Listen on all network interfaces for LAN connectivity
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server, perMessageDeflate: false });
 const roomManager = new RoomManager();
 
 // Track alive status for TCP keep-alive
@@ -98,6 +98,10 @@ if (fs.existsSync(gameDistPath)) {
 wss.on('connection', (socket: ExtWebSocket, req) => {
   socket.isAlive = true;
 
+  if (req.socket && typeof req.socket.setNoDelay === 'function') {
+    req.socket.setNoDelay(true);
+  }
+
   socket.on('pong', () => {
     socket.isAlive = true;
   });
@@ -132,6 +136,10 @@ wss.on('connection', (socket: ExtWebSocket, req) => {
 
       const room = roomManager.getRoom(meta.roomCode);
       if (room && room.hostSocket && room.hostSocket.readyState === WebSocket.OPEN) {
+        // Backpressure check: if host socket send buffer exceeds ~2KB, drop frame to prevent latency spikes
+        if (room.hostSocket.bufferedAmount > 2048) {
+          return;
+        }
         // Zero-copy direct pass-through to the laptop host socket
         room.hostSocket.send(buf, { binary: true });
       }

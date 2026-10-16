@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { WebSocket } from 'ws';
-import { server, wss } from '../src/index.js';
+import { server, wss, roomManager } from '../src/index.js';
 import {
   PACKET_SIZE,
   PACKET_TYPE_TELEMETRY,
@@ -235,5 +235,98 @@ describe('End-to-End WebSocket Relay Integration', () => {
 
     host2.close();
     ctrl.close();
+  });
+
+  it('drops telemetry frames when hostSocket bufferedAmount exceeds 2KB backpressure threshold', async () => {
+    const hostWs = new WebSocket('ws://127.0.0.1:3000');
+    await new Promise((resolve) => hostWs.on('open', resolve));
+
+    const createMsg: ControlMessage = { type: 'HOST_CREATE_ROOM' };
+    hostWs.send(serializeControlMessage(createMsg));
+
+    const roomCreated = await new Promise<RoomCreatedMsg>((resolve) => {
+      hostWs.on('message', (raw) => {
+        try {
+          const msg = JSON.parse(raw.toString());
+          if (msg.type === 'ROOM_CREATED') resolve(msg);
+        } catch {}
+      });
+    });
+
+    const controllerWs = new WebSocket('ws://127.0.0.1:3000');
+    await new Promise((resolve) => controllerWs.on('open', resolve));
+
+    const joinMsg: ControlMessage = {
+      type: 'JOIN_ROOM',
+      roomCode: roomCreated.roomCode,
+      deviceName: 'Backpressure Test Phone',
+    };
+    controllerWs.send(serializeControlMessage(joinMsg));
+
+    await new Promise<JoinedRoomMsg>((resolve) => {
+      controllerWs.on('message', (raw) => {
+        try {
+          const msg = JSON.parse(raw.toString());
+          if (msg.type === 'JOINED_ROOM') resolve(msg);
+        } catch {}
+      });
+    });
+
+    const room = roomManager.getRoom(roomCreated.roomCode)!;
+    expect(room).toBeDefined();
+
+    let receivedCount = 0;
+    hostWs.on('message', (_data, isBinary) => {
+      if (isBinary) receivedCount++;
+    });
+
+    // Simulate backed-up hostSocket buffer (> 2KB)
+    Object.defineProperty(room.hostSocket!, 'bufferedAmount', {
+      value: 3000,
+      configurable: true,
+      writable: true,
+    });
+
+    const droppedFrame = encodeTelemetry({
+      packetType: PACKET_TYPE_TELEMETRY,
+      playerSlot: 1,
+      buttonBitmask: 0,
+      sequenceNumber: 1,
+      calibratedPitch: 0.1,
+      calibratedRoll: 0.2,
+      yaw: 0.0,
+      clientTimestamp: 100,
+    });
+    controllerWs.send(droppedFrame, { binary: true });
+
+    // Wait a brief tick to verify frame was dropped
+    await new Promise((r) => setTimeout(r, 60));
+    expect(receivedCount).toBe(0);
+
+    // Relieve backpressure (bufferedAmount <= 2048)
+    Object.defineProperty(room.hostSocket!, 'bufferedAmount', {
+      value: 0,
+      configurable: true,
+      writable: true,
+    });
+
+    const acceptedFrame = encodeTelemetry({
+      packetType: PACKET_TYPE_TELEMETRY,
+      playerSlot: 1,
+      buttonBitmask: 0,
+      sequenceNumber: 2,
+      calibratedPitch: 0.1,
+      calibratedRoll: 0.2,
+      yaw: 0.0,
+      clientTimestamp: 200,
+    });
+    controllerWs.send(acceptedFrame, { binary: true });
+
+    // Wait for accepted frame to arrive
+    await new Promise((r) => setTimeout(r, 60));
+    expect(receivedCount).toBe(1);
+
+    hostWs.close();
+    controllerWs.close();
   });
 });
