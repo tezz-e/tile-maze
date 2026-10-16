@@ -34,52 +34,48 @@ export class TextureGenerator {
     const { canvas, ctx } = c;
 
     // 1. Sky Gradient from zenith (y=0) down through horizon (y=256) to nadir (y=512)
+    // Smooth continuous gradient stops with low contrast near the horizon to eliminate banding in reflections
     const skyGrad = ctx.createLinearGradient(0, 0, 0, 512);
     if (isNight) {
       skyGrad.addColorStop(0.0, topColor);
-      skyGrad.addColorStop(0.35, '#050b14');
+      skyGrad.addColorStop(0.35, '#080e1a');
       skyGrad.addColorStop(0.50, '#0f172a');
-      skyGrad.addColorStop(0.68, '#070d18');
-      skyGrad.addColorStop(1.0, bottomColor);
-    } else if (topColor === '#1e3a8a') {
-      skyGrad.addColorStop(0.0, topColor);
-      skyGrad.addColorStop(0.25, topColor);
-      skyGrad.addColorStop(0.48, '#bae6fd');
-      skyGrad.addColorStop(0.50, '#fed7aa');
-      skyGrad.addColorStop(0.68, bottomColor);
+      skyGrad.addColorStop(0.70, '#0b1322');
       skyGrad.addColorStop(1.0, bottomColor);
     } else {
       skyGrad.addColorStop(0.0, topColor);
       skyGrad.addColorStop(0.30, topColor);
-      skyGrad.addColorStop(0.65, bottomColor);
+      // Soft, low-contrast transition at horizon (y=256, stop 0.50)
+      skyGrad.addColorStop(0.48, '#bfdbfe');
+      skyGrad.addColorStop(0.52, '#dbeafe');
+      skyGrad.addColorStop(0.75, bottomColor);
       skyGrad.addColorStop(1.0, bottomColor);
     }
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, 1024, 512);
 
-    // 2. Warm Sun Corona / Glowing Night Moon at ~12° above horizon (Y=215, X=620)
+    // 2. Warm Sun Corona (gentle smooth radial falloff, no harsh rings)
     const sunX = 620;
     const sunY = 215;
-    const sunGrad = ctx.createRadialGradient(sunX, sunY, 15, sunX, sunY, 180);
+    const sunGrad = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 200);
     if (isNight) {
       sunGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
-      sunGrad.addColorStop(0.12, 'rgba(224, 242, 254, 0.85)');
-      sunGrad.addColorStop(0.35, 'rgba(186, 230, 253, 0.45)');
-      sunGrad.addColorStop(0.7, 'rgba(56, 189, 248, 0.15)');
+      sunGrad.addColorStop(0.20, 'rgba(224, 242, 254, 0.6)');
+      sunGrad.addColorStop(0.55, 'rgba(186, 230, 253, 0.2)');
       sunGrad.addColorStop(1.0, 'rgba(56, 189, 248, 0.0)');
     } else {
       sunGrad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
-      sunGrad.addColorStop(0.12, 'rgba(255, 252, 230, 0.95)');
-      sunGrad.addColorStop(0.35, 'rgba(254, 240, 138, 0.55)');
-      sunGrad.addColorStop(0.7, 'rgba(253, 224, 71, 0.18)');
-      sunGrad.addColorStop(1.0, 'rgba(253, 224, 71, 0.0)');
+      sunGrad.addColorStop(0.18, 'rgba(255, 250, 235, 0.85)');
+      sunGrad.addColorStop(0.45, 'rgba(254, 243, 199, 0.35)');
+      sunGrad.addColorStop(0.75, 'rgba(254, 243, 199, 0.1)');
+      sunGrad.addColorStop(1.0, 'rgba(254, 243, 199, 0.0)');
     }
     ctx.fillStyle = sunGrad;
     ctx.beginPath();
-    ctx.arc(sunX, sunY, 180, 0, Math.PI * 2);
+    ctx.arc(sunX, sunY, 200, 0, Math.PI * 2);
     ctx.fill();
 
-    // 3. Clouds or Stars
+    // 3. Clouds or Stars with soft edges
     if (isNight) {
       ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
       for (let i = 0; i < 45; i++) {
@@ -89,11 +85,12 @@ export class TextureGenerator {
         ctx.fillRect(sx, sy, sSize, sSize);
       }
     } else {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-      for (let i = 0; i < 20; i++) {
-        const cx = (i * 60 + 30) % 1024;
-        const cy = 250 + Math.sin(i * 1.3) * 15;
-        const r = 45 + Math.cos(i * 0.9) * 18;
+      // Soft wispy horizon cirrus with low opacity
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+      for (let i = 0; i < 16; i++) {
+        const cx = (i * 70 + 40) % 1024;
+        const cy = 245 + Math.sin(i * 1.3) * 12;
+        const r = 50 + Math.cos(i * 0.9) * 15;
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
         ctx.fill();
@@ -310,43 +307,50 @@ export class TextureGenerator {
   /**
    * Generates a 512x256 racing stripe decal texture for the liquid chrome marble.
    */
+  /**
+   * Generates a 512x256 high-polish chrome map with a subtle cool silvery-blue sheen
+   * and clean precision racing pinstripes, ensuring the marble reads as liquid chrome.
+   */
   public static createMarbleDecal(): THREE.Texture {
     const c = this.createCanvas(512, 256);
     if (!c) {
-      const tex = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
+      const tex = new THREE.DataTexture(new Uint8Array([240, 244, 248, 255]), 1, 1);
       tex.needsUpdate = true;
       return tex;
     }
     const { canvas, ctx } = c;
 
-    // Bright reflective chrome base
-    ctx.fillStyle = '#e2e8f0';
-    ctx.fillRect(0, 0, 512, 256);
-
-    // Warm metallic gradient
+    // Liquid chrome base with cool silvery tint
     const grad = ctx.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0.0, '#ffffff');
-    grad.addColorStop(0.3, '#f1f5f9');
-    grad.addColorStop(0.7, '#cbd5e1');
-    grad.addColorStop(1.0, '#94a3b8');
+    grad.addColorStop(0.0, '#f8fafc');
+    grad.addColorStop(0.25, '#f1f5f9');
+    grad.addColorStop(0.50, '#e2e8f0');
+    grad.addColorStop(0.75, '#cbd5e1');
+    grad.addColorStop(1.0, '#e2e8f0');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 512, 256);
 
-    // Sporty racing insignia: double orange & white racing stripes running horizontally around the equator
+    // Subtle cool cyan-silver specular glaze
+    const glaze = ctx.createLinearGradient(0, 0, 512, 0);
+    glaze.addColorStop(0.0, 'rgba(240, 249, 255, 0.35)');
+    glaze.addColorStop(0.5, 'rgba(224, 242, 254, 0.1)');
+    glaze.addColorStop(1.0, 'rgba(240, 249, 255, 0.35)');
+    ctx.fillStyle = glaze;
+    ctx.fillRect(0, 0, 512, 256);
+
+    // Minimalist precision equator pinstripe (subtle chrome speed line, not a candy stripe)
     const stripeY = 128;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.fillRect(0, stripeY - 2, 512, 4);
 
-    // Wide golden-orange center stripe
-    ctx.fillStyle = '#f97316';
-    ctx.fillRect(0, stripeY - 24, 512, 48);
-
-    // Thin white border pinstripes
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, stripeY - 30, 512, 6);
-    ctx.fillRect(0, stripeY + 24, 512, 6);
-
-    // Inner bright yellow-amber speed accent
-    ctx.fillStyle = '#fbbf24';
-    ctx.fillRect(0, stripeY - 6, 512, 12);
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, stripeY - 4);
+    ctx.lineTo(512, stripeY - 4);
+    ctx.moveTo(0, stripeY + 4);
+    ctx.lineTo(512, stripeY + 4);
+    ctx.stroke();
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;

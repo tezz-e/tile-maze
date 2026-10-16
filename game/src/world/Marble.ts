@@ -17,9 +17,10 @@ export class Marble {
     // Liquid-mirror chrome material reflecting the PMREM sky and track
     const material = new THREE.MeshStandardMaterial({
       map: decalTex,
-      metalness: 0.95,
-      roughness: 0.04,
-      envMapIntensity: 2.5,
+      color: 0xf8fafc,
+      metalness: 0.98,
+      roughness: 0.03,
+      envMapIntensity: 2.2,
     });
 
     this.mesh = new THREE.Mesh(geometry, material);

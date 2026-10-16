@@ -105,6 +105,10 @@ describe('Skyway Obstacles & Physics Mechanics', () => {
     const windowTex = TextureGenerator.createPillarWindowTexture();
     expect(windowTex).toBeDefined();
     windowTex.dispose();
+
+    const marbleDecalTex = TextureGenerator.createMarbleDecal();
+    expect(marbleDecalTex).toBeDefined();
+    marbleDecalTex.dispose();
   });
 
   it('validates all 4 levels have distinct themes with valid lighting, sky and wall parameters', () => {
