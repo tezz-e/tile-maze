@@ -18,10 +18,13 @@ export class TextureGenerator {
   }
 
   /**
-   * Generates a 1024x512 equirectangular sky canvas texture with a bright sunny sky,
-   * warm horizon, and golden sun corona.
+   * Generates a 1024x512 equirectangular sky canvas texture with theme parameters.
    */
-  public static createSkyEquirectangular(): THREE.Texture {
+  public static createSkyEquirectangular(
+    topColor: string = '#1e3a8a',
+    bottomColor: string = '#60a5fa',
+    isNight: boolean = false
+  ): THREE.Texture {
     const c = this.createCanvas(1024, 512);
     if (!c) {
       const tex = new THREE.DataTexture(new Uint8Array([56, 189, 248, 255]), 1, 1);
@@ -32,40 +35,64 @@ export class TextureGenerator {
 
     // 1. Sky Gradient from zenith (y=0) down through horizon (y=256) to nadir (y=512)
     const skyGrad = ctx.createLinearGradient(0, 0, 0, 512);
-    skyGrad.addColorStop(0.0, '#1e3a8a'); // Deep vibrant royal zenith blue
-    skyGrad.addColorStop(0.25, '#0284c7'); // Vivid ocean blue
-    skyGrad.addColorStop(0.40, '#38bdf8'); // Sky blue
-    skyGrad.addColorStop(0.48, '#bae6fd'); // Atmospheric haze
-    skyGrad.addColorStop(0.50, '#fed7aa'); // Warm golden-peach horizon glow
-    skyGrad.addColorStop(0.54, '#fef08a'); // Warm golden cloud glow
-    skyGrad.addColorStop(0.68, '#93c5fd'); // Soft blue cloud sea base
-    skyGrad.addColorStop(1.0, '#60a5fa'); // Nadir
+    if (isNight) {
+      skyGrad.addColorStop(0.0, topColor);
+      skyGrad.addColorStop(0.35, '#050b14');
+      skyGrad.addColorStop(0.50, '#0f172a');
+      skyGrad.addColorStop(0.68, '#070d18');
+      skyGrad.addColorStop(1.0, bottomColor);
+    } else {
+      skyGrad.addColorStop(0.0, topColor);
+      skyGrad.addColorStop(0.25, topColor);
+      skyGrad.addColorStop(0.48, '#bae6fd');
+      skyGrad.addColorStop(0.50, '#fed7aa');
+      skyGrad.addColorStop(0.68, bottomColor);
+      skyGrad.addColorStop(1.0, bottomColor);
+    }
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, 1024, 512);
 
-    // 2. Warm Sun Corona & Disc at ~12° above horizon (Y=215, X=620)
+    // 2. Warm Sun Corona / Glowing Night Moon at ~12° above horizon (Y=215, X=620)
     const sunX = 620;
     const sunY = 215;
     const sunGrad = ctx.createRadialGradient(sunX, sunY, 15, sunX, sunY, 180);
-    sunGrad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
-    sunGrad.addColorStop(0.12, 'rgba(255, 252, 230, 0.95)');
-    sunGrad.addColorStop(0.35, 'rgba(254, 240, 138, 0.55)');
-    sunGrad.addColorStop(0.7, 'rgba(253, 224, 71, 0.18)');
-    sunGrad.addColorStop(1.0, 'rgba(253, 224, 71, 0.0)');
+    if (isNight) {
+      sunGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
+      sunGrad.addColorStop(0.12, 'rgba(224, 242, 254, 0.85)');
+      sunGrad.addColorStop(0.35, 'rgba(186, 230, 253, 0.45)');
+      sunGrad.addColorStop(0.7, 'rgba(56, 189, 248, 0.15)');
+      sunGrad.addColorStop(1.0, 'rgba(56, 189, 248, 0.0)');
+    } else {
+      sunGrad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+      sunGrad.addColorStop(0.12, 'rgba(255, 252, 230, 0.95)');
+      sunGrad.addColorStop(0.35, 'rgba(254, 240, 138, 0.55)');
+      sunGrad.addColorStop(0.7, 'rgba(253, 224, 71, 0.18)');
+      sunGrad.addColorStop(1.0, 'rgba(253, 224, 71, 0.0)');
+    }
     ctx.fillStyle = sunGrad;
     ctx.beginPath();
     ctx.arc(sunX, sunY, 180, 0, Math.PI * 2);
     ctx.fill();
 
-    // 3. Soft cloud bands near horizon
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    for (let i = 0; i < 20; i++) {
-      const cx = (i * 60 + 30) % 1024;
-      const cy = 250 + Math.sin(i * 1.3) * 15;
-      const r = 45 + Math.cos(i * 0.9) * 18;
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fill();
+    // 3. Clouds or Stars
+    if (isNight) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      for (let i = 0; i < 45; i++) {
+        const sx = (i * 137 + 53) % 1024;
+        const sy = (i * 89 + 17) % 230;
+        const sSize = i % 3 === 0 ? 2 : 1;
+        ctx.fillRect(sx, sy, sSize, sSize);
+      }
+    } else {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      for (let i = 0; i < 20; i++) {
+        const cx = (i * 60 + 30) % 1024;
+        const cy = 250 + Math.sin(i * 1.3) * 15;
+        const r = 45 + Math.cos(i * 0.9) * 18;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     const texture = new THREE.CanvasTexture(canvas);

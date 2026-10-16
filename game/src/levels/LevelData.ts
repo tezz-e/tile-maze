@@ -10,6 +10,20 @@ export interface LevelHint {
   radius?: number;
 }
 
+export interface LevelTheme {
+  skyTop: string;
+  skyBottom: string;
+  fogColor: number;
+  fogNear: number;
+  fogFar: number;
+  sunColor: number;
+  sunIntensity: number;
+  hemiSky: number;
+  hemiGround: number;
+  cloudTint: number;
+  exposure: number;
+}
+
 export interface LevelDef {
   id: number;
   name: string;
@@ -18,6 +32,7 @@ export interface LevelDef {
   cellSize: number; // In meters
   wallHeight: number;
   hints?: LevelHint[];
+  theme: LevelTheme;
 }
 
 /**
@@ -65,6 +80,19 @@ export const LEVELS: LevelDef[] = [
       '#...S...#',
       '#########',
     ],
+    theme: {
+      skyTop: '#1e3a8a',
+      skyBottom: '#60a5fa',
+      fogColor: 0xdbeafe,
+      fogNear: 40,
+      fogFar: 160,
+      sunColor: 0xfff7ed,
+      sunIntensity: 2.4,
+      hemiSky: 0xbae6fd,
+      hemiGround: 0xfef08a,
+      cloudTint: 0xffffff,
+      exposure: 1.15,
+    },
   },
   {
     id: 2,
@@ -85,6 +113,19 @@ export const LEVELS: LevelDef[] = [
       '#S.R.#....#',
       '###########',
     ],
+    theme: {
+      skyTop: '#9a3412',
+      skyBottom: '#fdba74',
+      fogColor: 0xfecdd3,
+      fogNear: 35,
+      fogFar: 150,
+      sunColor: 0xffedd5,
+      sunIntensity: 2.6,
+      hemiSky: 0xf43f5e,
+      hemiGround: 0xfbbf24,
+      cloudTint: 0xffedd5,
+      exposure: 1.12,
+    },
   },
   {
     id: 3,
@@ -105,6 +146,19 @@ export const LEVELS: LevelDef[] = [
       '#S..#...R...#',
       '#############',
     ],
+    theme: {
+      skyTop: '#3b0764',
+      skyBottom: '#8b5cf6',
+      fogColor: 0xe9d5ff,
+      fogNear: 35,
+      fogFar: 155,
+      sunColor: 0xfbcfe8,
+      sunIntensity: 2.2,
+      hemiSky: 0xc084fc,
+      hemiGround: 0x67e8f9,
+      cloudTint: 0xf5d0fe,
+      exposure: 1.10,
+    },
   },
   {
     id: 4,
@@ -127,6 +181,19 @@ export const LEVELS: LevelDef[] = [
       '#S...#...R...H#',
       '###############',
     ],
+    theme: {
+      skyTop: '#030712',
+      skyBottom: '#0f172a',
+      fogColor: 0x0f172a,
+      fogNear: 30,
+      fogFar: 140,
+      sunColor: 0x93c5fd,
+      sunIntensity: 1.6,
+      hemiSky: 0x1e293b,
+      hemiGround: 0x0f172a,
+      cloudTint: 0x334155,
+      exposure: 1.05,
+    },
   },
 ];
 

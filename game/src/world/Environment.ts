@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { TextureGenerator } from './TextureGenerator.js';
+import type { LevelTheme } from '../levels/LevelData.js';
 
 /**
  * Skyway Environment & Atmosphere
@@ -9,10 +10,20 @@ import { TextureGenerator } from './TextureGenerator.js';
 export class SkyEnvironment {
   public group: THREE.Group;
   public dirLight!: THREE.DirectionalLight;
-  private clouds: THREE.InstancedMesh[] = [];
-  private cloudClusters: Array<{ mesh: THREE.InstancedMesh; baseY: number; phase: number }> = [];
+  public hemiLight!: THREE.HemisphereLight;
+  public rimLight!: THREE.DirectionalLight;
+  public cloudMat!: THREE.MeshStandardMaterial;
+  public clouds: THREE.InstancedMesh[] = [];
+  public cloudClusters: Array<{ mesh: THREE.InstancedMesh; baseY: number; phase: number }> = [];
+
+  private scene: THREE.Scene;
+  private renderer: THREE.WebGLRenderer;
+  private currentSkyTexture: THREE.Texture | null = null;
+  private currentEnvTexture: THREE.Texture | null = null;
 
   constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+    this.scene = scene;
+    this.renderer = renderer;
     this.group = new THREE.Group();
     scene.add(this.group);
 
@@ -24,12 +35,16 @@ export class SkyEnvironment {
   private initSkyAndLighting(scene: THREE.Scene, renderer: THREE.WebGLRenderer): void {
     // 1. Equirectangular Sky & Reflections
     const skyTexture = TextureGenerator.createSkyEquirectangular();
+    this.currentSkyTexture = skyTexture;
     scene.background = skyTexture;
 
     // Generate PMREM for crisp chrome marble and track reflections
     const pmrem = new THREE.PMREMGenerator(renderer);
     pmrem.compileEquirectangularShader();
-    scene.environment = pmrem.fromEquirectangular(skyTexture).texture;
+    const envTexture = pmrem.fromEquirectangular(skyTexture).texture;
+    this.currentEnvTexture = envTexture;
+    scene.environment = envTexture;
+    pmrem.dispose();
 
     // Atmospheric Fog - soft cyan haze fading gently at distance, leaving near track razor sharp
     scene.fog = new THREE.Fog(0xdbeafe, 40, 160);
@@ -53,20 +68,20 @@ export class SkyEnvironment {
     scene.add(this.dirLight.target);
 
     // 3. Hemisphere Ambient (warm sunlit sky + warm ground bounce)
-    const hemiLight = new THREE.HemisphereLight(0xbae6fd, 0xfef08a, 1.2);
-    scene.add(hemiLight);
+    this.hemiLight = new THREE.HemisphereLight(0xbae6fd, 0xfef08a, 1.2);
+    scene.add(this.hemiLight);
 
     // Gentle sun flare / rim light from opposite angle to catch marble & cloud rims
-    const rimLight = new THREE.DirectionalLight(0x7dd3fc, 0.75);
-    rimLight.position.set(-16, 14, -16);
-    scene.add(rimLight);
+    this.rimLight = new THREE.DirectionalLight(0x7dd3fc, 0.75);
+    this.rimLight.position.set(-16, 14, -16);
+    scene.add(this.rimLight);
   }
 
   /**
    * Spawns a vast, dense sea of fluffy white/cream 3D cloud clusters underneath and billowing around the track.
    */
   private createCloudSea(): void {
-    const cloudMat = new THREE.MeshStandardMaterial({
+    this.cloudMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       roughness: 0.75,
       metalness: 0.02,
@@ -76,7 +91,7 @@ export class SkyEnvironment {
     // Cloud puff sphere geometry
     const puffGeo = new THREE.IcosahedronGeometry(1, 2);
     const count = 380;
-    const instMesh = new THREE.InstancedMesh(puffGeo, cloudMat, count);
+    const instMesh = new THREE.InstancedMesh(puffGeo, this.cloudMat, count);
     instMesh.receiveShadow = true;
 
     const dummy = new THREE.Object3D();
@@ -157,6 +172,7 @@ export class SkyEnvironment {
 
     instMesh.instanceMatrix.needsUpdate = true;
     this.group.add(instMesh);
+    this.clouds.push(instMesh);
     this.cloudClusters.push({ mesh: instMesh, baseY: -6.5, phase: Math.random() * 10 });
   }
 
@@ -268,6 +284,76 @@ export class SkyEnvironment {
       ringMesh.castShadow = true;
       this.group.add(ringMesh);
     });
+  }
+
+  /**
+   * Applies level theme to sky background, PMREM environment, fog, lights, and cloud materials.
+   * Disposes old textures to prevent memory leaks.
+   */
+  public applyTheme(theme: LevelTheme, isNight: boolean = false): void {
+    // 1. Dispose old textures to avoid GPU memory leaks
+    if (this.currentSkyTexture) {
+      this.currentSkyTexture.dispose();
+    }
+    if (this.currentEnvTexture) {
+      this.currentEnvTexture.dispose();
+    }
+
+    // 2. Generate new sky canvas texture
+    const skyTexture = TextureGenerator.createSkyEquirectangular(
+      theme.skyTop,
+      theme.skyBottom,
+      isNight
+    );
+    this.currentSkyTexture = skyTexture;
+    this.scene.background = skyTexture;
+
+    // 3. Regenerate PMREM environment for chrome marble & tile reflections
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    pmrem.compileEquirectangularShader();
+    const envTexture = pmrem.fromEquirectangular(skyTexture).texture;
+    this.currentEnvTexture = envTexture;
+    this.scene.environment = envTexture;
+    pmrem.dispose();
+
+    // 4. Update Fog
+    if (this.scene.fog instanceof THREE.Fog) {
+      this.scene.fog.color.setHex(theme.fogColor);
+      this.scene.fog.near = theme.fogNear;
+      this.scene.fog.far = theme.fogFar;
+    } else {
+      this.scene.fog = new THREE.Fog(theme.fogColor, theme.fogNear, theme.fogFar);
+    }
+
+    // 5. Update Lights
+    this.dirLight.color.setHex(theme.sunColor);
+    this.dirLight.intensity = theme.sunIntensity;
+
+    this.hemiLight.color.setHex(theme.hemiSky);
+    this.hemiLight.groundColor.setHex(theme.hemiGround);
+
+    if (isNight) {
+      this.rimLight.color.setHex(0x38bdf8);
+      this.rimLight.intensity = 1.25;
+    } else {
+      this.rimLight.color.setHex(0x7dd3fc);
+      this.rimLight.intensity = 0.75;
+    }
+
+    // 6. Update Cloud Material tint & emissive
+    this.cloudMat.color.setHex(theme.cloudTint);
+    if (isNight) {
+      this.cloudMat.roughness = 0.55;
+      this.cloudMat.emissive.setHex(0x0a192f);
+      this.cloudMat.emissiveIntensity = 0.35;
+    } else {
+      this.cloudMat.roughness = 0.75;
+      this.cloudMat.emissive.setHex(0x000000);
+      this.cloudMat.emissiveIntensity = 0.0;
+    }
+
+    // 7. Update Exposure
+    this.renderer.toneMappingExposure = theme.exposure;
   }
 
   /**

@@ -198,6 +198,10 @@ class GameApp {
   }
 
   private loadLevelData(level: LevelDef): void {
+    const isNight = level.id === 4 || (level.theme && level.theme.sunIntensity < 2.0);
+    if (level.theme) {
+      this.environment.applyTheme(level.theme, isNight);
+    }
     this.board.buildLevel(level);
     const { startPos } = this.physics.loadLevel(level);
     this.marble.mesh.position.set(startPos.x, startPos.y, startPos.z);

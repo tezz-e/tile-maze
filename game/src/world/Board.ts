@@ -86,6 +86,20 @@ export class Board {
     const dummy = new THREE.Object3D();
     let tileIdx = 0;
 
+    const isNight = level.id === 4 || (level.theme && level.theme.sunIntensity < 2.0);
+
+    if (isNight) {
+      this.blueTileMat.emissive = new THREE.Color(0x0369a1);
+      this.blueTileMat.emissiveIntensity = 0.35;
+      this.yellowCurbMat.emissive = new THREE.Color(0xfacc15);
+      this.yellowCurbMat.emissiveIntensity = 0.3;
+    } else {
+      this.blueTileMat.emissive = new THREE.Color(0x000000);
+      this.blueTileMat.emissiveIntensity = 0.0;
+      this.yellowCurbMat.emissive = new THREE.Color(0x000000);
+      this.yellowCurbMat.emissiveIntensity = 0.0;
+    }
+
     // Materials for obstacles
     const redArmMat = new THREE.MeshStandardMaterial({
       color: 0xef4444, // Bright red rotor arms
@@ -112,8 +126,8 @@ export class Board {
       map: TextureGenerator.createChevrons(),
       roughness: 0.25,
       metalness: 0.1,
-      emissive: 0xd97706,
-      emissiveIntensity: 0.35,
+      emissive: isNight ? 0xf59e0b : 0xd97706,
+      emissiveIntensity: isNight ? 0.75 : 0.35,
       side: THREE.DoubleSide,
     });
     const bouncerTargetMat = new THREE.MeshStandardMaterial({
@@ -121,7 +135,7 @@ export class Board {
       roughness: 0.25,
       metalness: 0.1,
       emissive: 0xf43f5e,
-      emissiveIntensity: 0.2,
+      emissiveIntensity: isNight ? 0.45 : 0.2,
       envMapIntensity: 1.2,
       side: THREE.DoubleSide,
     });
@@ -129,8 +143,8 @@ export class Board {
       color: 0xfbbf24,
       metalness: 1.0,
       roughness: 0.08,
-      emissive: 0xb45309,
-      emissiveIntensity: 0.35,
+      emissive: isNight ? 0xfacc15 : 0xb45309,
+      emissiveIntensity: isNight ? 0.85 : 0.35,
     });
 
     let spinnerCount = 0;

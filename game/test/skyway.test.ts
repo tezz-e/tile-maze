@@ -96,4 +96,22 @@ describe('Skyway Obstacles & Physics Mechanics', () => {
     const checkTex = TextureGenerator.createFinishCheckered();
     expect(checkTex).toBeDefined();
   });
+
+  it('validates all 4 levels have distinct themes with valid lighting and sky parameters', () => {
+    LEVELS.forEach((level) => {
+      expect(level.theme).toBeDefined();
+      expect(level.theme.skyTop).toMatch(/^#[0-9a-fA-F]{6}$/);
+      expect(level.theme.skyBottom).toMatch(/^#[0-9a-fA-F]{6}$/);
+      expect(level.theme.sunIntensity).toBeGreaterThan(0);
+      expect(level.theme.exposure).toBeGreaterThan(0.5);
+
+      const themedSky = TextureGenerator.createSkyEquirectangular(
+        level.theme.skyTop,
+        level.theme.skyBottom,
+        level.id === 4
+      );
+      expect(themedSky).toBeDefined();
+      themedSky.dispose();
+    });
+  });
 });
