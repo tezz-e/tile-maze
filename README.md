@@ -47,20 +47,35 @@ flowchart LR
 
 ## 📸 In-Game Screenshots & Dynamic Skyway Environments
 
-| **Lobby & Motion Controller Pairing** | **Level 1: Sunny Blue Skyway** |
-|:---:|:---:|
-| ![Lobby Screen](docs/media/lobby.png) | ![Level 1: Skyway Runway](docs/media/level-1.png) |
-| *Nothing-inspired liquid mercury UI & live tilt indicator* | *Guided flight course, golden rings, and finish arch* |
+### Lobby & Motion Controller Pairing
+<p align="center">
+  <img src="docs/media/lobby.png" alt="Lobby Screen" width="800" />
+  <br><em>Nothing-inspired liquid mercury UI & live tilt indicator</em>
+</p>
 
-| **Level 2: Sunset Overpass** | **Level 3: Dusk S-Curves** |
+### Level 1: Skyway Runway (Sunny Blue Skyway)
+| **Start View** | **Mid-Course Action (Boost Ramp & Spinners)** |
 |:---:|:---:|
-| ![Level 2: Sunset Overpass](docs/media/level-2.png) | ![Level 3: Dusk S-Curves](docs/media/level-3.png) |
-| *Warm peach/amber horizon and spinning hazard rotors* | *Purple dusk atmosphere with jump ramps & bouncers* |
+| ![Level 1 Start](docs/media/level-1-start.png) | ![Level 1 Action](docs/media/level-1-action.png) |
+| *Low cream-stone curbs, cobalt sky, and distant monoliths* | *Liquid-mirror chrome marble at nitro speed launching over ramp* |
 
-| **Level 4: Midnight Labyrinth** |
-|:---:|
-| ![Level 4: Midnight Labyrinth](docs/media/level-4.png) |
-| *Moon corona, starfield, and glowing emissive curbs & tiles* |
+### Level 2: Serpent's Ridge (Sunset Overpass)
+| **Start View** | **Mid-Course Action (Winding Chicanes)** |
+|:---:|:---:|
+| ![Level 2 Start](docs/media/level-2-start.png) | ![Level 2 Action](docs/media/level-2-action.png) |
+| *Warm sandstone curbs, pink-peach clouds & terracotta monoliths* | *High-velocity drift around winding corners and rotor gauntlet* |
+
+### Level 3: Twin Paths & Boosts (Dusk S-Curves)
+| **Start View** | **Mid-Course Action (Nitro Ramps & Bouncers)** |
+|:---:|:---:|
+| ![Level 3 Start](docs/media/level-3-start.png) | ![Level 3 Action](docs/media/level-3-action.png) |
+| *Light lavender curbs, rose horizon & tiered monoliths* | *Spring shortcuts, dual boost ramps, and golden checkpoint rings* |
+
+### Level 4: Master's Labyrinth (Midnight Skyway)
+| **Start View** | **Mid-Course Action (Cyber Gauntlet)** |
+|:---:|:---:|
+| ![Level 4 Start](docs/media/level-4-start.png) | ![Level 4 Action](docs/media/level-4-action.png) |
+| *Navy-slate curbs with glowing cyan neon top edges & soft clouds* | *High-speed navigation through dark chicanes & glowing skyscraper towers* |
 
 ---
 
