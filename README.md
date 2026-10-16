@@ -217,5 +217,6 @@ cd app && ./gradlew testDebugUnitTest
 
 ---
 
-## 📄 License
-MIT License. Created for the "Anything but a Game Controller" Challenge.
+## 📄 License & Third-Party Notices
+- **Project License:** [MIT License](LICENSE) — Copyright (c) 2026. Created for the "Anything but a Game Controller" Challenge.
+- **Third-Party Libraries:** The Android controller app integrates Nothing Technology Limited's Glyph Matrix SDK binary AAR for rear LED matrix support. See [app/app/libs/README.md](app/app/libs/README.md) for licensing terms and official developer portal links.
