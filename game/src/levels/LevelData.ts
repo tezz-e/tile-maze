@@ -3,6 +3,13 @@
  * Tiltmaze: Kinetic Edition - Skyway Courses
  */
 
+export interface LevelHint {
+  x: number;
+  y: number;
+  text: string;
+  radius?: number;
+}
+
 export interface LevelDef {
   id: number;
   name: string;
@@ -10,6 +17,7 @@ export interface LevelDef {
   grid: string[];
   cellSize: number; // In meters
   wallHeight: number;
+  hints?: LevelHint[];
 }
 
 /**
@@ -31,22 +39,29 @@ export const LEVELS: LevelDef[] = [
   {
     id: 1,
     name: 'Skyway Runway',
-    subtitle: 'Sunny cloud sea - Spinners, boost ramps, and 5 golden ring checkpoints',
+    subtitle: 'Guided flight tutorial - Narrow corridor, boost ramp, rotor arm timing, and launch pad',
     cellSize: 1.4,
     wallHeight: 0.5,
+    hints: [
+      { x: 4, y: 13, text: 'TILT YOUR PHONE TO ROLL' },
+      { x: 4, y: 10, text: 'HOLD NITRO ON THE RAMP' },
+      { x: 4, y: 7, text: 'TIME YOUR PASS BETWEEN THE ARMS' },
+      { x: 2, y: 4, text: 'SHAKE TO JUMP (OPTIONAL)', radius: 1.5 },
+    ],
     grid: [
       '#########',
-      '#...G...#',
-      '#...C...#',
-      '#..P....#',
-      '#...R...#',
-      '#...C...#',
-      '#....P..#',
-      '#...C...#',
-      '#..P....#',
-      '#...C...#',
-      '#J..R...#',
-      '#...C...#',
+      '####G####',
+      '####C####',
+      '###...###',
+      '##J...###',
+      '###.C.###',
+      '##..P..##',
+      '###.C.###',
+      '###...###',
+      '####R####',
+      '###...###',
+      '###.C.###',
+      '##.....##',
       '#...S...#',
       '#########',
     ],
@@ -208,3 +223,39 @@ export function validateLevelSolvability(level: LevelDef): SolvabilityResult {
     hazards,
   };
 }
+
+/**
+ * Checks if the marble is within trigger radius of any hint grid cell in the level.
+ * Triggers each hint at most once by recording in shownHints.
+ */
+export function checkCoachHints(
+  marblePos: { x: number; z: number },
+  level: LevelDef,
+  shownHints: Set<string>,
+  triggerRadiusCells: number = 1.3
+): string | null {
+  if (!level.hints || level.hints.length === 0) return null;
+
+  const rows = level.grid.length;
+  const cols = level.grid[0].length;
+  const cellSize = level.cellSize;
+  const originX = -(cols * cellSize) / 2;
+  const originZ = -(rows * cellSize) / 2;
+
+  for (const hint of level.hints) {
+    if (shownHints.has(hint.text)) continue;
+
+    const targetX = originX + hint.x * cellSize + cellSize / 2;
+    const targetZ = originZ + hint.y * cellSize + cellSize / 2;
+    const radius = (hint.radius ?? triggerRadiusCells) * cellSize;
+
+    const dist = Math.hypot(marblePos.x - targetX, marblePos.z - targetZ);
+    if (dist <= radius) {
+      shownHints.add(hint.text);
+      return hint.text;
+    }
+  }
+
+  return null;
+}
+

@@ -11,7 +11,7 @@ import { LobbyUI } from './ui/LobbyUI.js';
 import { GameHUD } from './ui/GameHUD.js';
 import { TelemetryLab } from './ui/TelemetryLab.js';
 import { ClickSpark } from './ui/ClickSpark.js';
-import { LEVELS, type LevelDef } from './levels/LevelData.js';
+import { LEVELS, type LevelDef, checkCoachHints } from './levels/LevelData.js';
 
 class GameApp {
   // Three.js
@@ -47,6 +47,7 @@ class GameApp {
   private lastRawBuffer: ArrayBuffer | null = null;
   private smoothedPitch = 0;
   private smoothedRoll = 0;
+  private sessionShownHints = new Set<string>();
 
   constructor() {
     this.initGraphics();
@@ -323,6 +324,12 @@ class GameApp {
       const speed = this.physics.getMarbleSpeed();
 
       this.marble.update(marblePos, marbleRot, speed);
+
+      // Check coach toast trigger cells
+      const coachHint = checkCoachHints(marblePos, LEVELS[this.currentLevelIndex], this.sessionShownHints);
+      if (coachHint) {
+        this.hud.showCoachToast(coachHint);
+      }
 
       // 5. Visually tilt the 3D board
       this.board.setTilt(finalPitch, finalRoll);

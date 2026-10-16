@@ -20,6 +20,7 @@ export class GameHUD {
   private speedoValueEl!: HTMLElement;
   private speedoFillEl!: HTMLElement;
   private toastEl!: HTMLElement;
+  private coachToastEl!: HTMLElement;
   private victoryModal!: HTMLElement;
   private victoryTimeEl!: HTMLElement;
   private tiltPillEl!: HTMLElement;
@@ -30,6 +31,7 @@ export class GameHUD {
   private startTime: number = 0;
   private timerRunning = false;
   private toastTimer: number | null = null;
+  private coachToastTimer: number | null = null;
   private bestTimes: Record<number, number> = {
     1: 75.2, // 01:15.20
     2: 92.15,
@@ -259,6 +261,38 @@ export class GameHUD {
         .hud-center-toast.visible {
           opacity: 1;
           transform: translateY(0) scale(1);
+        }
+
+        /* Coach Toast (Bottom-Center Pill) */
+        .hud-coach-toast {
+          position: absolute;
+          bottom: 5.8rem;
+          left: 50%;
+          transform: translateX(-50%) translateY(10px) scale(0.96);
+          background: rgba(15, 23, 42, 0.88);
+          backdrop-filter: blur(24px) saturate(190%);
+          -webkit-backdrop-filter: blur(24px) saturate(190%);
+          border: 1px solid rgba(250, 204, 21, 0.65);
+          border-radius: 9999px;
+          color: #ffffff;
+          padding: 0.65rem 1.6rem;
+          font-size: 0.82rem;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          box-shadow: 
+            0 0 24px rgba(250, 204, 21, 0.25),
+            0 12px 32px rgba(0, 0, 0, 0.65);
+          opacity: 0;
+          pointer-events: none;
+          transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+          z-index: 25;
+          white-space: nowrap;
+        }
+
+        .hud-coach-toast.visible {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0) scale(1);
         }
 
         /* Bottom Bar */
@@ -581,6 +615,9 @@ export class GameHUD {
       <!-- CENTER TOAST -->
       <div id="hud-toast" class="hud-center-toast">[ CHECKPOINT LOGGED ]</div>
 
+      <!-- COACH TOAST (Bottom-Center Pill) -->
+      <div id="hud-coach-toast" class="hud-coach-toast"></div>
+
       <!-- BOTTOM BAR -->
       <div class="hud-bottom-bar">
         <!-- Bottom-Left: Dynamic Island Elastic Gooey Controller Pill -->
@@ -650,6 +687,7 @@ export class GameHUD {
     this.speedoValueEl = this.container.querySelector('#speedo-value')!;
     this.speedoFillEl = this.container.querySelector('#speedo-meter-fill')!;
     this.toastEl = this.container.querySelector('#hud-toast')!;
+    this.coachToastEl = this.container.querySelector('#hud-coach-toast')!;
     this.victoryModal = this.container.querySelector('#victory-modal')!;
     this.victoryTimeEl = this.container.querySelector('#victory-time')!;
     this.tiltPillEl = this.container.querySelector('#hud-tilt-pill')!;
@@ -783,6 +821,16 @@ export class GameHUD {
     this.toastTimer = window.setTimeout(() => {
       this.toastEl.classList.remove('visible');
     }, 1200);
+  }
+
+  public showCoachToast(text: string): void {
+    this.coachToastEl.textContent = `[ ${text.toUpperCase()} ]`;
+    this.coachToastEl.classList.add('visible');
+
+    if (this.coachToastTimer) window.clearTimeout(this.coachToastTimer);
+    this.coachToastTimer = window.setTimeout(() => {
+      this.coachToastEl.classList.remove('visible');
+    }, 2500);
   }
 
   public showVictory(): void {

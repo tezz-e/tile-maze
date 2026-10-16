@@ -45,9 +45,9 @@ describe('Skyway Obstacles & Physics Mechanics', () => {
     expect(bouncers.length).toBeGreaterThan(0);
   });
 
-  it('tracks checkpoint progress accurately with 5 checkpoints on Level 1', () => {
+  it('tracks checkpoint progress accurately with 4 checkpoints on Level 1', () => {
     const progress = physics.getCheckpointProgress();
-    expect(progress.total).toBe(5);
+    expect(progress.total).toBe(4);
     expect(progress.current).toBe(0);
   });
 
