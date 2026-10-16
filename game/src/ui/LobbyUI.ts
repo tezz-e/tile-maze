@@ -604,7 +604,7 @@ export class LobbyUI {
         <div class="lobby-grid">
           <div class="qr-card" id="qr-tilted-card">
             <div class="section-label">
-              <span>PAIRING CODE</span>
+              <span>4-CHARACTER ROOM CODE</span>
               <span style="color: #EA3323;">01 // QR</span>
             </div>
             <div id="room-code-display" class="room-code-tag">
@@ -616,7 +616,7 @@ export class LobbyUI {
               <canvas id="qr-code-canvas" class="qr-canvas" width="160" height="160"></canvas>
             </div>
             <div class="qr-instructions">
-              SCAN WITH PHONE ON LOCAL WI-FI
+              SCAN QR OR ENTER 4-CHARACTER ROOM CODE ON PHONE
             </div>
           </div>
 

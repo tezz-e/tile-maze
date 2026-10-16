@@ -9,13 +9,11 @@
 
 > **A phone becomes the physical tilt/shake controller for a 3D marble game running in the browser over local WebSockets.**
 
-<!-- TODO: add docs/media/demo.gif -->
-
 ### 🔗 Quick Links
 | Resource | Link |
 | :--- | :--- |
 | **Demo Video** | `<VIDEO_URL>` |
-| **Download APK** | [GitHub Releases](https://github.com/tezz-e/tile-maze/releases) |
+| **Mobile App** | Build from source (`app/` or `app-debug.apk`) |
 | **Project Page** | [docs/index.html](docs/index.html) *(enable GitHub Pages from `/docs`)* |
 | **Architecture** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | **Protocol** | [docs/PROTOCOL.md](docs/PROTOCOL.md) |
@@ -117,16 +115,23 @@ The game will automatically open at `http://localhost:3000`.
 Run `open-firewall.bat` as Administrator to permit incoming connections on TCP port 3000.
 
 ### 3. Mobile Controller App
-
-#### Download APK
-Download the latest debug APK from [GitHub Releases](https://github.com/tezz-e/tile-maze/releases) (or build from source with `cd app && ./gradlew assembleDebug` or `.\gradlew.bat assembleDebug`).
+ 
+#### Build & Install Mobile Controller App
+Build from source using Gradle (or install the pre-built `app-debug.apk` included in the repository root):
+```bash
+# Android Gradle build
+cd app
+./gradlew assembleDebug      # macOS / Linux
+.\gradlew.bat assembleDebug  # Windows
+```
+Install `app/app/build/outputs/apk/debug/app-debug.apk` (or `app-debug.apk`) onto your phone via `adb install -r <path>` or direct transfer.
 
 #### Pairing & Play
 1. Launch the game on your laptop (`http://localhost:3000`). The lobby screen displays your host LAN IP, port (`3000`), a 4-character room code (e.g., `6UTP`), and an interactive QR code.
 2. Open the Tiltmaze app on your phone.
 3. Connect using either method:
    - **QR Code Scan (Fastest):** Tap **`[ SCAN LAPTOP QR CODE ]`** and point your camera at the QR code displayed on the laptop screen (uses Google Code Scanner; zero extra permissions required).
-   - **Manual Entry:** Under **`— OR MANUAL IP ENTRY —`**, enter the **`LAN IP`** shown on your laptop screen (e.g. `192.168.1.X`), verify the **`Port`** (default `3000`), type the uppercase **`4-Char Room Code (e.g. 6UTP)`**, and tap **`[ CONNECT TO RELAY // COMMENCE ]`**.
+   - **Manual Entry:** Under **`— OR MANUAL IP ENTRY —`**, enter the **`LAN IP`** shown on your laptop screen (e.g. `192.168.1.X`), verify the **`Port`** (default `3000`), type the uppercase **`4-character room code (e.g. 6UTP)`**, and tap **`[ CONNECT TO RELAY // COMMENCE ]`**.
 4. Once connected, tap **`[ CALIBRATE ]`** (or **`RESET FLAT`**) to set your comfortable neutral holding posture.
 5. Tilt to steer the marble, shake to jump over obstacles, and hold **`NITRO`** to accelerate!
 
@@ -207,7 +212,7 @@ tiltmaze-kinetic/
 │       └── src/controlMessages.ts  # JSON message types
 ├── server/                         # Ultra-thin Node.js + ws relay & static server
 │   ├── src/index.ts                # Express/HTTP + WebSocket server on port 3000
-│   ├── src/RoomManager.ts          # 4-char codes, 2-player slots, 60s session recovery
+│   ├── src/RoomManager.ts          # 4-character room codes, 2-player slots, 60s session recovery
 │   ├── src/networkDiscovery.ts     # Prunes WSL/Docker/vEthernet, detects primary LAN IP
 │   └── src/ntpSync.ts              # NTP 4-timestamp latency & RTT estimator
 ├── game/                           # Vite + TypeScript + Three.js + Rapier 3D

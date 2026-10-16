@@ -352,7 +352,7 @@ fun ConnectionScreen(
             OutlinedTextField(
                 value = codeInput,
                 onValueChange = { codeInput = it.take(4).uppercase() },
-                label = { Text("4-Char Room Code (e.g. 6UTP)", fontFamily = FontFamily.Monospace, fontSize = 11.sp) },
+                label = { Text("4-Character Room Code (e.g. 6UTP)", fontFamily = FontFamily.Monospace, fontSize = 11.sp) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(0.dp),
