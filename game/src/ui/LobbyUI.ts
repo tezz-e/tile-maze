@@ -30,6 +30,8 @@ export class LobbyUI {
   private startBtn!: HTMLButtonElement;
   private selectedLevelIndex = 0;
   private hasPlayer1 = false;
+  private p1TiltIndicator: HTMLElement | null = null;
+  private p1TiltBubble: HTMLElement | null = null;
 
   // LedGrid canvas elements
   private ledCanvas: HTMLCanvasElement | null = null;
@@ -351,6 +353,55 @@ export class LobbyUI {
           border-color: #EA3323;
           box-shadow: 0 0 16px rgba(234, 51, 35, 0.5);
         }
+        .status-connected-green {
+          color: #000000;
+          background: #10b981;
+          border-color: #10b981;
+          box-shadow: 0 0 16px rgba(16, 185, 129, 0.6);
+        }
+        .waiting-pulse {
+          animation: wait-pulse 1.8s infinite ease-in-out;
+        }
+        @keyframes wait-pulse {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; color: #cbd5e1; }
+        }
+        .tilt-gauge {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          border: 1.5px solid rgba(16, 185, 129, 0.6);
+          background: rgba(0, 0, 0, 0.6);
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        }
+        .tilt-gauge::before {
+          content: '';
+          position: absolute;
+          width: 100%;
+          height: 1px;
+          background: rgba(255, 255, 255, 0.15);
+        }
+        .tilt-gauge::after {
+          content: '';
+          position: absolute;
+          width: 1px;
+          height: 100%;
+          background: rgba(255, 255, 255, 0.15);
+        }
+        .tilt-gauge-bubble {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: #10b981;
+          box-shadow: 0 0 8px #10b981;
+          position: absolute;
+          transform: translate(0px, 0px);
+          z-index: 2;
+        }
         .status-recon {
           color: #000000;
           background: #ffffff;
@@ -571,11 +622,16 @@ export class LobbyUI {
 
           <div class="slots-card">
             <div class="player-slot-chip" id="p1-slot-chip">
-              <div>
-                <div class="slot-title">SLOT 01 // PRIMARY CONTROLLER</div>
-                <div class="slot-subtitle">PHYSICAL MOTION SENSOR LINK (100HZ IMU)</div>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div id="p1-tilt-indicator" class="tilt-gauge" style="display: none;">
+                  <div id="p1-tilt-bubble" class="tilt-gauge-bubble"></div>
+                </div>
+                <div>
+                  <div class="slot-title">SLOT 01 // PRIMARY CONTROLLER</div>
+                  <div class="slot-subtitle">PHYSICAL MOTION SENSOR LINK (100HZ IMU)</div>
+                </div>
               </div>
-              <span id="p1-status" class="status-badge status-waiting">[ STANDBY ]</span>
+              <span id="p1-status" class="status-badge status-waiting waiting-pulse">[ WAITING FOR PHONE… ]</span>
             </div>
 
             <div class="player-slot-chip" id="p2-slot-chip">
@@ -628,6 +684,8 @@ export class LobbyUI {
     this.p1StatusElement = this.container.querySelector('#p1-status')!;
     this.p2StatusElement = this.container.querySelector('#p2-status')!;
     this.startBtn = this.container.querySelector('#start-game-btn')!;
+    this.p1TiltIndicator = this.container.querySelector('#p1-tilt-indicator');
+    this.p1TiltBubble = this.container.querySelector('#p1-tilt-bubble');
 
     // Level tab selection with liquid mercury animation
     const levelButtons = this.container.querySelectorAll<HTMLButtonElement>('.level-tab-btn');
@@ -913,28 +971,50 @@ export class LobbyUI {
 
     el.className = 'status-badge';
     if (status === 'connected') {
-      el.classList.add('status-connected');
-      el.textContent = name ? `[ ${name.toUpperCase()} ]` : '[ ONLINE 100HZ ]';
-      if (chip) chip.classList.add('connected');
+      el.classList.add('status-connected-green');
+      el.textContent = name ? `[ ${name.toUpperCase()} // CONNECTED ]` : '[ PHONE CONNECTED ]';
+      if (chip) {
+        chip.classList.add('connected');
+        chip.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+      }
       if (slot === 1) {
         this.hasPlayer1 = true;
         this.startBtn.disabled = false;
         this.startBtn.textContent = '[ LAUNCH // COMMENCE ]';
+        if (this.p1TiltIndicator) this.p1TiltIndicator.style.display = 'flex';
       }
     } else if (status === 'reconnecting') {
       el.classList.add('status-recon');
       el.textContent = '[ RECONNECTING... ]';
-      if (chip) chip.classList.remove('connected');
+      if (chip) {
+        chip.classList.remove('connected');
+        chip.style.borderColor = '';
+      }
+      if (slot === 1 && this.p1TiltIndicator) this.p1TiltIndicator.style.display = 'none';
     } else {
       el.classList.add('status-waiting');
-      el.textContent = slot === 1 ? '[ STANDBY ]' : '[ OPEN ]';
-      if (chip) chip.classList.remove('connected');
+      if (slot === 1) el.classList.add('waiting-pulse');
+      el.textContent = slot === 1 ? '[ WAITING FOR PHONE… ]' : '[ OPEN ]';
+      if (chip) {
+        chip.classList.remove('connected');
+        chip.style.borderColor = '';
+      }
       if (slot === 1) {
         this.hasPlayer1 = false;
         this.startBtn.disabled = true;
         this.startBtn.textContent = '[ LAUNCH // PHONE ]';
+        if (this.p1TiltIndicator) this.p1TiltIndicator.style.display = 'none';
       }
     }
+  }
+
+  public updateLiveTilt(pitch: number, roll: number): void {
+    if (!this.p1TiltBubble) return;
+    const clampedRoll = Math.max(-1, Math.min(1, roll));
+    const clampedPitch = Math.max(-1, Math.min(1, pitch));
+    const tx = Math.round(clampedRoll * 11);
+    const ty = Math.round(-clampedPitch * 11);
+    this.p1TiltBubble.style.transform = `translate(${tx}px, ${ty}px)`;
   }
 
   public show(): void {

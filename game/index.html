@@ -60,13 +60,22 @@
         box-sizing: border-box;
         font-family: var(--font-mono);
       }
-      ::selection {
-        background: var(--foreground);
-        color: var(--background);
+      #level-fade-curtain {
+        position: fixed;
+        inset: 0;
+        background: #000000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s ease-in-out;
+        z-index: 999;
+      }
+      #level-fade-curtain.fade-active {
+        opacity: 1;
       }
     </style>
   </head>
   <body>
+    <div id="level-fade-curtain"></div>
     <div id="game-container"></div>
     <div id="ui-layer"></div>
     <script type="module" src="/src/main.ts"></script>

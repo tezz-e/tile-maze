@@ -63,6 +63,8 @@ class GameApp {
   private wasAirborne = false;
   private prevLinvelY = 0;
   private cameraMode: 'standard' | 'cinematic' = 'standard';
+  private isPhysicsPaused = false;
+  private forceKeyboardMode = false;
 
   constructor() {
     this.loadCameraPreference();
@@ -187,10 +189,12 @@ class GameApp {
 
     this.lobbyUI = new LobbyUI(uiLayer, {
       onStartGame: (level) => {
+        this.forceKeyboardMode = false;
         this.currentLevelIndex = level.id - 1;
         this.startLevel(this.currentLevelIndex);
       },
       onPlayKeyboard: (level) => {
+        this.forceKeyboardMode = true;
         this.currentLevelIndex = level.id - 1;
         this.startLevel(this.currentLevelIndex);
       },
@@ -208,14 +212,33 @@ class GameApp {
       },
       onPlayerDisconnected: (p) => {
         this.lobbyUI.updatePlayerStatus(p.playerSlot, 'reconnecting');
+        if (this.isPlaying && p.playerSlot === 1 && !this.forceKeyboardMode) {
+          this.isPhysicsPaused = true;
+          this.hud.showDisconnectOverlay(() => {
+            this.isPhysicsPaused = false;
+            this.forceKeyboardMode = true;
+            this.hud.showToast('Switched to Keyboard Control', '#38bdf8');
+          });
+        }
         this.hud.showToast(`Player ${p.playerSlot} Disconnected - Reconnecting...`, '#f59e0b');
       },
       onPlayerReconnected: (p) => {
         this.lobbyUI.updatePlayerStatus(p.playerSlot, 'connected');
+        this.hud.hideDisconnectOverlay();
+        this.isPhysicsPaused = false;
+        this.forceKeyboardMode = false;
         this.hud.showToast(`Player ${p.playerSlot} Reconnected!`, '#10b981');
       },
       onPlayerLeft: (p) => {
         this.lobbyUI.updatePlayerStatus(p.playerSlot, 'waiting');
+        if (this.isPlaying && p.playerSlot === 1 && !this.forceKeyboardMode) {
+          this.isPhysicsPaused = true;
+          this.hud.showDisconnectOverlay(() => {
+            this.isPhysicsPaused = false;
+            this.forceKeyboardMode = true;
+            this.hud.showToast('Switched to Keyboard Control', '#38bdf8');
+          });
+        }
         this.hud.showToast(`Player ${p.playerSlot} Left`, '#94a3b8');
       },
       onLatencyUpdate: (rttMs, skewMs) => {
@@ -266,14 +289,33 @@ class GameApp {
     this.hud.setCheckpoints(cp.current, cp.total);
   }
 
+  private triggerLevelTransition(action: () => void): void {
+    const curtain = document.getElementById('level-fade-curtain');
+    if (!curtain) {
+      action();
+      return;
+    }
+    curtain.classList.add('fade-active');
+    window.setTimeout(() => {
+      action();
+      window.setTimeout(() => {
+        curtain.classList.remove('fade-active');
+      }, 50);
+    }, 150);
+  }
+
   private startLevel(idx: number): void {
-    this.currentLevelIndex = idx;
-    this.sounds.resume();
-    const level = LEVELS[idx];
-    this.loadLevelData(level);
-    this.hud.setLevel(level);
-    this.isPlaying = true;
-    this.network.sendGameStateSync('PLAYING', idx);
+    this.triggerLevelTransition(() => {
+      this.currentLevelIndex = idx;
+      this.sounds.resume();
+      const level = LEVELS[idx];
+      this.loadLevelData(level);
+      this.hud.setLevel(level);
+      this.isPlaying = true;
+      this.isPhysicsPaused = false;
+      this.hud.hideDisconnectOverlay();
+      this.network.sendGameStateSync('PLAYING', idx);
+    });
   }
 
   private nextLevel(): void {
@@ -282,9 +324,13 @@ class GameApp {
   }
 
   private returnToLobby(): void {
-    this.isPlaying = false;
-    this.lobbyUI.show();
-    this.network.sendGameStateSync('LOBBY', this.currentLevelIndex);
+    this.triggerLevelTransition(() => {
+      this.isPlaying = false;
+      this.isPhysicsPaused = false;
+      this.hud.hideDisconnectOverlay();
+      this.lobbyUI.show();
+      this.network.sendGameStateSync('LOBBY', this.currentLevelIndex);
+    });
   }
 
   private setupResize(): void {
@@ -326,8 +372,8 @@ class GameApp {
     let shake = false;
     let isKeyboard = true;
 
-    // Use phone input if recently received (within last 500ms) and keyboard is not overriding
-    if (phoneCtrl && (now - phoneCtrl.lastPacketTime < 500) && !kb.isKeyboard) {
+    // Use phone input if recently received (within last 500ms) and keyboard is not overriding and not forced
+    if (!this.forceKeyboardMode && phoneCtrl && (now - phoneCtrl.lastPacketTime < 500) && !kb.isKeyboard) {
       boost = phoneCtrl.boost;
       brake = phoneCtrl.brake;
       shake = this.network.consumeShake(1);
@@ -362,20 +408,26 @@ class GameApp {
     // Update Environment (clouds breathing)
     this.environment.update(now / 1000);
 
+    if (!this.isPlaying) {
+      this.lobbyUI.updateLiveTilt(finalPitch, finalRoll);
+    }
+
     if (this.isPlaying) {
-      // 1. Update Physics Gravity with rotated vector
-      this.physics.updateGravity(finalPitch, finalRoll);
+      if (!this.isPhysicsPaused) {
+        // 1. Update Physics Gravity with rotated vector
+        this.physics.updateGravity(finalPitch, finalRoll);
 
-      // 2. Apply discrete impulses (jump / nitro / brake)
-      this.physics.applyAction(boost, shake, dt, brake);
+        // 2. Apply discrete impulses (jump / nitro / brake)
+        this.physics.applyAction(boost, shake, dt, brake);
 
-      // 3. Step Rapier World (kinematic obstacles & physics)
-      this.physics.step(dt);
+        // 3. Step Rapier World (kinematic obstacles & physics)
+        this.physics.step(dt);
+      }
 
       // 4. Sync Marble visuals
       const marblePos = this.physics.getMarblePosition();
       const marbleRot = this.physics.getMarbleRotation();
-      const speed = this.physics.getMarbleSpeed();
+      const speed = this.isPhysicsPaused ? 0 : this.physics.getMarbleSpeed();
 
       this.marble.update(marblePos, marbleRot, speed);
 

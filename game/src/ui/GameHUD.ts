@@ -24,12 +24,17 @@ export class GameHUD {
   private coachToastEl!: HTMLElement;
   private victoryModal!: HTMLElement;
   private victoryTimeEl!: HTMLElement;
+  private disconnectOverlay!: HTMLElement;
+  private disconnectTimerEl!: HTMLElement;
+  private disconnectInterval: number | null = null;
   private tiltPillEl!: HTMLElement;
   private tiltTitleEl!: HTMLElement;
   private tiltSubEl!: HTMLElement;
   private islandDropletEl!: HTMLElement;
 
   private startTime: number = 0;
+  private pausedTime: number = 0;
+  private totalPausedDuration: number = 0;
   private timerRunning = false;
   private toastTimer: number | null = null;
   private coachToastTimer: number | null = null;
@@ -567,6 +572,87 @@ export class GameHUD {
           background: rgba(255, 255, 255, 0.12);
           transform: translateY(-1px);
         }
+
+        /* In-Game Disconnect Reconnecting Overlay */
+        .hud-disconnect-overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.72);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          display: none;
+          align-items: center;
+          justify-content: center;
+          pointer-events: auto;
+          z-index: 55;
+        }
+
+        .hud-disconnect-card {
+          background: rgba(15, 23, 42, 0.94);
+          border: 1.5px solid rgba(245, 158, 11, 0.75);
+          border-radius: 20px;
+          padding: 2.25rem 2.5rem;
+          max-width: 480px;
+          width: 90%;
+          text-align: center;
+          box-shadow: 0 0 40px rgba(245, 158, 11, 0.35), 0 20px 50px rgba(0, 0, 0, 0.85);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .disconnect-title {
+          font-size: 1.1rem;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          color: #f59e0b;
+          text-transform: uppercase;
+        }
+
+        .disconnect-sub {
+          font-size: 0.75rem;
+          color: #94a3b8;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          line-height: 1.4;
+          margin: 0;
+        }
+
+        .disconnect-countdown {
+          font-size: 1.15rem;
+          font-weight: 700;
+          color: #ffffff;
+          letter-spacing: 0.06em;
+          background: rgba(0, 0, 0, 0.45);
+          padding: 0.6rem 1.4rem;
+          border-radius: 10px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .disconnect-kbd-btn {
+          background: #ffffff;
+          color: #000000;
+          border: 1.5px solid #ffffff;
+          border-radius: 12px;
+          padding: 0.85rem 1.8rem;
+          font-family: var(--font-mono);
+          font-size: 0.88rem;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.2, 0.8, 0.4, 1);
+          box-shadow: 0 4px 18px rgba(255, 255, 255, 0.25);
+          width: 100%;
+        }
+
+        .disconnect-kbd-btn:hover {
+          background: #f59e0b;
+          border-color: #f59e0b;
+          color: #000000;
+          transform: translateY(-1px);
+        }
       </style>
 
       <!-- TOP BAR -->
@@ -680,6 +766,20 @@ export class GameHUD {
           </div>
         </div>
       </div>
+
+      <!-- IN-GAME DISCONNECT OVERLAY -->
+      <div id="hud-disconnect-overlay" class="hud-disconnect-overlay">
+        <div class="hud-disconnect-card">
+          <div class="disconnect-title">PHONE DISCONNECTED — RECONNECTING...</div>
+          <p class="disconnect-sub">SERVER HOLDING CONTROLLER SLOT (60S GRACE PERIOD)</p>
+          <div class="disconnect-countdown">
+            TIME REMAINING: <span id="disconnect-timer-secs">60</span>S
+          </div>
+          <button id="disconnect-keyboard-btn" class="disconnect-kbd-btn">
+            CONTINUE WITH KEYBOARD &rarr;
+          </button>
+        </div>
+      </div>
     `;
 
     this.timerEl = this.container.querySelector('#hud-timer')!;
@@ -692,6 +792,8 @@ export class GameHUD {
     this.coachToastEl = this.container.querySelector('#hud-coach-toast')!;
     this.victoryModal = this.container.querySelector('#victory-modal')!;
     this.victoryTimeEl = this.container.querySelector('#victory-time')!;
+    this.disconnectOverlay = this.container.querySelector('#hud-disconnect-overlay')!;
+    this.disconnectTimerEl = this.container.querySelector('#disconnect-timer-secs')!;
     this.tiltPillEl = this.container.querySelector('#hud-tilt-pill')!;
     this.tiltTitleEl = this.container.querySelector('#hud-tilt-title')!;
     this.tiltSubEl = this.container.querySelector('#hud-tilt-sub')!;
@@ -751,17 +853,35 @@ export class GameHUD {
 
   public startTimer(): void {
     this.startTime = performance.now();
+    this.pausedTime = 0;
+    this.totalPausedDuration = 0;
     this.timerRunning = true;
+  }
+
+  public pauseTimer(): void {
+    if (this.timerRunning && this.pausedTime === 0) {
+      this.pausedTime = performance.now();
+    }
+  }
+
+  public resumeTimer(): void {
+    if (this.pausedTime > 0) {
+      this.totalPausedDuration += performance.now() - this.pausedTime;
+      this.pausedTime = 0;
+    }
   }
 
   public resetTimer(): void {
     this.startTime = performance.now();
+    this.pausedTime = 0;
+    this.totalPausedDuration = 0;
     this.timerEl.textContent = '00:00.00';
   }
 
   public update(speedMps: number): void {
     if (this.timerRunning) {
-      const elapsed = performance.now() - this.startTime;
+      const current = this.pausedTime > 0 ? this.pausedTime : performance.now();
+      const elapsed = Math.max(0, current - this.startTime - this.totalPausedDuration);
       const mins = Math.floor(elapsed / 60000);
       const secs = Math.floor((elapsed % 60000) / 1000);
       const ms = Math.floor((elapsed % 1000) / 10);
@@ -837,6 +957,42 @@ export class GameHUD {
     this.coachToastTimer = window.setTimeout(() => {
       this.coachToastEl.classList.remove('visible');
     }, 2500);
+  }
+
+  public showDisconnectOverlay(onContinueKeyboard: () => void): void {
+    this.pauseTimer();
+    this.disconnectOverlay.style.display = 'flex';
+    let remainingSecs = 60;
+    this.disconnectTimerEl.textContent = `${remainingSecs}`;
+
+    if (this.disconnectInterval) clearInterval(this.disconnectInterval);
+    this.disconnectInterval = window.setInterval(() => {
+      remainingSecs--;
+      if (remainingSecs <= 0) {
+        remainingSecs = 0;
+        if (this.disconnectInterval) clearInterval(this.disconnectInterval);
+      }
+      this.disconnectTimerEl.textContent = `${remainingSecs}`;
+    }, 1000);
+
+    const btn = this.container.querySelector('#disconnect-keyboard-btn');
+    if (btn) {
+      const clickHandler = () => {
+        btn.removeEventListener('click', clickHandler);
+        this.hideDisconnectOverlay();
+        onContinueKeyboard();
+      };
+      btn.addEventListener('click', clickHandler);
+    }
+  }
+
+  public hideDisconnectOverlay(): void {
+    this.resumeTimer();
+    this.disconnectOverlay.style.display = 'none';
+    if (this.disconnectInterval) {
+      clearInterval(this.disconnectInterval);
+      this.disconnectInterval = null;
+    }
   }
 
   public showVictory(): void {
