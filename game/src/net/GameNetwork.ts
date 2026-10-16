@@ -120,10 +120,24 @@ export class GameNetwork {
 
     try {
       const frame = decodeTelemetry(buffer);
+
+      const slot = frame.playerSlot;
+      const seq = frame.sequenceNumber & 0xff;
+
+      // 8-bit circular sequence check: drop duplicates and stale / out-of-order packets
+      const lastSeq = this.lastSequenceNumbers.get(slot);
+      if (lastSeq !== undefined) {
+        const diff = (seq - lastSeq + 256) & 0xff;
+        // Treat forward difference of 1..127 as newer
+        if (diff === 0 || diff > 127) {
+          return;
+        }
+      }
+      this.lastSequenceNumbers.set(slot, seq);
+
       this.callbacks.onRawPacketReceived?.(buffer);
 
       const now = performance.now();
-      const slot = frame.playerSlot;
 
       // Calculate arrival intervals for Hz and Jitter
       if (!this.lastArrivalTimes.has(slot)) {
@@ -206,18 +220,21 @@ export class GameNetwork {
       case 'PLAYER_JOINED':
         this.prevRawShake.delete(msg.playerSlot);
         this.prevRawRecalibrate.delete(msg.playerSlot);
+        this.lastSequenceNumbers.delete(msg.playerSlot);
         this.callbacks.onPlayerJoined(msg);
         break;
 
       case 'PLAYER_DISCONNECTED':
         this.prevRawShake.delete(msg.playerSlot);
         this.prevRawRecalibrate.delete(msg.playerSlot);
+        this.lastSequenceNumbers.delete(msg.playerSlot);
         this.callbacks.onPlayerDisconnected(msg);
         break;
 
       case 'PLAYER_RECONNECTED':
         this.prevRawShake.delete(msg.playerSlot);
         this.prevRawRecalibrate.delete(msg.playerSlot);
+        this.lastSequenceNumbers.delete(msg.playerSlot);
         this.callbacks.onPlayerReconnected(msg);
         break;
 
@@ -225,6 +242,7 @@ export class GameNetwork {
         this.controllers.delete(msg.playerSlot);
         this.prevRawShake.delete(msg.playerSlot);
         this.prevRawRecalibrate.delete(msg.playerSlot);
+        this.lastSequenceNumbers.delete(msg.playerSlot);
         this.callbacks.onPlayerLeft(msg);
         break;
 

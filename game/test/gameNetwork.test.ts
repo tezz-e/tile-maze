@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { GameNetwork } from '../src/net/GameNetwork.js';
 import {
   PACKET_TYPE_TELEMETRY,
+  BUTTON_BOOST,
   BUTTON_SHAKE,
   encodeTelemetry,
   type TelemetryFrame,
@@ -92,5 +93,44 @@ describe('GameNetwork - Pulse Rising Edge Latching', () => {
     // Next packet arriving with shake bit is treated as a new rising edge
     net.handleBinaryTelemetry(makeFrame(1, 2, BUTTON_SHAKE));
     expect(net.consumeShake(1)).toBe(true);
+  });
+});
+
+describe('GameNetwork - Sequence Number and Stale Packet Discarding', () => {
+  it('accepts packets in sequence, handles wraparound at 255 -> 0, and drops late/duplicate packets', () => {
+    const net = new GameNetwork({
+      onRoomCreated: () => {},
+      onPlayerJoined: () => {},
+      onPlayerDisconnected: () => {},
+      onPlayerReconnected: () => {},
+      onPlayerLeft: () => {},
+      onLatencyUpdate: () => {},
+    });
+
+    // Packet seq 254
+    net.handleBinaryTelemetry(makeFrame(1, 254, 0));
+    expect(net.getController(1)?.sequenceNumber).toBe(254);
+
+    // Duplicate packet seq 254 should be dropped
+    net.handleBinaryTelemetry(makeFrame(1, 254, BUTTON_BOOST));
+    // Should NOT have updated boost flag because duplicate was dropped
+    expect(net.getController(1)?.boost).toBe(false);
+
+    // Packet seq 255
+    net.handleBinaryTelemetry(makeFrame(1, 255, 0));
+    expect(net.getController(1)?.sequenceNumber).toBe(255);
+
+    // Wraparound: packet seq 0 should be accepted
+    net.handleBinaryTelemetry(makeFrame(1, 0, BUTTON_BOOST));
+    expect(net.getController(1)?.sequenceNumber).toBe(0);
+    expect(net.getController(1)?.boost).toBe(true);
+
+    // Late packet seq 255 arriving after seq 0 should be dropped
+    net.handleBinaryTelemetry(makeFrame(1, 255, 0));
+    expect(net.getController(1)?.sequenceNumber).toBe(0);
+
+    // Next in-order packet seq 1 should be accepted
+    net.handleBinaryTelemetry(makeFrame(1, 1, 0));
+    expect(net.getController(1)?.sequenceNumber).toBe(1);
   });
 });
