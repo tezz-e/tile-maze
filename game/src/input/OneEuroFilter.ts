@@ -64,7 +64,7 @@ export class OneEuroFilter {
   }
 
   /**
-   * Filter value x at timestamp (in seconds or milliseconds).
+   * Filter value x at timestamp in seconds.
    */
   public filter(x: number, timestamp: number): number {
     if (this.lastTime === null) {
@@ -73,9 +73,7 @@ export class OneEuroFilter {
       return this.xFilter.filter(x, 1.0);
     }
 
-    // Convert ms to seconds if timestamp delta is in milliseconds (> 0.5ms)
-    const rawDt = timestamp - this.lastTime;
-    const dt = rawDt > 0.5 ? rawDt / 1000.0 : rawDt;
+    const dt = timestamp - this.lastTime;
 
     if (dt <= 0) {
       return this.xFilter.lastFiltered() ?? x;

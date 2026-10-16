@@ -290,9 +290,10 @@ class GameApp {
       shake = kb.shake;
       isKeyboard = true;
 
-      // Adaptive One-Euro Filtering for keyboard input
-      finalPitch = this.pitchFilter.filter(kb.pitch, now);
-      finalRoll = this.rollFilter.filter(kb.roll, now);
+      // Adaptive One-Euro Filtering for keyboard input (timestamps in seconds)
+      const nowSec = now / 1000;
+      finalPitch = this.pitchFilter.filter(kb.pitch, nowSec);
+      finalRoll = this.rollFilter.filter(kb.roll, nowSec);
       this.smoothedPitch = finalPitch;
       this.smoothedRoll = finalRoll;
     }
