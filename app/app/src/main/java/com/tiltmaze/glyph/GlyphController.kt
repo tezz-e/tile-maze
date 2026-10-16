@@ -63,19 +63,19 @@ class NothingGlyphController(private val context: Context) : GlyphController {
         if (now - lastUpdateMs < 30) return // Throttle to ~33Hz to prevent IPC saturation
         lastUpdateMs = now
 
-        // Map normalized [-1.0, 1.0] to matrix coordinates [0, 24]
-        val cx = ((xNorm + 1.0f) * 0.5f * 24f).toInt().coerceIn(0, 24)
-        val cy = ((yNorm + 1.0f) * 0.5f * 24f).toInt().coerceIn(0, 24)
+        val (ballX, ballY) = GlyphMath.getBallCenter(xNorm, yNorm)
+        val cx = ballX.toInt().coerceIn(0, 24)
+        val cy = ballY.toInt().coerceIn(0, 24)
 
         // Clear previous frame
         currentFrame.fill(0)
 
-        // Render 3x3 anti-aliased bright cluster
+        // Render 3x3 cluster, skipping cells outside circular mask
         for (dy in -1..1) {
             for (dx in -1..1) {
                 val px = cx + dx
                 val py = cy + dy
-                if (px in 0..24 && py in 0..24) {
+                if (GlyphMath.isInsideCircle(px, py)) {
                     val idx = py * 25 + px
                     val brightness = when {
                         dx == 0 && dy == 0 -> 4095
@@ -97,7 +97,9 @@ class NothingGlyphController(private val context: Context) : GlyphController {
     override fun pulseSuccess() {
         if (!isRegistered || glyphManager == null) return
         try {
-            val pulseFrame = IntArray(cellsPerFrame) { 4095 }
+            val pulseFrame = IntArray(cellsPerFrame) { idx ->
+                if (GlyphMath.CIRCLE_MASK[idx]) 4095 else 0
+            }
             glyphManager?.setMatrixFrame(pulseFrame)
             Handler(Looper.getMainLooper()).postDelayed({
                 try {

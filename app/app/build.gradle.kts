@@ -81,5 +81,7 @@ dependencies {
     // QR Code scanner: Google Code Scanner (zero-permission Google Play services API)
     implementation(libs.play.services.code.scanner)
 
+    testImplementation("junit:junit:4.13.2")
+
     debugImplementation(libs.androidx.ui.tooling)
 }
