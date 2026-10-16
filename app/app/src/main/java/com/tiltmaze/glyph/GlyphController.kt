@@ -64,28 +64,7 @@ class NothingGlyphController(private val context: Context) : GlyphController {
         lastUpdateMs = now
 
         val (ballX, ballY) = GlyphMath.getBallCenter(xNorm, yNorm)
-        val cx = ballX.toInt().coerceIn(0, 24)
-        val cy = ballY.toInt().coerceIn(0, 24)
-
-        // Clear previous frame
-        currentFrame.fill(0)
-
-        // Render 3x3 cluster, skipping cells outside circular mask
-        for (dy in -1..1) {
-            for (dx in -1..1) {
-                val px = cx + dx
-                val py = cy + dy
-                if (GlyphMath.isInsideCircle(px, py)) {
-                    val idx = py * 25 + px
-                    val brightness = when {
-                        dx == 0 && dy == 0 -> 4095
-                        dx == 0 || dy == 0 -> 1800
-                        else -> 600
-                    }
-                    currentFrame[idx] = brightness
-                }
-            }
-        }
+        GlyphMath.renderGaussianBlob(ballX, ballY, currentFrame)
 
         try {
             glyphManager?.setMatrixFrame(currentFrame)

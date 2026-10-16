@@ -74,4 +74,33 @@ class GlyphMathTest {
             )
         }
     }
+
+    @Test
+    fun testGaussianBlobSubPixelRendering() {
+        val frame = IntArray(GlyphMath.TOTAL_LEDS)
+
+        // 1. Center rendering
+        GlyphMath.renderGaussianBlob(12.0f, 12.0f, frame)
+        val centerIdx = 12 * GlyphMath.GRID_SIZE + 12
+        assertEquals(GlyphMath.PEAK_BRIGHTNESS, frame[centerIdx])
+        assertTrue("Frame must have lit pixels", frame.any { it > 0 })
+
+        // Ensure no LED outside circle mask is lit
+        for (i in 0 until GlyphMath.TOTAL_LEDS) {
+            if (!GlyphMath.CIRCLE_MASK[i]) {
+                assertEquals("LED outside circle mask must be 0", 0, frame[i])
+            }
+        }
+
+        // 2. Sub-pixel balance between (12, 12) and (13, 12)
+        GlyphMath.renderGaussianBlob(12.5f, 12.0f, frame)
+        val idx12 = 12 * GlyphMath.GRID_SIZE + 12
+        val idx13 = 12 * GlyphMath.GRID_SIZE + 13
+        assertEquals("Sub-pixel midpoint must illuminate adjacent pixels equally", frame[idx12], frame[idx13])
+        assertTrue("Sub-pixel intensity must be positive", frame[idx12] > 0)
+
+        // 3. Never all-zero even at boundary
+        GlyphMath.renderGaussianBlob(22.5f, 12.0f, frame)
+        assertTrue("Frame must never be all-zero", frame.any { it > 0 })
+    }
 }

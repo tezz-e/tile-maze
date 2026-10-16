@@ -9,6 +9,9 @@ object GlyphMath {
     const val RADIUS = 12.5f
     const val RADIUS_SQ = RADIUS * RADIUS // 156.25f
     const val TRAVEL_RADIUS = 10.5f
+    const val SIGMA = 0.9f
+    const val TWO_SIGMA_SQ = 2.0f * SIGMA * SIGMA // ~1.62f
+    const val PEAK_BRIGHTNESS = 4095
 
     /**
      * Precomputed boolean mask for the physical circular LED matrix.
@@ -50,5 +53,49 @@ object GlyphMath {
     fun getBallCenter(vx: Float, vy: Float): Pair<Float, Float> {
         val (cx, cy) = clampRadial(vx, vy)
         return Pair(CENTER + cx * TRAVEL_RADIUS, CENTER + cy * TRAVEL_RADIUS)
+    }
+
+    /**
+     * Renders a sub-pixel Gaussian blob centered at floating-point (cx, cy) on the circular matrix.
+     * Evaluates a 5x5 neighborhood around the float position with peak brightness 4095.
+     * Skips cells outside the circular mask.
+     * Guarantees at least one illuminated pixel so a connected frame is never all-zero.
+     */
+    fun renderGaussianBlob(cx: Float, cy: Float, targetFrame: IntArray) {
+        targetFrame.fill(0)
+
+        val minX = (cx.toInt() - 2).coerceAtLeast(0)
+        val maxX = (cx.toInt() + 2).coerceAtMost(GRID_SIZE - 1)
+        val minY = (cy.toInt() - 2).coerceAtLeast(0)
+        val maxY = (cy.toInt() + 2).coerceAtMost(GRID_SIZE - 1)
+
+        var hasLitPixel = false
+
+        for (py in minY..maxY) {
+            val dy = py - cy
+            val dySq = dy * dy
+            for (px in minX..maxX) {
+                if (!isInsideCircle(px, py)) continue
+
+                val dx = px - cx
+                val distSq = dx * dx + dySq
+                val intensity = (PEAK_BRIGHTNESS * kotlin.math.exp(-distSq / TWO_SIGMA_SQ)).toInt()
+                if (intensity > 0) {
+                    targetFrame[py * GRID_SIZE + px] = intensity.coerceIn(0, PEAK_BRIGHTNESS)
+                    hasLitPixel = true
+                }
+            }
+        }
+
+        // Never output an all-zero frame while connected: if everything clips, still draw the center pixel
+        if (!hasLitPixel) {
+            val nearestX = kotlin.math.round(cx).toInt().coerceIn(0, GRID_SIZE - 1)
+            val nearestY = kotlin.math.round(cy).toInt().coerceIn(0, GRID_SIZE - 1)
+            if (isInsideCircle(nearestX, nearestY)) {
+                targetFrame[nearestY * GRID_SIZE + nearestX] = PEAK_BRIGHTNESS
+            } else {
+                targetFrame[12 * GRID_SIZE + 12] = PEAK_BRIGHTNESS
+            }
+        }
     }
 }
