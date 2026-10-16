@@ -329,4 +329,54 @@ describe('End-to-End WebSocket Relay Integration', () => {
     hostWs.close();
     controllerWs.close();
   });
+
+  it('resists malformed WebSocket messages and continues servicing requests', async () => {
+    const ws = new WebSocket('ws://127.0.0.1:3000');
+    await new Promise((resolve) => ws.on('open', resolve));
+
+    const malformedPayloads = [
+      '{"type":"JOIN_ROOM"}',
+      '{"type":"HOST_RECONNECT"}',
+      '{"type":"JOIN_ROOM","roomCode":123}',
+      'not json',
+      '{}',
+      'x'.repeat(5000),
+    ];
+
+    for (const payload of malformedPayloads) {
+      ws.send(payload);
+    }
+
+    // Allow time for server to process/drop the payloads
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Assert the server still answers /api/info
+    const res = await fetch('http://127.0.0.1:3000/api/info');
+    expect(res.status).toBe(200);
+    const info = await res.json();
+    expect(info.status).toBe('online');
+
+    // Assert a valid HOST_CREATE_ROOM is properly handled afterwards
+    const createMsg: ControlMessage = { type: 'HOST_CREATE_ROOM' };
+    ws.send(serializeControlMessage(createMsg));
+
+    const roomCreated = await new Promise<RoomCreatedMsg>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Timed out waiting for ROOM_CREATED')), 2000);
+      ws.on('message', (raw) => {
+        try {
+          const msg = JSON.parse(raw.toString());
+          if (msg.type === 'ROOM_CREATED') {
+            clearTimeout(timer);
+            resolve(msg);
+          }
+        } catch {}
+      });
+    });
+
+    expect(roomCreated.type).toBe('ROOM_CREATED');
+    expect(roomCreated.roomCode).toBeDefined();
+    expect(roomCreated.roomCode.length).toBe(4);
+
+    ws.close();
+  });
 });

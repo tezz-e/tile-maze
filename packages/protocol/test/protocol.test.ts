@@ -168,5 +168,47 @@ describe('JSON Control Plane Messages', () => {
     expect(parseControlMessage('not a json')).toBeNull();
     expect(parseControlMessage('{"notType": 123}')).toBeNull();
     expect(parseControlMessage('123')).toBeNull();
+    expect(parseControlMessage('')).toBeNull();
+    expect(parseControlMessage('{}')).toBeNull();
+    expect(parseControlMessage('[]')).toBeNull();
+  });
+
+  it('rejects malformed payloads with missing or invalid fields', () => {
+    // Missing required roomCode
+    expect(parseControlMessage('{"type":"JOIN_ROOM"}')).toBeNull();
+    // Non-string roomCode
+    expect(parseControlMessage('{"type":"JOIN_ROOM","roomCode":123}')).toBeNull();
+    // Empty roomCode
+    expect(parseControlMessage('{"type":"JOIN_ROOM","roomCode":"   "}')).toBeNull();
+    // Missing hostSessionId or roomCode
+    expect(parseControlMessage('{"type":"HOST_RECONNECT"}')).toBeNull();
+    expect(parseControlMessage('{"type":"HOST_RECONNECT","roomCode":"ABCD"}')).toBeNull();
+    expect(parseControlMessage('{"type":"HOST_RECONNECT","hostSessionId":"sess-123"}')).toBeNull();
+    // Invalid playerSlot
+    expect(parseControlMessage('{"type":"CALIBRATE_COMPLETE","playerSlot":3,"zeroPitch":0,"zeroRoll":0}')).toBeNull();
+    // Non-finite numbers
+    expect(parseControlMessage('{"type":"NTP_PING","clientSendTime":"not-a-number"}')).toBeNull();
+    // Invalid haptic effect
+    expect(parseControlMessage('{"type":"HAPTIC_EVENT","playerSlot":1,"effect":"explode"}')).toBeNull();
+  });
+
+  it('rejects oversized control message strings exceeding 4KB', () => {
+    const huge = 'x'.repeat(4097);
+    expect(parseControlMessage(huge)).toBeNull();
+    const hugeJson = JSON.stringify({ type: 'JOIN_ROOM', roomCode: 'ABCD', deviceName: 'x'.repeat(4096) });
+    expect(parseControlMessage(hugeJson)).toBeNull();
+  });
+
+  it('accepts valid control messages with required and optional fields', () => {
+    expect(parseControlMessage('{"type":"HOST_CREATE_ROOM"}')).toEqual({ type: 'HOST_CREATE_ROOM' });
+    expect(parseControlMessage('{"type":"JOIN_ROOM","roomCode":"ABCD"}')).toEqual({
+      type: 'JOIN_ROOM',
+      roomCode: 'ABCD',
+    });
+    expect(parseControlMessage('{"type":"JOIN_ROOM","roomCode":"ABCD","deviceName":"Pixel 8"}')).toEqual({
+      type: 'JOIN_ROOM',
+      roomCode: 'ABCD',
+      deviceName: 'Pixel 8',
+    });
   });
 });
