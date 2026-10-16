@@ -15,7 +15,7 @@ function makeFrame(slot: number, seq: number, buttonBitmask: number): ArrayBuffe
     sequenceNumber: seq,
     calibratedPitch: 0.1,
     calibratedRoll: 0.2,
-    rawYawRate: 0.0,
+    yaw: 0.0,
     clientTimestamp: Date.now(),
   };
   return encodeTelemetry(frame);

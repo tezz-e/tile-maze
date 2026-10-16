@@ -435,14 +435,14 @@ export class TelemetryLab {
       recalEl.classList.toggle('active', hasButton(frame.buttonBitmask, BUTTON_RECALIBRATE));
 
       // 3. Update Fields summary
-      this.fieldsDisplayEl.textContent = `PITCH: ${frame.calibratedPitch.toFixed(4)} | ROLL: ${frame.calibratedRoll.toFixed(4)} | YAW RATE: ${frame.rawYawRate.toFixed(4)} | SEQ: ${frame.sequenceNumber} | TIME: ${frame.clientTimestamp}`;
+      this.fieldsDisplayEl.textContent = `PITCH: ${frame.calibratedPitch.toFixed(4)} | ROLL: ${frame.calibratedRoll.toFixed(4)} | YAW: ${frame.yaw.toFixed(4)} | SEQ: ${frame.sequenceNumber} | TIME: ${frame.clientTimestamp}`;
 
       // 4. Update 3D Phone Mesh Rotation
       if (this.isVisible) {
         // Pitch: X-axis, Roll: Z-axis, Yaw: Y-axis
         this.phoneMesh.rotation.x = frame.calibratedPitch * 0.5;
         this.phoneMesh.rotation.z = -frame.calibratedRoll * 0.5;
-        this.phoneMesh.rotation.y = frame.rawYawRate * 0.2;
+        this.phoneMesh.rotation.y = frame.yaw * 0.2;
         this.phoneRenderer.render(this.phoneScene, this.phoneCamera);
 
         // 5. Update Oscilloscope Trace

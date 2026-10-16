@@ -12,7 +12,7 @@
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |                   Calibrated Roll  (Float32 LE)               |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                   Raw Yaw Rate     (Float32 LE)               |
+|                   Yaw / Azimuth    (Float32 LE)               |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |                 Client Timestamp (Uint32 LE ms)               |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -29,7 +29,7 @@
 - **Byte 3 (`sequenceNumber`, Uint8):** Rolling 0–255 counter.
 - **Bytes 4–7 (`calibratedPitch`, Float32 Little-Endian):** Normalized forward/backward tilt in $[-1.0, 1.0]$.
 - **Bytes 8–11 (`calibratedRoll`, Float32 Little-Endian):** Normalized left/right tilt in $[-1.0, 1.0]$.
-- **Bytes 12–15 (`rawYawRate`, Float32 Little-Endian):** Gyroscope angular rate around Z-axis.
+- **Bytes 12–15 (`yaw`, Float32 Little-Endian):** Phone azimuth angle in radians.
 - **Bytes 16–19 (`clientTimestamp`, Uint32 Little-Endian):** Millisecond timestamp for jitter analysis.
 
 ---

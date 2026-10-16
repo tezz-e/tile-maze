@@ -112,7 +112,7 @@ describe('End-to-End WebSocket Relay Integration', () => {
       sequenceNumber: 99,
       calibratedPitch: 0.456,
       calibratedRoll: -0.789,
-      rawYawRate: 0.123,
+      yaw: 0.123,
       clientTimestamp: 12345678,
     };
     const binaryBuf = encodeTelemetry(testFrame);
@@ -224,7 +224,7 @@ describe('End-to-End WebSocket Relay Integration', () => {
       sequenceNumber: 1,
       calibratedPitch: 0.1,
       calibratedRoll: 0.2,
-      rawYawRate: 0.0,
+      yaw: 0.0,
       clientTimestamp: 500,
     });
     ctrl.send(testPacket, { binary: true });

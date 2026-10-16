@@ -29,7 +29,7 @@ describe('20-Byte Binary Telemetry Protocol', () => {
       sequenceNumber: 42,
       calibratedPitch: -0.3456,
       calibratedRoll: 0.7891,
-      rawYawRate: 1.2345,
+      yaw: 1.2345,
       clientTimestamp: 1698765432,
     };
 
@@ -45,7 +45,7 @@ describe('20-Byte Binary Telemetry Protocol', () => {
     expect(decoded.sequenceNumber).toBe(42);
     expect(decoded.calibratedPitch).toBeCloseTo(-0.3456, 4);
     expect(decoded.calibratedRoll).toBeCloseTo(0.7891, 4);
-    expect(decoded.rawYawRate).toBeCloseTo(1.2345, 4);
+    expect(decoded.yaw).toBeCloseTo(1.2345, 4);
     expect(decoded.clientTimestamp).toBe(1698765432);
   });
 
@@ -58,7 +58,7 @@ describe('20-Byte Binary Telemetry Protocol', () => {
       sequenceNumber: 255,
       calibratedPitch: 0.0,
       calibratedRoll: -1.0,
-      rawYawRate: 0.0,
+      yaw: 0.0,
       clientTimestamp: 999999,
     };
 
@@ -81,7 +81,7 @@ describe('20-Byte Binary Telemetry Protocol', () => {
       sequenceNumber: 10,
       calibratedPitch: 0.1,
       calibratedRoll: 0.2,
-      rawYawRate: 0.3,
+      yaw: 0.3,
       clientTimestamp: 12345,
     };
 
@@ -122,7 +122,7 @@ describe('20-Byte Binary Telemetry Protocol', () => {
       sequenceNumber: 0x04,
       calibratedPitch: 0.0,
       calibratedRoll: 0.0,
-      rawYawRate: 0.0,
+      yaw: 0.0,
       clientTimestamp: 0,
     };
     const buffer = encodeTelemetry(frame);

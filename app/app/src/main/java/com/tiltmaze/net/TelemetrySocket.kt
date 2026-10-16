@@ -157,7 +157,7 @@ class TelemetrySocket(private val listener: TelemetryListener) {
                 byteBuffer.put(sequenceNumber.toByte())              // Byte 3: sequenceNumber
                 byteBuffer.putFloat(motion.pitch)                    // Bytes 4-7: calibratedPitch (Float32 LE)
                 byteBuffer.putFloat(motion.roll)                     // Bytes 8-11: calibratedRoll (Float32 LE)
-                byteBuffer.putFloat(motion.yawRate)                  // Bytes 12-15: rawYawRate (Float32 LE)
+                byteBuffer.putFloat(motion.yaw)                      // Bytes 12-15: yaw (Float32 LE)
                 byteBuffer.putInt((System.currentTimeMillis() and 0xFFFFFFFFL).toInt()) // Bytes 16-19: clientTimestamp
 
                 val byteString = byteBuffer.array().toByteString(0, 20)

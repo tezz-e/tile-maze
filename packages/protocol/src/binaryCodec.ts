@@ -10,7 +10,7 @@
  * +---------------+---------------+------------------+---------------+
  * |                  Calibrated Roll  (Float32 LE)                  | (Bytes 8-11)
  * +---------------+---------------+------------------+---------------+
- * |                  Raw Yaw Rate     (Float32 LE)                  | (Bytes 12-15)
+ * |                  Yaw / Azimuth    (Float32 LE)                  | (Bytes 12-15)
  * +---------------+---------------+------------------+---------------+
  * |                 Client Timestamp  (Uint32 LE ms)                 | (Bytes 16-19)
  * +---------------+---------------+------------------+---------------+
@@ -31,7 +31,7 @@ export interface TelemetryFrame {
   sequenceNumber: number;   // Uint8: 0..255
   calibratedPitch: number;  // Float32: normalized tilt [-1.0, 1.0]
   calibratedRoll: number;   // Float32: normalized tilt [-1.0, 1.0]
-  rawYawRate: number;       // Float32: rad/s or deg/s angular speed
+  yaw: number;              // Float32: azimuth angle in radians
   clientTimestamp: number;  // Uint32: millisecond timestamp
 }
 
@@ -56,7 +56,7 @@ export function encodeTelemetry(
   view.setUint8(3, frame.sequenceNumber & 0xff);
   view.setFloat32(4, frame.calibratedPitch, true); // Little-Endian
   view.setFloat32(8, frame.calibratedRoll, true);  // Little-Endian
-  view.setFloat32(12, frame.rawYawRate, true);     // Little-Endian
+  view.setFloat32(12, frame.yaw, true);            // Little-Endian
   view.setUint32(16, frame.clientTimestamp >>> 0, true); // Little-Endian
 
   return buffer;
@@ -94,7 +94,7 @@ export function decodeTelemetry(
     sequenceNumber: view.getUint8(3),
     calibratedPitch: view.getFloat32(4, true),
     calibratedRoll: view.getFloat32(8, true),
-    rawYawRate: view.getFloat32(12, true),
+    yaw: view.getFloat32(12, true),
     clientTimestamp: view.getUint32(16, true),
   };
 }

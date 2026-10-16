@@ -173,7 +173,7 @@ export class GameNetwork {
         playerSlot: slot,
         pitch: frame.calibratedPitch,
         roll: frame.calibratedRoll,
-        yaw: frame.rawYawRate,
+        yaw: frame.yaw,
         boost,
         brake,
         shake,

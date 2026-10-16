@@ -21,7 +21,7 @@ import kotlin.math.sqrt
 data class MotionData(
     val pitch: Float,        // Calibrated normalized pitch [-1.0, 1.0]
     val roll: Float,         // Calibrated normalized roll [-1.0, 1.0]
-    val yawRate: Float,      // Angular yaw rate
+    val yaw: Float,          // Azimuth angle
     val shakeTriggered: Boolean,
     val recalibratedPulse: Boolean
 )
@@ -100,7 +100,7 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
     // Current output values
     @Volatile private var currentPitch = 0.0f
     @Volatile private var currentRoll = 0.0f
-    @Volatile private var currentYawRate = 0.0f
+    @Volatile private var currentYaw = 0.0f
 
     // Shake-to-jump detection using sensor timestamps
     private var lastShakeTimestampNs = 0L
@@ -370,7 +370,7 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
                 if (pendingCalibration) {
                     currentPitch = 0.0f
                     currentRoll = 0.0f
-                    currentYawRate = atan2(screenRotMatrix[1], screenRotMatrix[4])
+                    currentYaw = atan2(screenRotMatrix[1], screenRotMatrix[4])
                     return
                 }
             }
@@ -403,8 +403,8 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
             currentPitch = pitchFilter.filter(normPitch, timestampSec)
             currentRoll = rollFilter.filter(normRoll, timestampSec)
 
-            // Yaw rate: orientation azimuth without allocations
-            currentYawRate = atan2(screenRotMatrix[1], screenRotMatrix[4])
+            // Yaw: orientation azimuth without allocations
+            currentYaw = atan2(screenRotMatrix[1], screenRotMatrix[4])
 
         } else if (event.sensor.type == Sensor.TYPE_LINEAR_ACCELERATION) {
             val ax = event.values[0]
@@ -428,7 +428,7 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
         return MotionData(
             pitch = currentPitch,
             roll = currentRoll,
-            yawRate = currentYawRate,
+            yaw = currentYaw,
             shakeTriggered = shakeFramesRemaining.get() > 0,
             recalibratedPulse = recalibratePulse.get()
         )
@@ -451,7 +451,7 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
         return MotionData(
             pitch = currentPitch,
             roll = currentRoll,
-            yawRate = currentYawRate,
+            yaw = currentYaw,
             shakeTriggered = isShake,
             recalibratedPulse = isRecal
         )
