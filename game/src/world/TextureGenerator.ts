@@ -33,23 +33,30 @@ export class TextureGenerator {
     }
     const { canvas, ctx } = c;
 
+    const cTop = new THREE.Color(topColor);
+    const cBottom = new THREE.Color(bottomColor);
+
     // 1. Sky Gradient from zenith (y=0) down through horizon (y=256) to nadir (y=512)
     // Smooth continuous gradient stops with low contrast near the horizon to eliminate banding in reflections
     const skyGrad = ctx.createLinearGradient(0, 0, 0, 512);
     if (isNight) {
-      skyGrad.addColorStop(0.0, topColor);
-      skyGrad.addColorStop(0.35, '#080e1a');
-      skyGrad.addColorStop(0.50, '#0f172a');
-      skyGrad.addColorStop(0.70, '#0b1322');
-      skyGrad.addColorStop(1.0, bottomColor);
+      skyGrad.addColorStop(0.0, cTop.getStyle());
+      skyGrad.addColorStop(0.38, cTop.getStyle());
+      skyGrad.addColorStop(0.46, cTop.clone().lerp(cBottom, 0.45).getStyle());
+      skyGrad.addColorStop(0.50, cBottom.getStyle());
+      skyGrad.addColorStop(0.54, cBottom.clone().lerp(cTop, 0.20).getStyle());
+      skyGrad.addColorStop(0.72, cBottom.getStyle());
+      skyGrad.addColorStop(1.0, cBottom.getStyle());
     } else {
-      skyGrad.addColorStop(0.0, topColor);
-      skyGrad.addColorStop(0.30, topColor);
-      // Soft, low-contrast transition at horizon (y=256, stop 0.50)
-      skyGrad.addColorStop(0.48, '#bfdbfe');
-      skyGrad.addColorStop(0.52, '#dbeafe');
-      skyGrad.addColorStop(0.75, bottomColor);
-      skyGrad.addColorStop(1.0, bottomColor);
+      // Zenith blue extends down to 0.38 so the camera's upper elevation (+22 deg) captures vivid sky color
+      skyGrad.addColorStop(0.0, cTop.getStyle());
+      skyGrad.addColorStop(0.38, cTop.getStyle());
+      // Smooth, soft transition into horizon haze (stop 0.50 = horizon y=256)
+      skyGrad.addColorStop(0.46, cTop.clone().lerp(cBottom, 0.40).getStyle());
+      skyGrad.addColorStop(0.50, cBottom.getStyle());
+      skyGrad.addColorStop(0.54, cBottom.clone().lerp(cTop, 0.15).getStyle());
+      skyGrad.addColorStop(0.72, cBottom.getStyle());
+      skyGrad.addColorStop(1.0, cBottom.getStyle());
     }
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, 1024, 512);
@@ -449,15 +456,15 @@ export class TextureGenerator {
       ctx.fillRect(0, y, 256, bandHeight);
 
       // Horizontal mortar seam groove
-      ctx.strokeStyle = isNight ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.16)';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = isNight ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.09)';
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(256, y);
       ctx.stroke();
 
       // Sunlit edge highlight below groove
-      ctx.strokeStyle = isNight ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.22)';
+      ctx.strokeStyle = isNight ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.18)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, y + 2);
@@ -471,8 +478,8 @@ export class TextureGenerator {
       const rowIdx = y / bandHeight;
       const xOffset = (rowIdx % 2) * (blockWidth / 2);
       for (let x = xOffset; x < 256; x += blockWidth) {
-        ctx.strokeStyle = isNight ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.14)';
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = isNight ? 'rgba(0, 0, 0, 0.40)' : 'rgba(0, 0, 0, 0.08)';
+        ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(x, y + bandHeight);

@@ -26,6 +26,8 @@ export class SkyEnvironment {
   private renderer: THREE.WebGLRenderer;
   private currentSkyTexture: THREE.Texture | null = null;
   private currentEnvTexture: THREE.Texture | null = null;
+  private pillarMaterials: THREE.Material[] = [];
+  private pillarTextures: THREE.Texture[] = [];
 
   constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
     this.scene = scene;
@@ -281,34 +283,35 @@ export class SkyEnvironment {
    * and glowing window strips for night themes.
    */
   public rebuildPillars(theme: LevelTheme, isNight: boolean = false): void {
-    // 1. Clear and dispose old pillar hierarchy to prevent VRAM memory leaks
+    // 1. Clear and dispose old pillar textures and materials cleanly to prevent VRAM memory leaks
+    for (const t of this.pillarTextures) {
+      t.dispose();
+    }
+    this.pillarTextures = [];
+
+    for (const m of this.pillarMaterials) {
+      m.dispose();
+    }
+    this.pillarMaterials = [];
+
     while (this.pillarsGroup.children.length > 0) {
       const child = this.pillarsGroup.children[0];
       this.pillarsGroup.remove(child);
       child.traverse((node: any) => {
         if (node.geometry) node.geometry.dispose();
-        if (node.material) {
-          if (Array.isArray(node.material)) {
-            node.material.forEach((m: any) => {
-              if (m.map) m.map.dispose();
-              if (m.emissiveMap) m.emissiveMap.dispose();
-              m.dispose();
-            });
-          } else {
-            if (node.material.map) node.material.map.dispose();
-            if (node.material.emissiveMap) node.material.emissiveMap.dispose();
-            node.material.dispose();
-          }
-        }
       });
     }
 
     // 2. Prepare themed materials with procedural stone textures and window strips
     const palette = theme.pillarPalette || [0xfbcfe8, 0xbae6fd, 0xa7f3d0, 0xfef08a, 0xe2e8f0, 0xc7d2fe];
     const windowTex = isNight ? TextureGenerator.createPillarWindowTexture() : null;
+    if (windowTex) {
+      this.pillarTextures.push(windowTex);
+    }
 
     const pillarMatPool = palette.map((colHex) => {
       const stoneTex = TextureGenerator.createPillarTexture(colHex, isNight);
+      this.pillarTextures.push(stoneTex);
       const matParams: THREE.MeshStandardMaterialParameters = {
         map: stoneTex,
         roughness: isNight ? 0.45 : 0.6,
@@ -319,7 +322,9 @@ export class SkyEnvironment {
         matParams.emissiveMap = windowTex;
         matParams.emissiveIntensity = 1.6;
       }
-      return new THREE.MeshStandardMaterial(matParams);
+      const mat = new THREE.MeshStandardMaterial(matParams);
+      this.pillarMaterials.push(mat);
+      return mat;
     });
 
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
@@ -329,6 +334,16 @@ export class SkyEnvironment {
     // Grass cap material for day themes
     const grassColor = theme.fogColor === 0xfecdd3 ? 0xca8a04 : theme.fogColor === 0xe9d5ff ? 0xa855f7 : 0x22c55e;
     const grassMat = new THREE.MeshStandardMaterial({ color: grassColor, roughness: 0.7, metalness: 0.05 });
+    this.pillarMaterials.push(trunkMat, foliageMat, grassMat);
+
+    const mastMat = isNight ? new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8, roughness: 0.2 }) : null;
+    const beaconMat = isNight ? new THREE.MeshStandardMaterial({
+      color: 0x00f5ff,
+      emissive: 0x00f5ff,
+      emissiveIntensity: 2.2,
+    }) : null;
+    if (mastMat) this.pillarMaterials.push(mastMat);
+    if (beaconMat) this.pillarMaterials.push(beaconMat);
 
     // 3. Multi-tier architectural pillar definitions with varied widths, depths, and heights
     const pillarDefs = [
@@ -340,7 +355,7 @@ export class SkyEnvironment {
       { x: 17, z: -32, w: 5.2, d: 5.2, h: 27, colorIdx: 0, hasTree: true, hasStep: false },
       { x: -30, z: -18, w: 7.5, d: 7.5, h: 32, colorIdx: 4, hasTree: true, hasStep: true },
       { x: 30, z: -4, w: 5.6, d: 5.6, h: 24, colorIdx: 1, hasTree: false, hasStep: false },
-      { x: 0, z: -42, w: 9.0, d: 9.0, h: 36, colorIdx: 4, hasTree: true, hasStep: true }, // Big stepped monolith behind finish
+      { x: 0, z: -42, w: 7.5, d: 7.5, h: 18, colorIdx: 4, hasTree: true, hasStep: true }, // Stepped monolith behind finish (lowered to leave sky clear)
       { x: -9, z: 24, w: 4.6, d: 4.6, h: 16, colorIdx: 5, hasTree: true, hasStep: false },
       { x: 13, z: 26, w: 4.2, d: 4.2, h: 15, colorIdx: 3, hasTree: false, hasStep: false },
       // Distant monoliths softly faded by fog
@@ -385,7 +400,7 @@ export class SkyEnvironment {
         // Low-poly Pine Tree on top
         if (p.hasTree) {
           const treeGroup = new THREE.Group();
-          treeGroup.position.set(p.x + (Math.random() - 0.5) * (p.w * 0.25), topY, p.z + (Math.random() - 0.5) * (p.d * 0.25));
+          treeGroup.position.set(p.x, topY, p.z);
 
           // Trunk
           const trunkGeo = new THREE.CylinderGeometry(0.2, 0.25, 0.8, 6);
@@ -409,19 +424,13 @@ export class SkyEnvironment {
         }
       } else {
         // Night theme: antenna mast & beacon on tall monoliths
-        if (p.hasTree || p.hasStep) {
+        if ((p.hasTree || p.hasStep) && mastMat && beaconMat) {
           const mastGeo = new THREE.CylinderGeometry(0.06, 0.08, 3.2, 8);
-          const mastMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8, roughness: 0.2 });
           const mast = new THREE.Mesh(mastGeo, mastMat);
           mast.position.set(p.x, topY + 1.6, p.z);
           this.pillarsGroup.add(mast);
 
           const beaconGeo = new THREE.SphereGeometry(0.2, 12, 12);
-          const beaconMat = new THREE.MeshStandardMaterial({
-            color: 0x00f5ff,
-            emissive: 0x00f5ff,
-            emissiveIntensity: 2.2,
-          });
           const beacon = new THREE.Mesh(beaconGeo, beaconMat);
           beacon.position.set(p.x, topY + 3.2, p.z);
           this.pillarsGroup.add(beacon);
@@ -514,7 +523,7 @@ export class SkyEnvironment {
 
     this.hemiLight.color.setHex(theme.hemiSky);
     this.hemiLight.groundColor.setHex(theme.hemiGround);
-    this.hemiLight.intensity = isNight ? 0.6 : 0.85;
+    this.hemiLight.intensity = isNight ? 0.6 : 0.65;
 
     if (isNight) {
       this.rimLight.color.setHex(0x38bdf8);

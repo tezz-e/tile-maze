@@ -24,21 +24,21 @@ export const GAME_FEEL_CONFIG = {
 
 class GameApp {
   // Three.js
-  private scene!: THREE.Scene;
-  private camera!: THREE.PerspectiveCamera;
-  private renderer!: THREE.WebGLRenderer;
-  private environment!: SkyEnvironment;
+  public scene!: THREE.Scene;
+  public camera!: THREE.PerspectiveCamera;
+  public renderer!: THREE.WebGLRenderer;
+  public environment!: SkyEnvironment;
 
   // Follow Camera (Bruno Simon Lerp Target Formula - Preallocated for zero per-frame garbage)
-  private cameraPosition = new THREE.Vector3();
-  private cameraTarget = new THREE.Vector3();
+  public cameraPosition = new THREE.Vector3();
+  public cameraTarget = new THREE.Vector3();
   private targetCamPos = new THREE.Vector3();
   private targetCamTarget = new THREE.Vector3();
 
   // Game Systems
-  private physics!: PhysicsWorld;
-  private board!: Board;
-  private marble!: Marble;
+  public physics!: PhysicsWorld;
+  public board!: Board;
+  public marble!: Marble;
   private effectsManager!: EffectsManager;
   private sounds!: SoundSynthesizer;
   private keyboard!: KeyboardController;
@@ -549,5 +549,7 @@ class GameApp {
 
 // Bootstrap application on page load
 window.addEventListener('DOMContentLoaded', () => {
-  new GameApp();
+  const app = new GameApp();
+  (window as any).game = app;
+  (window as any).gameApp = app;
 });

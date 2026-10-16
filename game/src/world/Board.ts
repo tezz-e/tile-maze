@@ -13,6 +13,7 @@ export class Board {
   private blueTileMat!: THREE.MeshStandardMaterial;
   private yellowCurbMat!: THREE.MeshStandardMaterial;
   private levelMaterials: THREE.Material[] = [];
+  private levelGeometries: THREE.BufferGeometry[] = [];
 
   constructor() {
     this.group = new THREE.Group();
@@ -39,7 +40,7 @@ export class Board {
 
   private disposeHierarchy(obj: THREE.Object3D): void {
     obj.traverse((node: any) => {
-      if (node.geometry) {
+      if (node.geometry && !this.levelGeometries.includes(node.geometry)) {
         node.geometry.dispose();
       }
       if (node.material) {
@@ -75,6 +76,10 @@ export class Board {
       m.dispose();
     }
     this.levelMaterials = [];
+    for (const g of this.levelGeometries) {
+      g.dispose();
+    }
+    this.levelGeometries = [];
     this.spinnerMeshes = [];
     this.goldenRings = [];
     this.bouncerGroups = [];
@@ -206,8 +211,15 @@ export class Board {
     this.levelMaterials.push(wallSideMat, wallTopMat, wallStripeMat);
 
     const baseH = 0.16;
-    const capH = 0.04;
-    const stripeH = 0.015;
+    const stripeShelfH = 0.02;
+    const topCapH = 0.035;
+    // Total visual curb height = 0.16 + 0.02 + 0.035 = 0.215m (43% of 0.50m collider)
+
+    // Reusable shared geometries for low curb barriers
+    const wallBaseGeo = new THREE.BoxGeometry(cellSize * 0.98, baseH, cellSize * 0.98);
+    const wallStripeGeo = new THREE.BoxGeometry(cellSize * 0.90, stripeShelfH, cellSize * 0.90);
+    const wallCapGeo = new THREE.BoxGeometry(cellSize * 0.78, topCapH, cellSize * 0.78);
+    this.levelGeometries.push(wallBaseGeo, wallStripeGeo, wallCapGeo);
 
     let spinnerCount = 0;
 
@@ -235,28 +247,26 @@ export class Board {
           const wallGroup = new THREE.Group();
           wallGroup.position.set(cx, 0, cz);
 
-          // Lower curb body
-          const baseGeo = new THREE.BoxGeometry(cellSize * 0.96, baseH, cellSize * 0.96);
-          const wallBase = new THREE.Mesh(baseGeo, wallSideMat);
+          // Lower curb body (sides)
+          const wallBase = new THREE.Mesh(wallBaseGeo, wallSideMat);
           wallBase.position.y = baseH / 2;
           wallBase.castShadow = true;
           wallBase.receiveShadow = true;
           wallGroup.add(wallBase);
 
-          // Slightly beveled upper cap (lighter than sides for top-down maze readability)
-          const capGeo = new THREE.BoxGeometry(cellSize * 0.88, capH, cellSize * 0.88);
-          const wallCap = new THREE.Mesh(capGeo, wallTopMat);
-          wallCap.position.y = baseH + capH / 2;
+          // Beveled perimeter shelf / stripe (bright top stripe / neon edge in L4)
+          const wallStripe = new THREE.Mesh(wallStripeGeo, wallStripeMat);
+          wallStripe.position.y = baseH + stripeShelfH / 2;
+          wallStripe.castShadow = true;
+          wallStripe.receiveShadow = true;
+          wallGroup.add(wallStripe);
+
+          // Top cap face (lighter than sides for top-down maze readability)
+          const wallCap = new THREE.Mesh(wallCapGeo, wallTopMat);
+          wallCap.position.y = baseH + stripeShelfH + topCapH / 2;
           wallCap.castShadow = true;
           wallCap.receiveShadow = true;
           wallGroup.add(wallCap);
-
-          // Bright top stripe (emissive neon glow in L4)
-          const stripeGeo = new THREE.BoxGeometry(cellSize * 0.76, stripeH, cellSize * 0.76);
-          const wallStripe = new THREE.Mesh(stripeGeo, wallStripeMat);
-          wallStripe.position.y = baseH + capH + stripeH / 2;
-          wallStripe.castShadow = true;
-          wallGroup.add(wallStripe);
 
           this.group.add(wallGroup);
         } else if (cell === 'S') {

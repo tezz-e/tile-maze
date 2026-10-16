@@ -95,32 +95,36 @@ async function main() {
       const legacyPath = path.join(mediaDir, `level-${lvlNum}.png`);
       fs.copyFileSync(startPath, legacyPath);
 
-      // Execute specific motion sequence per level to get marble in motion near ramp/spinner
-      console.log(`Simulating dynamic gameplay for Level ${lvlNum} action view...`);
-      if (idx === 0) {
-        // Level 1: Boost straight forward over Ramp towards Turnstile Rotor
-        await page.keyboard.down('ShiftLeft');
-        await page.keyboard.down('KeyW');
-        await page.waitForTimeout(1200);
-      } else if (idx === 1) {
-        // Level 2: Steer right towards Ramp then north
-        await page.keyboard.down('KeyD');
-        await page.waitForTimeout(700);
-        await page.keyboard.up('KeyD');
-        await page.keyboard.down('KeyW');
-        await page.waitForTimeout(900);
-      } else if (idx === 2) {
-        // Level 3: Accelerate forward past rotor arm with nitro
-        await page.keyboard.down('ShiftLeft');
-        await page.keyboard.down('KeyW');
-        await page.waitForTimeout(1000);
-      } else if (idx === 3) {
-        // Level 4: Navigate night chicane
-        await page.keyboard.down('KeyW');
-        await page.waitForTimeout(600);
-        await page.keyboard.down('KeyD');
-        await page.waitForTimeout(700);
-      }
+      // Execute dynamic mid-course action placement per level near ramp/spinner
+      console.log(`Setting dynamic gameplay state for Level ${lvlNum} action view...`);
+      const actionConfigs = [
+        // Level 1: Marble approaching speed boost ramp towards turnstile rotor
+        { posX: 0, posY: 0.35, posZ: 2.8, velX: 0, velY: 0, velZ: -8.0 },
+        // Level 2: Marble racing along chicane towards turnstile rotor
+        { posX: -0.7, posY: 0.35, posZ: 4.8, velX: 0, velY: 0, velZ: -7.5 },
+        // Level 3: Marble speeding towards turnstile spinner
+        { posX: 0.7, posY: 0.35, posZ: -0.6, velX: 0, velY: 0, velZ: -7.5 },
+        // Level 4: Marble navigating night chicane near rotating obstacle
+        { posX: -4.9, posY: 0.35, posZ: 6.2, velX: 0, velY: 0, velZ: -7.5 },
+      ];
+
+      await page.evaluate((cfg) => {
+        const game = window.game;
+        if (!game || !game.physics || !game.physics.marbleBody) return;
+        game.physics.marbleBody.setTranslation({ x: cfg.posX, y: cfg.posY, z: cfg.posZ }, true);
+        game.physics.marbleBody.setLinvel({ x: cfg.velX, y: cfg.velY, z: cfg.velZ }, true);
+        const isStandard = game.cameraMode === 'standard';
+        const camOffsetY = isStandard ? 2.3 : 1.6;
+        const camOffsetZ = isStandard ? 4.2 : 3.4;
+        game.cameraPosition.set(cfg.posX, cfg.posY + camOffsetY, cfg.posZ + camOffsetZ);
+        game.cameraTarget.set(cfg.posX, cfg.posY + 0.65, cfg.posZ - 5.5);
+        game.camera.position.copy(game.cameraPosition);
+        game.camera.lookAt(game.cameraTarget);
+      }, actionConfigs[idx]);
+
+      await page.keyboard.down('ShiftLeft');
+      await page.keyboard.down('KeyW');
+      await page.waitForTimeout(400);
 
       // Capture Action View with marble at speed near obstacles
       const actionPath = path.join(mediaDir, `level-${lvlNum}-action.png`);
@@ -129,11 +133,7 @@ async function main() {
 
       // Release any held keys
       await page.keyboard.up('KeyW');
-      await page.keyboard.up('KeyA');
-      await page.keyboard.up('KeyS');
-      await page.keyboard.up('KeyD');
       await page.keyboard.up('ShiftLeft');
-      await page.keyboard.up('Space');
     }
   } finally {
     await browser.close();
