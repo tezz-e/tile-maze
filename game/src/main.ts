@@ -65,6 +65,9 @@ class GameApp {
   private cameraMode: 'standard' | 'cinematic' = 'standard';
   private isPhysicsPaused = false;
   private forceKeyboardMode = false;
+  private isLowQuality = false;
+  private fpsTimestamps: number[] = [];
+  private levelStartTime = performance.now();
 
   constructor() {
     this.loadCameraPreference();
@@ -72,6 +75,19 @@ class GameApp {
     this.initSystems();
     this.setupResize();
     this.loop();
+  }
+
+  private toggleQualityMode(): void {
+    this.setQualityMode(!this.isLowQuality, 'MANUAL TOGGLE (Q)');
+  }
+
+  private setQualityMode(low: boolean, reason?: string): void {
+    this.isLowQuality = low;
+    this.environment.setQuality(low);
+    this.effectsManager.setQuality(low);
+    this.telemetryLab.setLowQuality(low);
+    const msg = low ? 'LOW QUALITY MODE (45 FPS GUARD)' : 'HIGH QUALITY MODE';
+    this.hud.showToast(reason ? `${msg} // ${reason}` : msg, low ? '#f59e0b' : '#38bdf8');
   }
 
   private loadCameraPreference(): void {
@@ -174,6 +190,7 @@ class GameApp {
     this.keyboard = new KeyboardController({
       onToggleTelemetryLab: () => this.telemetryLab.toggle(),
       onToggleCameraView: () => this.toggleCameraView(),
+      onToggleQuality: () => this.toggleQualityMode(),
     });
 
     // 4. UI
@@ -268,6 +285,10 @@ class GameApp {
     if (level.theme) {
       this.environment.applyTheme(level.theme, isNight);
     }
+    const boardWidth = level.grid[0].length * level.cellSize;
+    const boardDepth = level.grid.length * level.cellSize;
+    this.environment.adjustCloudClearance(boardWidth, boardDepth);
+
     this.effectsManager?.reset();
     this.wasAirborne = false;
     this.prevLinvelY = 0;
@@ -307,6 +328,8 @@ class GameApp {
   private startLevel(idx: number): void {
     this.triggerLevelTransition(() => {
       this.currentLevelIndex = idx;
+      this.fpsTimestamps = [];
+      this.levelStartTime = performance.now();
       this.sounds.resume();
       const level = LEVELS[idx];
       this.loadLevelData(level);
@@ -414,6 +437,18 @@ class GameApp {
 
     if (this.isPlaying) {
       if (!this.isPhysicsPaused) {
+        // Rolling 3-second FPS measurement & adaptive performance guard
+        this.fpsTimestamps.push(now);
+        while (this.fpsTimestamps.length > 0 && this.fpsTimestamps[0] < now - 3000) {
+          this.fpsTimestamps.shift();
+        }
+        if (!this.isLowQuality && (now - this.levelStartTime > 3500) && this.fpsTimestamps.length >= 20) {
+          const rollingFps = this.fpsTimestamps.length / 3.0;
+          if (rollingFps < 45) {
+            this.setQualityMode(true, 'FPS < 45 AUTO-GUARD');
+          }
+        }
+
         // 1. Update Physics Gravity with rotated vector
         this.physics.updateGravity(finalPitch, finalRoll);
 

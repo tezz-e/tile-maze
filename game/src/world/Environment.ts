@@ -15,6 +15,10 @@ export class SkyEnvironment {
   public cloudMat!: THREE.MeshStandardMaterial;
   public clouds: THREE.InstancedMesh[] = [];
   public cloudClusters: Array<{ mesh: THREE.InstancedMesh; baseY: number; phase: number }> = [];
+  public cloudInstMesh!: THREE.InstancedMesh;
+  public readonly cloudCount = 380;
+  private currentBoardWidth = 14;
+  private currentBoardDepth = 30;
 
   private scene: THREE.Scene;
   private renderer: THREE.WebGLRenderer;
@@ -39,12 +43,18 @@ export class SkyEnvironment {
     scene.background = skyTexture;
 
     // Generate PMREM for crisp chrome marble and track reflections
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    pmrem.compileEquirectangularShader();
-    const envTexture = pmrem.fromEquirectangular(skyTexture).texture;
-    this.currentEnvTexture = envTexture;
-    scene.environment = envTexture;
-    pmrem.dispose();
+    try {
+      if (renderer && (renderer as any).capabilities) {
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        pmrem.compileEquirectangularShader();
+        const envTexture = pmrem.fromEquirectangular(skyTexture).texture;
+        this.currentEnvTexture = envTexture;
+        scene.environment = envTexture;
+        pmrem.dispose();
+      }
+    } catch {
+      // Headless / mock environment fallback
+    }
 
     // Atmospheric Fog - soft cyan haze fading gently at distance, leaving near track razor sharp
     scene.fog = new THREE.Fog(0xdbeafe, 40, 160);
@@ -90,50 +100,69 @@ export class SkyEnvironment {
 
     // Cloud puff sphere geometry
     const puffGeo = new THREE.IcosahedronGeometry(1, 2);
-    const count = 380;
-    const instMesh = new THREE.InstancedMesh(puffGeo, this.cloudMat, count);
-    instMesh.receiveShadow = true;
+    this.cloudInstMesh = new THREE.InstancedMesh(puffGeo, this.cloudMat, this.cloudCount);
+    this.cloudInstMesh.receiveShadow = true;
+
+    this.group.add(this.cloudInstMesh);
+    this.clouds.push(this.cloudInstMesh);
+    this.cloudClusters.push({ mesh: this.cloudInstMesh, baseY: -6.5, phase: Math.random() * 10 });
+
+    this.adjustCloudClearance(this.currentBoardWidth, this.currentBoardDepth);
+  }
+
+  /**
+   * Dynamically repositions cloud clusters to guarantee clearance outside the track boundaries:
+   * Flank cloud centers are pushed outward (|x| > boardWidth / 2 + 3.0) and kept below track curb (y <= -1.6).
+   */
+  public adjustCloudClearance(boardWidth: number, boardDepth: number = 40): void {
+    this.currentBoardWidth = boardWidth;
+    this.currentBoardDepth = boardDepth;
+    if (!this.cloudInstMesh) return;
 
     const dummy = new THREE.Object3D();
+    const flankDistX = boardWidth / 2 + 3.0;
 
-    // 1. High-altitude flank clusters right beside the track boundaries
     const flankCenters = [
-      { x: -9.5, z: -8 },
-      { x: -11.0, z: 2 },
-      { x: -10.0, z: 12 },
-      { x: -11.5, z: 20 },
-      { x: -8.5, z: -18 },
-      { x: 9.5, z: -8 },
-      { x: 11.0, z: 2 },
-      { x: 10.0, z: 12 },
-      { x: 11.5, z: 20 },
-      { x: 8.5, z: -18 },
+      { x: -flankDistX - 1.0, z: -8 },
+      { x: -flankDistX - 2.5, z: 2 },
+      { x: -flankDistX - 1.5, z: 12 },
+      { x: -flankDistX - 3.0, z: 20 },
+      { x: -flankDistX - 0.5, z: -18 },
+      { x: flankDistX + 1.0, z: -8 },
+      { x: flankDistX + 2.5, z: 2 },
+      { x: flankDistX + 1.5, z: 12 },
+      { x: flankDistX + 3.0, z: 20 },
+      { x: flankDistX + 0.5, z: -18 },
     ];
 
-    // 2. Midground cluster anchors
     const clusterCenters = [
-      { x: -18, z: -14 },
-      { x: 18, z: -12 },
-      { x: -22, z: 16 },
-      { x: 20, z: 18 },
-      { x: 0, z: -32 },
-      { x: -30, z: -2 },
-      { x: 28, z: -2 },
-      { x: 0, z: 28 },
+      { x: -boardWidth / 2 - 8, z: -14 },
+      { x: boardWidth / 2 + 8, z: -12 },
+      { x: -boardWidth / 2 - 12, z: 16 },
+      { x: boardWidth / 2 + 10, z: 18 },
+      { x: 0, z: -boardDepth / 2 - 12 },
+      { x: -boardWidth / 2 - 18, z: -2 },
+      { x: boardWidth / 2 + 16, z: -2 },
+      { x: 0, z: boardDepth / 2 + 12 },
     ];
 
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < this.cloudCount; i++) {
       let x: number, z: number, y: number;
       let scaleX: number, scaleY: number, scaleZ: number;
 
       if (i < 130) {
-        // High billowing clouds hugging the track curbs (clearly visible in camera view)
+        // High billowing clouds hugging the track curbs (guaranteed |x| > boardWidth/2 + 3.0 and y <= -1.6)
         const center = flankCenters[i % flankCenters.length];
         const offsetAng = Math.random() * Math.PI * 2;
         const offsetDist = Math.random() * 3.5;
-        x = center.x + Math.cos(offsetAng) * offsetDist;
+        if (center.x < 0) {
+          x = center.x - Math.abs(Math.cos(offsetAng) * offsetDist);
+        } else {
+          x = center.x + Math.abs(Math.cos(offsetAng) * offsetDist);
+        }
         z = center.z + Math.sin(offsetAng) * offsetDist;
-        y = -1.4 - Math.random() * 2.2;
+        // Below track curb level (y <= -1.6)
+        y = -1.6 - Math.random() * 2.2;
 
         scaleX = 2.6 + Math.random() * 2.8;
         scaleY = 1.6 + Math.random() * 2.0;
@@ -142,18 +171,23 @@ export class SkyEnvironment {
         // Clustered midground cumulus formations
         const center = clusterCenters[i % clusterCenters.length];
         const offsetAng = Math.random() * Math.PI * 2;
-        const offsetDist = Math.random() * 12;
+        const offsetDist = Math.random() * 10;
         x = center.x + Math.cos(offsetAng) * offsetDist;
         z = center.z + Math.sin(offsetAng) * offsetDist;
         y = -4.5 - Math.random() * 4.0;
+
+        // If inside track bounding box horizontally, push deep down
+        if (Math.abs(x) < flankDistX && Math.abs(z) < boardDepth / 2 + 3) {
+          y = Math.min(y, -6.0);
+        }
 
         scaleX = 3.0 + Math.random() * 4.0;
         scaleY = 1.8 + Math.random() * 2.5;
         scaleZ = 3.0 + Math.random() * 4.0;
       } else {
-        // Deep wide sea spread across x: -70..70, z: -70..70
+        // Deep wide sea spread across radius
         const angle = Math.random() * Math.PI * 2;
-        const radius = 10 + Math.random() * 60;
+        const radius = Math.max(flankDistX + 3, 12 + Math.random() * 60);
         x = Math.cos(angle) * radius;
         z = Math.sin(angle) * radius;
         y = -7.5 - Math.random() * 6.0;
@@ -167,13 +201,40 @@ export class SkyEnvironment {
       dummy.scale.set(scaleX, scaleY, scaleZ);
       dummy.rotation.set(Math.random() * 0.4, Math.random() * Math.PI * 2, Math.random() * 0.4);
       dummy.updateMatrix();
-      instMesh.setMatrixAt(i, dummy.matrix);
+      this.cloudInstMesh.setMatrixAt(i, dummy.matrix);
     }
 
-    instMesh.instanceMatrix.needsUpdate = true;
-    this.group.add(instMesh);
-    this.clouds.push(instMesh);
-    this.cloudClusters.push({ mesh: instMesh, baseY: -6.5, phase: Math.random() * 10 });
+    this.cloudInstMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  public getFlankCloudPositions(): { x: number; y: number; z: number }[] {
+    const list: { x: number; y: number; z: number }[] = [];
+    if (!this.cloudInstMesh) return list;
+    const mat = new THREE.Matrix4();
+    const pos = new THREE.Vector3();
+    const rot = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+    for (let i = 0; i < 130; i++) {
+      this.cloudInstMesh.getMatrixAt(i, mat);
+      mat.decompose(pos, rot, scale);
+      list.push({ x: pos.x, y: pos.y, z: pos.z });
+    }
+    return list;
+  }
+
+  public setQuality(low: boolean): void {
+    if (this.dirLight) {
+      const mapSize = low ? 1024 : 2048;
+      this.dirLight.shadow.mapSize.set(mapSize, mapSize);
+      if (this.dirLight.shadow.map) {
+        this.dirLight.shadow.map.dispose();
+        this.dirLight.shadow.map = null;
+      }
+    }
+    if (this.cloudInstMesh) {
+      this.cloudInstMesh.count = low ? Math.floor(this.cloudCount / 2) : this.cloudCount;
+      this.cloudInstMesh.instanceMatrix.needsUpdate = true;
+    }
   }
 
   /**
@@ -309,12 +370,18 @@ export class SkyEnvironment {
     this.scene.background = skyTexture;
 
     // 3. Regenerate PMREM environment for chrome marble & tile reflections
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    pmrem.compileEquirectangularShader();
-    const envTexture = pmrem.fromEquirectangular(skyTexture).texture;
-    this.currentEnvTexture = envTexture;
-    this.scene.environment = envTexture;
-    pmrem.dispose();
+    try {
+      if (this.renderer && (this.renderer as any).capabilities) {
+        const pmrem = new THREE.PMREMGenerator(this.renderer);
+        pmrem.compileEquirectangularShader();
+        const envTexture = pmrem.fromEquirectangular(skyTexture).texture;
+        this.currentEnvTexture = envTexture;
+        this.scene.environment = envTexture;
+        pmrem.dispose();
+      }
+    } catch {
+      // Headless / mock fallback
+    }
 
     // 4. Update Fog
     if (this.scene.fog instanceof THREE.Fog) {

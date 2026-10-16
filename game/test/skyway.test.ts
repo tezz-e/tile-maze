@@ -1,7 +1,9 @@
+import * as THREE from 'three';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { PhysicsWorld } from '../src/physics/PhysicsWorld.js';
 import { LEVELS } from '../src/levels/LevelData.js';
 import { TextureGenerator } from '../src/world/TextureGenerator.js';
+import { SkyEnvironment } from '../src/world/Environment.js';
 
 describe('Skyway Obstacles & Physics Mechanics', () => {
   let physics: PhysicsWorld;
@@ -113,5 +115,70 @@ describe('Skyway Obstacles & Physics Mechanics', () => {
       expect(themedSky).toBeDefined();
       themedSky.dispose();
     });
+  });
+
+  it('guarantees cloud clearance outside track boundaries on all 4 levels', () => {
+    const scene = new THREE.Scene();
+    const mockRenderer = {
+      toneMappingExposure: 1.0,
+      shadowMap: {},
+    } as any;
+    const env = new SkyEnvironment(scene, mockRenderer);
+
+    LEVELS.forEach((level) => {
+      const boardWidth = level.grid[0].length * level.cellSize;
+      const boardDepth = level.grid.length * level.cellSize;
+      env.adjustCloudClearance(boardWidth, boardDepth);
+
+      const flankClouds = env.getFlankCloudPositions();
+      expect(flankClouds.length).toBe(130);
+
+      const minClearanceX = boardWidth / 2 + 3.0;
+      flankClouds.forEach((pos) => {
+        // Flank cloud centers pushed outward (|x| > boardWidth / 2 + 3.0)
+        expect(Math.abs(pos.x)).toBeGreaterThan(minClearanceX);
+        // Kept below track curb (y <= -1.6)
+        expect(pos.y).toBeLessThanOrEqual(-1.6);
+      });
+    });
+  });
+
+  it('verifies Level 4 wide track (~21m) specifically pushes clouds to |x| > 13.5m', () => {
+    const scene = new THREE.Scene();
+    const mockRenderer = {
+      toneMappingExposure: 1.0,
+      shadowMap: {},
+    } as any;
+    const env = new SkyEnvironment(scene, mockRenderer);
+    const l4 = LEVELS[3];
+    const boardWidth = l4.grid[0].length * l4.cellSize;
+    expect(boardWidth).toBeCloseTo(21.0, 1);
+
+    env.adjustCloudClearance(boardWidth, l4.grid.length * l4.cellSize);
+    const flankClouds = env.getFlankCloudPositions();
+    flankClouds.forEach((pos) => {
+      expect(Math.abs(pos.x)).toBeGreaterThan(13.5);
+      expect(pos.y).toBeLessThanOrEqual(-1.6);
+    });
+  });
+
+  it('halves cloud mesh count and drops shadow map resolution in low quality mode', () => {
+    const scene = new THREE.Scene();
+    const mockRenderer = {
+      toneMappingExposure: 1.0,
+      shadowMap: {},
+    } as any;
+    const env = new SkyEnvironment(scene, mockRenderer);
+
+    expect(env.cloudInstMesh.count).toBe(380);
+    expect(env.dirLight.shadow.mapSize.width).toBe(2048);
+
+    env.setQuality(true);
+    expect(env.cloudInstMesh.count).toBe(190);
+    expect(env.dirLight.shadow.mapSize.width).toBe(1024);
+
+    env.setQuality(false);
+    expect(env.cloudInstMesh.count).toBe(380);
+    expect(env.dirLight.shadow.mapSize.width).toBe(2048);
   });
 });

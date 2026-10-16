@@ -38,6 +38,7 @@ export class TelemetryLab {
   private skewEl!: HTMLElement;
   private hzEl!: HTMLElement;
   private jitterEl!: HTMLElement;
+  private qualityBadgeEl!: HTMLElement;
 
   constructor(parent: HTMLElement) {
     this.container = document.createElement('div');
@@ -264,7 +265,10 @@ export class TelemetryLab {
         </div>
 
         <div class="lab-header">
-          <h2>TELEMETRY LAB</h2>
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <h2>TELEMETRY LAB</h2>
+            <div id="lab-quality-badge" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1.5px solid #f59e0b; color: #f59e0b; padding: 0.25rem 0.65rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; border-radius: 4px;">[ LOW QUALITY MODE ]</div>
+          </div>
           <button id="lab-close" class="lab-close-btn">[ ESC // CLOSE ]</button>
         </div>
 
@@ -349,6 +353,7 @@ export class TelemetryLab {
     this.skewEl = this.container.querySelector('#metric-skew')!;
     this.hzEl = this.container.querySelector('#metric-hz')!;
     this.jitterEl = this.container.querySelector('#metric-jitter')!;
+    this.qualityBadgeEl = this.container.querySelector('#lab-quality-badge')!;
 
     this.container.querySelector('#lab-close')!.addEventListener('click', () => {
       this.toggle();
@@ -527,5 +532,11 @@ export class TelemetryLab {
 
   public isOpen(): boolean {
     return this.isVisible;
+  }
+
+  public setLowQuality(isLow: boolean): void {
+    if (this.qualityBadgeEl) {
+      this.qualityBadgeEl.style.display = isLow ? 'inline-block' : 'none';
+    }
   }
 }

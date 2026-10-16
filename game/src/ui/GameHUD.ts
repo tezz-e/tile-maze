@@ -38,6 +38,7 @@ export class GameHUD {
   private timerRunning = false;
   private toastTimer: number | null = null;
   private coachToastTimer: number | null = null;
+  private victoryBestEl!: HTMLElement;
   private bestTimes: Record<number, number> = {
     1: 75.2, // 01:15.20
     2: 92.15,
@@ -48,10 +49,47 @@ export class GameHUD {
 
   constructor(parent: HTMLElement, callbacks: HUDCallbacks) {
     this.callbacks = callbacks;
+    this.loadBestTimes();
     this.container = document.createElement('div');
     this.container.id = 'game-hud';
     this.buildDOM();
     parent.appendChild(this.container);
+  }
+
+  private loadBestTimes(): void {
+    try {
+      const raw = localStorage.getItem('tiltmaze_best_times');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          for (const [k, v] of Object.entries(parsed)) {
+            const numK = Number(k);
+            const numV = Number(v);
+            if (!isNaN(numK) && !isNaN(numV) && numV > 0) {
+              this.bestTimes[numK] = numV;
+            }
+          }
+        }
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+  }
+
+  private saveBestTimes(): void {
+    try {
+      localStorage.setItem('tiltmaze_best_times', JSON.stringify(this.bestTimes));
+    } catch {
+      // Ignore localStorage errors
+    }
+  }
+
+  public getBestTimes(): Record<number, number> {
+    return { ...this.bestTimes };
+  }
+
+  public getBestTime(levelId: number): number {
+    return this.bestTimes[levelId] || 60.0;
   }
 
   private buildDOM(): void {
@@ -675,7 +713,7 @@ export class GameHUD {
                 <polygon points="12 2 15 9 22 9 17 14 19 21 12 17 5 21 7 14 2 9 9 9 12 2"/>
               </svg>
             </span>
-            <span style="color: #94a3b8;">RECORD:</span>
+            <span style="color: #94a3b8;">BEST:</span>
             <span id="hud-best" style="font-weight: 700; color: #ffffff;">01:15.20</span>
           </div>
         </div>
@@ -752,6 +790,7 @@ export class GameHUD {
           <span class="hud-meta-label" style="color: #38bdf8;">[ MISSION DEBRIEF // SECTOR COMPLETE ]</span>
           <h2 style="margin-top: 0.5rem;">SECTOR CLEARED</h2>
           <div id="victory-time" class="victory-time-display">00:00.00</div>
+          <div id="victory-best" style="font-size: 0.95rem; color: #facc15; font-weight: 700; margin-bottom: 1.25rem; letter-spacing: 0.04em;">BEST: 00:00.00</div>
           <p>PHYSICAL MOTION CONTROLLER PERFORMANCE LOGGED</p>
           <div class="victory-actions">
             <button id="victory-next-btn" class="victory-btn-primary">
@@ -792,6 +831,7 @@ export class GameHUD {
     this.coachToastEl = this.container.querySelector('#hud-coach-toast')!;
     this.victoryModal = this.container.querySelector('#victory-modal')!;
     this.victoryTimeEl = this.container.querySelector('#victory-time')!;
+    this.victoryBestEl = this.container.querySelector('#victory-best')!;
     this.disconnectOverlay = this.container.querySelector('#hud-disconnect-overlay')!;
     this.disconnectTimerEl = this.container.querySelector('#disconnect-timer-secs')!;
     this.tiltPillEl = this.container.querySelector('#hud-tilt-pill')!;
@@ -997,7 +1037,24 @@ export class GameHUD {
 
   public showVictory(): void {
     this.timerRunning = false;
+    const current = this.pausedTime > 0 ? this.pausedTime : performance.now();
+    const elapsedSecs = Math.max(0, (current - this.startTime - this.totalPausedDuration) / 1000);
+    const prevBest = this.bestTimes[this.currentLevelId] || 999.0;
+    const isNewRecord = elapsedSecs < prevBest;
+
+    if (isNewRecord) {
+      this.bestTimes[this.currentLevelId] = Number(elapsedSecs.toFixed(2));
+      this.saveBestTimes();
+      this.bestEl.textContent = this.formatTimeSecs(this.bestTimes[this.currentLevelId]);
+    }
+
     this.victoryTimeEl.textContent = this.timerEl.textContent;
+    const bestSecs = this.bestTimes[this.currentLevelId] || elapsedSecs;
+    if (this.victoryBestEl) {
+      this.victoryBestEl.textContent = isNewRecord
+        ? `NEW RECORD! BEST: ${this.formatTimeSecs(bestSecs)}`
+        : `BEST: ${this.formatTimeSecs(bestSecs)}`;
+    }
     this.victoryModal.style.display = 'flex';
 
     confetti({

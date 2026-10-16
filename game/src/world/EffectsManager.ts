@@ -41,6 +41,7 @@ export class EffectsManager {
 
   // 1. Marble Trail
   private readonly MAX_TRAIL = 40;
+  private maxTrailActive = 40;
   private trailParticles: TrailParticle[] = [];
   private trailMesh!: THREE.InstancedMesh;
   private trailTimer = 0;
@@ -205,6 +206,18 @@ export class EffectsManager {
     }
   }
 
+  public setQuality(low: boolean): void {
+    this.maxTrailActive = low ? 20 : 40;
+    this.trailMesh.count = this.maxTrailActive;
+    for (let i = this.maxTrailActive; i < this.MAX_TRAIL; i++) {
+      if (this.trailParticles[i]) {
+        this.trailParticles[i].active = false;
+        this.trailMesh.setMatrixAt(i, this.hiddenMatrix);
+      }
+    }
+    this.trailMesh.instanceMatrix.needsUpdate = true;
+  }
+
   private updateTrail(
     dt: number,
     marblePos: { x: number; y: number; z: number },
@@ -218,13 +231,19 @@ export class EffectsManager {
 
     if (marbleSpeed > 0.6 && this.trailTimer >= spawnInterval) {
       this.trailTimer = 0;
-      // Find inactive or oldest particle
-      let slot = this.trailParticles.findIndex((p) => !p.active);
+      // Find inactive or oldest particle within active range
+      let slot = -1;
+      for (let i = 0; i < this.maxTrailActive; i++) {
+        if (!this.trailParticles[i].active) {
+          slot = i;
+          break;
+        }
+      }
       if (slot === -1) {
         // Recycle oldest
         let lowestLife = Infinity;
         slot = 0;
-        for (let i = 0; i < this.trailParticles.length; i++) {
+        for (let i = 0; i < this.maxTrailActive; i++) {
           if (this.trailParticles[i].life < lowestLife) {
             lowestLife = this.trailParticles[i].life;
             slot = i;
@@ -245,7 +264,7 @@ export class EffectsManager {
 
     // Step active trail particles
     let trailNeedsUpdate = false;
-    for (let i = 0; i < this.MAX_TRAIL; i++) {
+    for (let i = 0; i < this.maxTrailActive; i++) {
       const p = this.trailParticles[i];
       if (!p.active) continue;
 
