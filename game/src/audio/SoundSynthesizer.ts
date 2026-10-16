@@ -171,26 +171,33 @@ export class SoundSynthesizer {
    * Ascending arpeggio when marble reaches the goal!
    */
   public playWin(): void {
+    this.playLevelCompleteChime();
+  }
+
+  /**
+   * Ascending bell-like harmonic celebration chime for level completion.
+   */
+  public playLevelCompleteChime(): void {
     const ctx = this.initContext();
     if (this.isMuted) return;
 
-    const chord = [440, 554.37, 659.25, 880]; // A major arpeggio
-    chord.forEach((freq, idx) => {
-      const now = ctx.currentTime + idx * 0.1;
+    const notes = [523.25, 659.25, 783.99, 1046.50];
+    notes.forEach((freq, idx) => {
+      const now = ctx.currentTime + idx * 0.085;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = 'triangle';
+      osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, now);
 
-      gain.gain.setValueAtTime(0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+      gain.gain.setValueAtTime(0.24, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start(now);
-      osc.stop(now + 0.65);
+      osc.stop(now + 0.7);
     });
   }
 

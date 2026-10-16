@@ -310,6 +310,39 @@ export class EffectsManager {
     }
   }
 
+  /**
+   * Expanding celebratory ring and upward fountain burst for level complete.
+   * Reuses the existing pooled InstancedMesh burst particles with zero allocations.
+   */
+  public triggerVictoryBurst(pos: { x: number; y: number; z: number }): void {
+    for (let i = 0; i < this.MAX_BURST; i++) {
+      const p = this.burstParticles[i];
+      p.active = true;
+      p.x = pos.x;
+      p.y = pos.y + 0.15;
+      p.z = pos.z;
+
+      if (i < 16) {
+        // Celebratory horizontal ring expansion
+        const angle = (i / 16) * Math.PI * 2 + (Math.random() - 0.5) * 0.2;
+        const speed = 3.6 + Math.random() * 2.0;
+        p.vx = Math.cos(angle) * speed;
+        p.vy = 1.4 + Math.random() * 1.6;
+        p.vz = Math.sin(angle) * speed;
+        p.maxLife = 0.75 + Math.random() * 0.35;
+      } else {
+        // High vertical fountain burst
+        const angle = ((i - 16) / 12) * Math.PI * 2 + Math.random() * 0.4;
+        const speed = 1.2 + Math.random() * 1.8;
+        p.vx = Math.cos(angle) * speed;
+        p.vy = 4.8 + Math.random() * 2.2;
+        p.vz = Math.sin(angle) * speed;
+        p.maxLife = 0.85 + Math.random() * 0.4;
+      }
+      p.life = p.maxLife;
+    }
+  }
+
   private updateBurst(dt: number): void {
     let burstNeedsUpdate = false;
     for (let i = 0; i < this.MAX_BURST; i++) {

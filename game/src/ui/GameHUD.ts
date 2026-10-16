@@ -40,6 +40,7 @@ export class GameHUD {
   private toastTimer: number | null = null;
   private coachToastTimer: number | null = null;
   private victoryBestEl!: HTMLElement;
+  private victoryNewBadgeEl!: HTMLElement;
   private bestTimes: Record<number, number> = {};
   private currentLevelId: number = 1;
 
@@ -551,8 +552,35 @@ export class GameHUD {
           font-size: 2.6rem;
           font-weight: 700;
           color: #ffffff;
-          margin: 1rem 0;
+          margin: 1rem 0 0.5rem 0;
           letter-spacing: -0.02em;
+        }
+
+        .victory-new-badge {
+          display: none;
+          margin: 0 0 1.25rem 0;
+          padding: 0.4rem 1.1rem;
+          background: rgba(250, 204, 21, 0.16);
+          border: 1.5px solid #facc15;
+          border-radius: 9999px;
+          color: #facc15;
+          font-size: 0.8rem;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          box-shadow: 0 0 16px rgba(250, 204, 21, 0.4);
+          animation: victory-badge-pulse 2s infinite ease-in-out;
+        }
+
+        @keyframes victory-badge-pulse {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 12px rgba(250, 204, 21, 0.3);
+          }
+          50% {
+            transform: scale(1.04);
+            box-shadow: 0 0 22px rgba(250, 204, 21, 0.65);
+          }
         }
 
         .victory-actions {
@@ -786,17 +814,18 @@ export class GameHUD {
           <span class="hud-meta-label" style="color: #38bdf8;">[ MISSION DEBRIEF // SECTOR COMPLETE ]</span>
           <h2 style="margin-top: 0.5rem;">SECTOR CLEARED</h2>
           <div id="victory-time" class="victory-time-display">00:00.00</div>
-          <div id="victory-best" style="font-size: 0.95rem; color: #facc15; font-weight: 700; margin-bottom: 1.25rem; letter-spacing: 0.04em;">BEST: 00:00.00</div>
+          <div id="victory-best" style="font-size: 0.95rem; color: #94a3b8; font-weight: 700; margin-bottom: 0.75rem; letter-spacing: 0.04em;">BEST: 00:00.00</div>
+          <div id="victory-new-badge" class="victory-new-badge">NEW RECORD!</div>
           <p>PHYSICAL MOTION CONTROLLER PERFORMANCE LOGGED</p>
           <div class="victory-actions">
             <button id="victory-next-btn" class="victory-btn-primary">
-              NEXT SECTOR &rarr;
+              NEXT LEVEL [ENTER] &rarr;
             </button>
             <button id="victory-retry-btn" class="victory-btn-secondary">
-              REPLAY SECTOR
+              REPLAY [R]
             </button>
             <button id="victory-lobby-btn" class="victory-btn-secondary">
-              RETURN TO LOBBY
+              RETURN TO LOBBY [ESC]
             </button>
           </div>
         </div>
@@ -828,6 +857,7 @@ export class GameHUD {
     this.victoryModal = this.container.querySelector('#victory-modal')!;
     this.victoryTimeEl = this.container.querySelector('#victory-time')!;
     this.victoryBestEl = this.container.querySelector('#victory-best')!;
+    this.victoryNewBadgeEl = this.container.querySelector('#victory-new-badge')!;
     this.disconnectOverlay = this.container.querySelector('#hud-disconnect-overlay')!;
     this.disconnectTimerEl = this.container.querySelector('#disconnect-timer-secs')!;
     this.tiltPillEl = this.container.querySelector('#hud-tilt-pill')!;
@@ -1049,9 +1079,10 @@ export class GameHUD {
     this.victoryTimeEl.textContent = this.timerEl.textContent;
     const bestSecs = this.bestTimes[this.currentLevelId] ?? elapsedSecs;
     if (this.victoryBestEl) {
-      this.victoryBestEl.textContent = isNewRecord
-        ? `NEW RECORD! BEST: ${this.formatTimeSecs(bestSecs)}`
-        : `BEST: ${this.formatTimeSecs(bestSecs)}`;
+      this.victoryBestEl.textContent = `BEST: ${this.formatTimeSecs(bestSecs)}`;
+    }
+    if (this.victoryNewBadgeEl) {
+      this.victoryNewBadgeEl.style.display = isNewRecord ? 'inline-block' : 'none';
     }
     this.victoryModal.style.display = 'flex';
 
@@ -1060,5 +1091,30 @@ export class GameHUD {
       spread: 70,
       origin: { y: 0.6 },
     });
+  }
+
+  public isVictoryShowing(): boolean {
+    return this.victoryModal && this.victoryModal.style.display === 'flex';
+  }
+
+  public dismissVictoryNext(): void {
+    if (this.isVictoryShowing()) {
+      this.victoryModal.style.display = 'none';
+      this.callbacks.onNextLevel();
+    }
+  }
+
+  public dismissVictoryRetry(): void {
+    if (this.isVictoryShowing()) {
+      this.victoryModal.style.display = 'none';
+      this.callbacks.onRestartLevel();
+    }
+  }
+
+  public dismissVictoryLobby(): void {
+    if (this.isVictoryShowing()) {
+      this.victoryModal.style.display = 'none';
+      this.callbacks.onReturnToLobby();
+    }
   }
 }

@@ -69,13 +69,35 @@ class GameApp {
   private fpsFramesInWindow = 0;
   private fpsWindowStart = performance.now();
   private levelStartTime = performance.now();
+  private isVictoryCelebration = false;
+  private victoryTime = 0;
+  private prevPhoneBoost = false;
+  private prevPhoneBrake = false;
 
   constructor() {
     this.loadCameraPreference();
     this.initGraphics();
     this.initSystems();
     this.setupResize();
+    this.setupKeyboardShortcuts();
     this.loop();
+  }
+
+  private setupKeyboardShortcuts(): void {
+    window.addEventListener('keydown', (e) => {
+      if (this.hud && this.hud.isVictoryShowing()) {
+        if (e.code === 'Enter' || e.code === 'Space') {
+          e.preventDefault();
+          this.hud.dismissVictoryNext();
+        } else if (e.code === 'KeyR') {
+          e.preventDefault();
+          this.hud.dismissVictoryRetry();
+        } else if (e.code === 'Escape') {
+          e.preventDefault();
+          this.hud.dismissVictoryLobby();
+        }
+      }
+    });
   }
 
   private toggleQualityMode(): void {
@@ -161,7 +183,10 @@ class GameApp {
         this.effectsManager.triggerCheckpointBurst(this.physics.getMarblePosition());
       },
       onGoalReached: () => {
+        this.isVictoryCelebration = true;
+        this.victoryTime = 0;
         this.sounds.playWin();
+        this.effectsManager.triggerVictoryBurst(this.physics.getMarblePosition());
         this.hud.showVictory();
         this.network.sendHaptic(1, 'success', 400);
         this.network.sendGameStateSync('VICTORY', this.currentLevelIndex);
@@ -332,6 +357,8 @@ class GameApp {
       this.fpsFramesInWindow = 0;
       this.fpsWindowStart = performance.now();
       this.levelStartTime = performance.now();
+      this.isVictoryCelebration = false;
+      this.victoryTime = 0;
       this.sounds.resume();
       const level = LEVELS[idx];
       this.loadLevelData(level);
@@ -352,6 +379,8 @@ class GameApp {
     this.triggerLevelTransition(() => {
       this.isPlaying = false;
       this.isPhysicsPaused = false;
+      this.isVictoryCelebration = false;
+      this.victoryTime = 0;
       this.hud.hideDisconnectOverlay();
       this.lobbyUI.show();
       this.network.sendGameStateSync('LOBBY', this.currentLevelIndex);
@@ -389,6 +418,22 @@ class GameApp {
     }
 
     const phoneCtrl = this.network.getController(1);
+
+    // Phone controller dismissal for victory modal
+    if (this.hud && this.hud.isVictoryShowing()) {
+      const phoneBoostEdge = (phoneCtrl?.boost ?? false) && !this.prevPhoneBoost;
+      const phoneBrakeEdge = (phoneCtrl?.brake ?? false) && !this.prevPhoneBrake;
+      const phoneShake = this.network.consumeShake(1);
+      const phoneRecalibrate = this.network.consumeRecalibrate(1);
+
+      if (phoneBoostEdge || phoneShake) {
+        this.hud.dismissVictoryNext();
+      } else if (phoneBrakeEdge || phoneRecalibrate) {
+        this.hud.dismissVictoryRetry();
+      }
+    }
+    this.prevPhoneBoost = phoneCtrl?.boost ?? false;
+    this.prevPhoneBrake = phoneCtrl?.brake ?? false;
 
     let finalPitch = 0;
     let finalRoll = 0;
@@ -491,23 +536,37 @@ class GameApp {
       // 6. Update visual obstacle animations (spinners & golden rings)
       this.board.update(dt, this.physics.getSpinners());
 
-      // 7. Smooth 3rd-person spring follow-cam (Standard vs Cinematic View)
-      const isStandard = this.cameraMode === 'standard';
-      const camOffsetY = isStandard ? 2.3 : 1.6;
-      const camOffsetZ = isStandard ? 4.2 : 3.4;
+      // 7. Smooth 3rd-person spring follow-cam (Standard vs Cinematic View vs Victory Ease)
+      if (this.isVictoryCelebration) {
+        this.victoryTime += dt;
+        const slowOrbit = Math.sin(this.victoryTime * 0.5) * 0.7;
+        this.targetCamPos.set(marblePos.x + slowOrbit, marblePos.y + 3.2, marblePos.z + 4.8);
+        this.targetCamTarget.set(marblePos.x, marblePos.y + 0.35, marblePos.z);
 
-      // Keep camera safe above cloud geometry
-      const safeCamY = Math.max(1.2, marblePos.y + camOffsetY);
-      this.targetCamPos.set(marblePos.x, safeCamY, marblePos.z + camOffsetZ);
-      this.targetCamTarget.set(marblePos.x, marblePos.y + 0.65, marblePos.z - 5.5);
+        this.cameraPosition.lerp(this.targetCamPos, 1 - Math.exp(-3.5 * dt));
+        this.cameraTarget.lerp(this.targetCamTarget, 1 - Math.exp(-5.0 * dt));
 
-      this.cameraPosition.lerp(this.targetCamPos, 1 - Math.exp(-6.5 * dt));
-      this.cameraTarget.lerp(this.targetCamTarget, 1 - Math.exp(-8.5 * dt));
+        this.camera.position.copy(this.cameraPosition);
+        this.camera.lookAt(this.cameraTarget);
+        this.camera.rotation.z = 0;
+      } else {
+        const isStandard = this.cameraMode === 'standard';
+        const camOffsetY = isStandard ? 2.3 : 1.6;
+        const camOffsetZ = isStandard ? 4.2 : 3.4;
 
-      this.camera.position.copy(this.cameraPosition);
-      this.camera.lookAt(this.cameraTarget);
-      // Dynamic camera banking into steering turns
-      this.camera.rotation.z = -finalRoll * 0.08;
+        // Keep camera safe above cloud geometry
+        const safeCamY = Math.max(1.2, marblePos.y + camOffsetY);
+        this.targetCamPos.set(marblePos.x, safeCamY, marblePos.z + camOffsetZ);
+        this.targetCamTarget.set(marblePos.x, marblePos.y + 0.65, marblePos.z - 5.5);
+
+        this.cameraPosition.lerp(this.targetCamPos, 1 - Math.exp(-6.5 * dt));
+        this.cameraTarget.lerp(this.targetCamTarget, 1 - Math.exp(-8.5 * dt));
+
+        this.camera.position.copy(this.cameraPosition);
+        this.camera.lookAt(this.cameraTarget);
+        // Dynamic camera banking into steering turns
+        this.camera.rotation.z = -finalRoll * 0.08;
+      }
 
       // Nitro FOV & Shake (Toggleable via GAME_FEEL_CONFIG)
       if (GAME_FEEL_CONFIG.nitroFovEnabled) {
