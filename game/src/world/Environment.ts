@@ -100,11 +100,11 @@ export class SkyEnvironment {
       color: 0xffffff,
       roughness: 0.75,
       metalness: 0.02,
-      flatShading: true,
+      flatShading: false,
     });
 
-    // Cloud puff sphere geometry
-    const puffGeo = new THREE.IcosahedronGeometry(1, 2);
+    // Cloud puff sphere geometry with higher-detail subdivision (level 3 for smooth organic puffs)
+    const puffGeo = new THREE.IcosahedronGeometry(1, 3);
     this.cloudInstMesh = new THREE.InstancedMesh(puffGeo, this.cloudMat, this.cloudCount);
     this.cloudInstMesh.receiveShadow = true;
 
@@ -522,8 +522,8 @@ export class SkyEnvironment {
     this.cloudMat.color.setHex(theme.cloudTint);
     if (isNight) {
       this.cloudMat.roughness = 0.55;
-      this.cloudMat.emissive.setHex(0x0a192f);
-      this.cloudMat.emissiveIntensity = 0.35;
+      this.cloudMat.emissive.setHex(0x1e3a5f);
+      this.cloudMat.emissiveIntensity = 0.45;
     } else {
       this.cloudMat.roughness = 0.75;
       this.cloudMat.emissive.setHex(0x000000);

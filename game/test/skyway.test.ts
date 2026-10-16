@@ -157,6 +157,10 @@ describe('Skyway Obstacles & Physics Mechanics', () => {
     } as any;
     const env = new SkyEnvironment(scene, mockRenderer);
 
+    // Verify smooth shading and higher-detail icosahedron geometry
+    expect(env.cloudMat.flatShading).toBe(false);
+    expect((env.cloudInstMesh.geometry as any).parameters.detail).toBe(3);
+
     LEVELS.forEach((level) => {
       const boardWidth = level.grid[0].length * level.cellSize;
       const boardDepth = level.grid.length * level.cellSize;

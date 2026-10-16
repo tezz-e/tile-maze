@@ -135,7 +135,7 @@ export const LEVELS: LevelDef[] = [
       sunIntensity: 2.6,
       hemiSky: 0xf43f5e,
       hemiGround: 0xfbbf24,
-      cloudTint: 0xffedd5,
+      cloudTint: 0xfec5bb, // Warm glowing pink-peach
       exposure: 1.12,
       wallSideColor: 0xf5d0a9, // Light warm sandstone sides
       wallTopColor: 0xfffbeb, // Very light warm sandstone top face
@@ -215,7 +215,7 @@ export const LEVELS: LevelDef[] = [
       sunIntensity: 1.6,
       hemiSky: 0x1e293b,
       hemiGround: 0x0f172a,
-      cloudTint: 0x334155,
+      cloudTint: 0x8fa3bf, // Soft blue-gray, never dark
       exposure: 1.05,
       wallSideColor: 0x0f172a, // Dark navy sides
       wallTopColor: 0x1e293b, // Slate-navy top face (lighter than sides)
