@@ -94,6 +94,14 @@ export class LobbyUI {
           color: #ffffff;
           font-family: var(--font-mono);
           box-sizing: border-box;
+          opacity: 1;
+          visibility: visible;
+          transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s ease;
+        }
+        #lobby-modal.lobby-fade-out {
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
         }
 
         /* Glass Surface Chassis with Magic UI Border Beam */
@@ -217,26 +225,25 @@ export class LobbyUI {
 
         .lobby-grid {
           display: grid;
-          grid-template-columns: 260px 1fr;
+          grid-template-columns: 350px 1fr;
           gap: 1.5rem;
           align-items: stretch;
         }
-        @media (max-width: 680px) {
+        @media (max-width: 780px) {
           .lobby-grid { grid-template-columns: 1fr; }
         }
 
-        /* Tilted Smoked Glass QR Card */
+        /* Tilted Smoked Glass QR Card with Horizontal Pairing */
         .qr-card {
           background: rgba(18, 18, 24, 0.65);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
           border: 1px solid rgba(255, 255, 255, 0.12);
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 10px 25px rgba(0, 0, 0, 0.5);
-          padding: 1.1rem 1rem;
+          padding: 1.1rem 1.15rem;
           display: flex;
           flex-direction: column;
-          align-items: center;
-          text-align: center;
+          align-items: stretch;
           position: relative;
           transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.4, 1), box-shadow 0.2s;
         }
@@ -252,46 +259,79 @@ export class LobbyUI {
           justify-content: space-between;
           align-items: center;
         }
-        .room-code-tag {
-          font-family: var(--font-mono);
-          font-size: 1.3rem;
+        .qr-pairing-body {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          gap: 1.1rem;
+          width: 100%;
+          margin-top: 0.15rem;
+        }
+        @media (max-width: 720px) {
+          .qr-pairing-body {
+            flex-direction: column;
+            text-align: center;
+          }
+          .qr-details-side {
+            align-items: center !important;
+            text-align: center !important;
+          }
+        }
+        .qr-details-side {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          justify-content: center;
+          flex: 1;
+          min-width: 0;
+        }
+        .qr-side-label {
+          font-size: 0.70rem;
           font-weight: 700;
           letter-spacing: 0.08em;
+          color: #94a3b8;
+          text-transform: uppercase;
+          margin-bottom: 0.35rem;
+        }
+        .room-code-tag {
+          font-family: var(--font-mono);
+          font-size: 1.85rem;
+          font-weight: 700;
+          letter-spacing: 0.16em;
           white-space: nowrap;
           color: #ffffff;
-          background: rgba(0, 0, 0, 0.6);
-          padding: 0.5rem 0.5rem;
-          margin: 0.2rem 0 0.8rem 0;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-          width: 100%;
-          box-sizing: border-box;
-          display: flex;
+          background: rgba(0, 0, 0, 0.75);
+          padding: 0.45rem 0.65rem;
+          margin: 0.1rem 0 0.55rem 0;
+          border: 1px solid rgba(255, 255, 255, 0.22);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 12px rgba(0, 0, 0, 0.4);
+          display: inline-flex;
           justify-content: center;
           align-items: center;
         }
         .room-code-tag .bracket {
           color: #EA3323;
-          margin: 0 0.3rem;
+          margin: 0 0.25rem;
           font-weight: 700;
         }
         .qr-canvas-wrap {
           border: 1px solid #ffffff;
           background: #ffffff;
-          padding: 6px;
+          padding: 5px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+          flex-shrink: 0;
         }
         .qr-canvas {
           display: block;
         }
         .qr-instructions {
-          font-size: 0.72rem;
-          letter-spacing: 0.05em;
+          font-size: 0.68rem;
+          letter-spacing: 0.04em;
           color: #888888;
-          margin-top: 0.6rem;
+          line-height: 1.4;
           text-transform: uppercase;
         }
 
@@ -343,9 +383,9 @@ export class LobbyUI {
           transition: all 0.2s;
         }
         .status-waiting {
-          color: #888888;
-          border-color: #333333;
-          background: #111111;
+          color: #94a3b8;
+          border-color: rgba(148, 163, 184, 0.4);
+          background: rgba(15, 23, 42, 0.6);
         }
         .status-connected {
           color: #ffffff;
@@ -354,17 +394,17 @@ export class LobbyUI {
           box-shadow: 0 0 16px rgba(234, 51, 35, 0.5);
         }
         .status-connected-green {
-          color: #000000;
-          background: #10b981;
+          color: #10b981;
+          background: rgba(16, 185, 129, 0.16);
           border-color: #10b981;
-          box-shadow: 0 0 16px rgba(16, 185, 129, 0.6);
+          box-shadow: 0 0 16px rgba(16, 185, 129, 0.4);
         }
         .waiting-pulse {
-          animation: wait-pulse 1.8s infinite ease-in-out;
+          animation: wait-pulse 2s infinite ease-in-out;
         }
         @keyframes wait-pulse {
           0%, 100% { opacity: 0.6; }
-          50% { opacity: 1; color: #cbd5e1; }
+          50% { opacity: 1; color: #f1f5f9; }
         }
         .tilt-gauge {
           width: 32px;
@@ -403,9 +443,15 @@ export class LobbyUI {
           z-index: 2;
         }
         .status-recon {
-          color: #000000;
-          background: #ffffff;
-          border-color: #ffffff;
+          color: #f59e0b;
+          background: rgba(245, 158, 11, 0.18);
+          border-color: #f59e0b;
+          box-shadow: 0 0 16px rgba(245, 158, 11, 0.35);
+          animation: recon-pulse 1.2s infinite ease-in-out;
+        }
+        @keyframes recon-pulse {
+          0%, 100% { opacity: 0.65; transform: scale(0.99); }
+          50% { opacity: 1; transform: scale(1.01); }
         }
 
         /* Skiper UI skiper46 Liquid Mercury Gooey Level Selector */
@@ -486,7 +532,7 @@ export class LobbyUI {
           font-weight: 700;
         }
 
-        /* Action Buttons */
+        /* Action Buttons - Clear Primary / Secondary / Tertiary Hierarchy */
         .actions-row {
           display: flex;
           gap: 0.75rem;
@@ -496,9 +542,9 @@ export class LobbyUI {
         }
         .btn-launch {
           flex: 1.3;
-          background: #ffffff;
-          color: #000000;
-          border: 1.5px solid #ffffff;
+          background: #EA3323;
+          color: #ffffff;
+          border: 1.5px solid #EA3323;
           padding: 0.85rem 1rem;
           font-family: var(--font-mono);
           font-size: 0.88rem;
@@ -507,68 +553,79 @@ export class LobbyUI {
           text-transform: uppercase;
           cursor: pointer;
           text-align: center;
-          transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.12s;
-          box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
+          transition: all 0.18s ease;
+          box-shadow: 0 4px 20px rgba(234, 51, 35, 0.45);
         }
         .btn-launch:hover:not(:disabled) {
-          background: #EA3323;
-          border-color: #EA3323;
-          color: #ffffff;
+          background: #ff4737;
+          border-color: #ff4737;
           transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(234, 51, 35, 0.45);
+          box-shadow: 0 6px 24px rgba(234, 51, 35, 0.6);
         }
         .btn-launch:active:not(:disabled) {
           transform: translateY(0);
         }
         .btn-launch:disabled {
-          background: rgba(255, 255, 255, 0.05);
-          border-color: rgba(255, 255, 255, 0.1);
-          color: #444444;
+          background: rgba(255, 255, 255, 0.03);
+          border-color: rgba(255, 255, 255, 0.08);
+          color: #555555;
           box-shadow: none;
           cursor: not-allowed;
         }
         .btn-kbd {
-          flex: 1;
-          background: rgba(18, 18, 24, 0.7);
-          backdrop-filter: blur(12px);
-          color: #ffffff;
-          border: 1px solid rgba(255, 255, 255, 0.25);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+          flex: 1.1;
+          background: #ffffff;
+          color: #000000;
+          border: 1.5px solid #ffffff;
+          box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
           padding: 0.85rem 1rem;
           font-family: var(--font-mono);
-          font-size: 0.84rem;
+          font-size: 0.86rem;
           font-weight: 700;
           letter-spacing: 0.05em;
           text-transform: uppercase;
           cursor: pointer;
           text-align: center;
-          transition: all 0.15s;
+          transition: all 0.18s ease;
         }
         .btn-kbd:hover {
-          background: #ffffff;
-          color: #000000;
-          border-color: #ffffff;
+          background: #e2e8f0;
+          border-color: #e2e8f0;
           transform: translateY(-1px);
-          box-shadow: 0 4px 16px rgba(255, 255, 255, 0.25);
+          box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
         }
         .btn-kbd:active {
           transform: translateY(0);
         }
-        .btn-telemetry {
+        /* When phone is connected, demote keyboard to sleek secondary outline */
+        .phone-ready .btn-kbd {
           background: rgba(18, 18, 24, 0.7);
+          backdrop-filter: blur(12px);
+          color: #ffffff;
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        }
+        .phone-ready .btn-kbd:hover {
+          background: rgba(255, 255, 255, 0.15);
+          color: #ffffff;
+          border-color: #ffffff;
+        }
+        .btn-telemetry {
+          flex: 0.8;
+          background: rgba(18, 18, 24, 0.5);
           backdrop-filter: blur(12px);
           color: #888888;
           border: 1px solid rgba(255, 255, 255, 0.12);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-          padding: 0.85rem 1.1rem;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+          padding: 0.85rem 1rem;
           font-family: var(--font-mono);
-          font-size: 0.82rem;
+          font-size: 0.80rem;
           font-weight: 700;
           letter-spacing: 0.05em;
           text-transform: uppercase;
           cursor: pointer;
           text-align: center;
-          transition: all 0.15s;
+          transition: all 0.18s ease;
         }
         .btn-telemetry:hover {
           color: #ffffff;
@@ -604,19 +661,24 @@ export class LobbyUI {
         <div class="lobby-grid">
           <div class="qr-card" id="qr-tilted-card">
             <div class="section-label">
-              <span>4-CHARACTER ROOM CODE</span>
-              <span style="color: #EA3323;">01 // QR</span>
+              <span>CONTROLLER PAIRING</span>
+              <span style="color: #EA3323;">01 // QR & CODE</span>
             </div>
-            <div id="room-code-display" class="room-code-tag">
-              <span class="bracket">[</span>
-              <span id="room-code-letters">----</span>
-              <span class="bracket">]</span>
-            </div>
-            <div class="qr-canvas-wrap">
-              <canvas id="qr-code-canvas" class="qr-canvas" width="160" height="160"></canvas>
-            </div>
-            <div class="qr-instructions">
-              SCAN QR OR ENTER 4-CHARACTER ROOM CODE ON PHONE
+            <div class="qr-pairing-body">
+              <div class="qr-canvas-wrap">
+                <canvas id="qr-code-canvas" class="qr-canvas" width="136" height="136"></canvas>
+              </div>
+              <div class="qr-details-side">
+                <div class="qr-side-label">4-CHARACTER ROOM CODE</div>
+                <div id="room-code-display" class="room-code-tag">
+                  <span class="bracket">[</span>
+                  <span id="room-code-letters">----</span>
+                  <span class="bracket">]</span>
+                </div>
+                <div class="qr-instructions">
+                  SCAN QR OR ENTER CODE ON YOUR PHONE
+                </div>
+              </div>
             </div>
           </div>
 
@@ -951,7 +1013,7 @@ export class LobbyUI {
       this.qrCanvas,
       payload,
       {
-        width: 160,
+        width: 136,
         margin: 1,
         color: {
           dark: '#000000',
@@ -979,6 +1041,7 @@ export class LobbyUI {
       }
       if (slot === 1) {
         this.hasPlayer1 = true;
+        this.container.classList.add('phone-ready');
         this.startBtn.disabled = false;
         this.startBtn.textContent = '[ LAUNCH // COMMENCE ]';
         if (this.p1TiltIndicator) this.p1TiltIndicator.style.display = 'flex';
@@ -990,7 +1053,13 @@ export class LobbyUI {
         chip.classList.remove('connected');
         chip.style.borderColor = '';
       }
-      if (slot === 1 && this.p1TiltIndicator) this.p1TiltIndicator.style.display = 'none';
+      if (slot === 1) {
+        this.hasPlayer1 = false;
+        this.container.classList.remove('phone-ready');
+        this.startBtn.disabled = true;
+        this.startBtn.textContent = '[ RECONNECTING... ]';
+        if (this.p1TiltIndicator) this.p1TiltIndicator.style.display = 'none';
+      }
     } else {
       el.classList.add('status-waiting');
       if (slot === 1) el.classList.add('waiting-pulse');
@@ -1001,6 +1070,7 @@ export class LobbyUI {
       }
       if (slot === 1) {
         this.hasPlayer1 = false;
+        this.container.classList.remove('phone-ready');
         this.startBtn.disabled = true;
         this.startBtn.textContent = '[ LAUNCH // PHONE ]';
         if (this.p1TiltIndicator) this.p1TiltIndicator.style.display = 'none';
@@ -1018,15 +1088,28 @@ export class LobbyUI {
   }
 
   public show(): void {
+    this.container.classList.remove('lobby-fade-out');
     this.container.style.display = 'flex';
+    void this.container.offsetWidth;
+    this.container.style.opacity = '1';
+    this.container.style.visibility = 'visible';
+    this.container.style.pointerEvents = 'auto';
     this.startLedLoop();
   }
 
   public hide(): void {
-    this.container.style.display = 'none';
-    if (this.ledAnimFrame) {
-      cancelAnimationFrame(this.ledAnimFrame);
-      this.ledAnimFrame = null;
-    }
+    this.container.classList.add('lobby-fade-out');
+    this.container.style.opacity = '0';
+    this.container.style.visibility = 'hidden';
+    this.container.style.pointerEvents = 'none';
+    window.setTimeout(() => {
+      if (this.container.classList.contains('lobby-fade-out')) {
+        this.container.style.display = 'none';
+        if (this.ledAnimFrame) {
+          cancelAnimationFrame(this.ledAnimFrame);
+          this.ledAnimFrame = null;
+        }
+      }
+    }, 300);
   }
 }
