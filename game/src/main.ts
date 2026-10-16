@@ -73,6 +73,7 @@ class GameApp {
   private victoryTime = 0;
   private prevPhoneBoost = false;
   private prevPhoneBrake = false;
+  private isTransitioning = false;
 
   constructor() {
     this.loadCameraPreference();
@@ -172,6 +173,7 @@ class GameApp {
         }
       },
       onHoleFall: () => {
+        if (this.isVictoryCelebration) return;
         this.sounds.playHoleFall();
         this.hud.showToast('HAZARD! MARBLE FELL', '#ef4444');
         this.network.sendHaptic(1, 'warning', 250);
@@ -186,6 +188,7 @@ class GameApp {
         this.effectsManager.triggerCheckpointBurst(this.physics.getMarblePosition());
       },
       onGoalReached: () => {
+        if (this.isVictoryCelebration) return;
         this.isVictoryCelebration = true;
         this.victoryTime = 0;
         this.sounds.playWin();
@@ -193,6 +196,10 @@ class GameApp {
         this.hud.showVictory();
         this.network.sendHaptic(1, 'success', 400);
         this.network.sendGameStateSync('VICTORY', this.currentLevelIndex);
+        if (this.physics.marbleBody) {
+          this.physics.marbleBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
+          this.physics.marbleBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
+        }
       },
       onBoostPad: () => {
         this.sounds.playBoost();
@@ -340,9 +347,12 @@ class GameApp {
   }
 
   private triggerLevelTransition(action: () => void): void {
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
     const curtain = document.getElementById('level-fade-curtain');
     if (!curtain) {
       action();
+      this.isTransitioning = false;
       return;
     }
     curtain.classList.add('fade-active');
@@ -350,6 +360,7 @@ class GameApp {
       action();
       window.setTimeout(() => {
         curtain.classList.remove('fade-active');
+        this.isTransitioning = false;
       }, 50);
     }, 150);
   }
@@ -500,10 +511,13 @@ class GameApp {
         }
 
         // 1. Update Physics Gravity with rotated vector
-        this.physics.updateGravity(finalPitch, finalRoll);
-
-        // 2. Apply discrete impulses (jump / nitro / brake)
-        this.physics.applyAction(boost, shake, dt, brake);
+        if (!this.isVictoryCelebration) {
+          this.physics.updateGravity(finalPitch, finalRoll);
+          this.physics.applyAction(boost, shake, dt, brake);
+        } else if (this.physics.marbleBody) {
+          const vel = this.physics.marbleBody.linvel();
+          this.physics.marbleBody.setLinvel({ x: vel.x * 0.9, y: vel.y, z: vel.z * 0.9 }, true);
+        }
 
         // 3. Step Rapier World (kinematic obstacles & physics)
         this.physics.step(dt);
