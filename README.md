@@ -7,7 +7,37 @@
 [![Android](https://img.shields.io/badge/Android-Kotlin%20%2B%20Compose-green.svg)](https://developer.android.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **"Anything but a Game Controller" Challenge:** A real-time motion controller ecosystem where an Android smartphone (featuring Nothing Phone 3 Glyph Matrix integration) turns into the physical control surface for a browser-based 3D marble labyrinth over local WebSockets with minimal latency.
+> **A phone becomes the physical tilt/shake controller for a 3D marble game running in the browser over local WebSockets.**
+
+<!-- TODO: add docs/media/demo.gif -->
+
+### 🔗 Quick Links
+| Resource | Link |
+| :--- | :--- |
+| **Demo Video** | `<VIDEO_URL>` |
+| **Download APK** | [GitHub Releases](https://github.com/tezz-e/tile-maze/releases) |
+| **Architecture** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| **Protocol** | [docs/PROTOCOL.md](docs/PROTOCOL.md) |
+| **Latency Guide** | [docs/LATENCY.md](docs/LATENCY.md) |
+
+### 💡 What's the Challenge Twist?
+Instead of using a standard gamepad or touchscreen joystick, **Tiltmaze turns an everyday smartphone into a real-time physical tilt instrument**. The phone streams 60Hz orientation sensor frames over a custom 20-byte binary protocol, with sub-frame latency tracking, active haptic telemetry feedback from in-game collisions, and live dual-trace oscilloscope measurement built directly into the game.
+
+### ⚙️ How It Works
+
+```mermaid
+flowchart LR
+    Phone["📱 Android Phone\n(IMU, 60Hz, 20-byte binary frames)"] -->|"LAN WebSocket\n(port 3000)"| Relay["⚡ WebSocket Relay Server\n(Node.js LAN)"]
+    Relay -->|"Zero-Copy Binary Stream"| Game["🎮 Browser Game\n(Three.js + Rapier 3D)"]
+    Game -.->|"Haptic Collisions & NTP Sync"| Relay
+    Relay -.->|"JSON Control Events"| Phone
+```
+
+- **Calibration:** Dynamic gravity sampling over a 300ms stillness window adapts to any natural holding posture without gimbal lock.
+- **Shake-to-Jump:** High-frequency linear acceleration spikes trigger a vertical impulse, hopping the marble over obstacles and floor gaps.
+- **Nitro Button:** On-screen nitro button boosts board tilt limits and applies forward propulsion for rapid runs.
+- **Haptic Feedback:** Physical wall collisions, hole hazards, and checkpoint dings trigger synchronized vibration waveforms on the handset.
+- **Keyboard Fallback:** Full WASD / arrow-key steering, Spacebar jump, and Shift boost enable instant standalone desktop play and evaluation.
 
 ---
 
