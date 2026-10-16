@@ -133,6 +133,120 @@ describe('GameNetwork - Sequence Number and Stale Packet Discarding', () => {
     net.handleBinaryTelemetry(makeFrame(1, 1, 0));
     expect(net.getController(1)?.sequenceNumber).toBe(1);
   });
+
+  it('resyncs when a gap of 130 sequence numbers arrives after > 250ms', () => {
+    let mockTime = 1000;
+    const net = new GameNetwork(
+      {
+        onRoomCreated: () => {},
+        onPlayerJoined: () => {},
+        onPlayerDisconnected: () => {},
+        onPlayerReconnected: () => {},
+        onPlayerLeft: () => {},
+        onLatencyUpdate: () => {},
+      },
+      () => mockTime
+    );
+
+    // Initial packet seq 0
+    net.handleBinaryTelemetry(makeFrame(1, 0, 0));
+    expect(net.getController(1)?.sequenceNumber).toBe(0);
+
+    // After 100ms (<250ms), packet seq 130 arrives (diff = 130 > 127). Should be dropped as stale.
+    mockTime += 100;
+    net.handleBinaryTelemetry(makeFrame(1, 130, 0));
+    expect(net.getController(1)?.sequenceNumber).toBe(0);
+
+    // After another 200ms (total 300ms > 250ms since last accepted), packet seq 131 arrives.
+    // Should trigger 250ms-based resync and be accepted!
+    mockTime += 200;
+    net.handleBinaryTelemetry(makeFrame(1, 131, 0));
+    expect(net.getController(1)?.sequenceNumber).toBe(131);
+
+    // Continuing packets in order are accepted
+    mockTime += 16;
+    net.handleBinaryTelemetry(makeFrame(1, 132, 0));
+    expect(net.getController(1)?.sequenceNumber).toBe(132);
+  });
+
+  it('resyncs when 8 consecutive packets in a row have been rejected as stale', () => {
+    let mockTime = 1000;
+    const net = new GameNetwork(
+      {
+        onRoomCreated: () => {},
+        onPlayerJoined: () => {},
+        onPlayerDisconnected: () => {},
+        onPlayerReconnected: () => {},
+        onPlayerLeft: () => {},
+        onLatencyUpdate: () => {},
+      },
+      () => mockTime
+    );
+
+    // Initial packet seq 0
+    net.handleBinaryTelemetry(makeFrame(1, 0, 0));
+    expect(net.getController(1)?.sequenceNumber).toBe(0);
+
+    // 7 stale packets arriving rapidly (< 250ms)
+    for (let seq = 130; seq < 137; seq++) {
+      mockTime += 10;
+      net.handleBinaryTelemetry(makeFrame(1, seq, 0));
+      expect(net.getController(1)?.sequenceNumber).toBe(0);
+    }
+
+    // 8th stale packet seq 137 arrives: triggers 8-packet resync!
+    mockTime += 10;
+    net.handleBinaryTelemetry(makeFrame(1, 137, 0));
+    expect(net.getController(1)?.sequenceNumber).toBe(137);
+
+    // Continuing packet seq 138 is accepted normally
+    mockTime += 10;
+    net.handleBinaryTelemetry(makeFrame(1, 138, 0));
+    expect(net.getController(1)?.sequenceNumber).toBe(138);
+  });
+
+  it('does not produce a phantom shake edge when shake bit is still set after resync', () => {
+    let mockTime = 1000;
+    const net = new GameNetwork(
+      {
+        onRoomCreated: () => {},
+        onPlayerJoined: () => {},
+        onPlayerDisconnected: () => {},
+        onPlayerReconnected: () => {},
+        onPlayerLeft: () => {},
+        onLatencyUpdate: () => {},
+      },
+      () => mockTime
+    );
+
+    // Initial packet with shake
+    net.handleBinaryTelemetry(makeFrame(1, 0, BUTTON_SHAKE));
+    expect(net.consumeShake(1)).toBe(true);
+
+    // Stall occurs: > 250ms elapse with no accepted packets
+    mockTime += 300;
+
+    // Resync packet arrives with shake bit STILL set
+    net.handleBinaryTelemetry(makeFrame(1, 50, BUTTON_SHAKE));
+    expect(net.getController(1)?.sequenceNumber).toBe(50);
+    // Crucial: no phantom shake edge!
+    expect(net.consumeShake(1)).toBe(false);
+
+    // Continuing packet with shake bit still set
+    mockTime += 16;
+    net.handleBinaryTelemetry(makeFrame(1, 51, BUTTON_SHAKE));
+    expect(net.consumeShake(1)).toBe(false);
+
+    // Shake released
+    mockTime += 16;
+    net.handleBinaryTelemetry(makeFrame(1, 52, 0));
+    expect(net.consumeShake(1)).toBe(false);
+
+    // New shake press produces real rising edge
+    mockTime += 16;
+    net.handleBinaryTelemetry(makeFrame(1, 53, BUTTON_SHAKE));
+    expect(net.consumeShake(1)).toBe(true);
+  });
 });
 
 describe('GameNetwork - Reconnect Backoff and Close', () => {

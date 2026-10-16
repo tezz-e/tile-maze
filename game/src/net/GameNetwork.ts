@@ -58,6 +58,8 @@ export class GameNetwork {
   // Packet jitter & rate tracking
   private lastArrivalTimes: Map<number, number[]> = new Map();
   private lastSequenceNumbers: Map<number, number> = new Map();
+  private lastAcceptedTimes: Map<number, number> = new Map();
+  private consecutiveStaleCounts: Map<number, number> = new Map();
 
   // NTP Sync metrics
   private rttMs: number = 0;
@@ -73,8 +75,15 @@ export class GameNetwork {
   private reconnectTimer: any = null;
   private isIntentionallyClosed: boolean = false;
 
-  constructor(callbacks: NetworkCallbacks) {
+  private getTime: () => number;
+
+  constructor(callbacks: NetworkCallbacks, getTime?: () => number) {
     this.callbacks = callbacks;
+    this.getTime = getTime ?? (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
+  }
+
+  private nowMs(): number {
+    return this.getTime();
   }
 
   public connect(wsUrl?: string): void {
@@ -170,21 +179,41 @@ export class GameNetwork {
 
       const slot = frame.playerSlot;
       const seq = frame.sequenceNumber & 0xff;
+      const now = this.nowMs();
 
-      // 8-bit circular sequence check: drop duplicates and stale / out-of-order packets
+      const lastAccepted = this.lastAcceptedTimes.get(slot);
       const lastSeq = this.lastSequenceNumbers.get(slot);
-      if (lastSeq !== undefined) {
+      const staleCount = this.consecutiveStaleCounts.get(slot) ?? 0;
+
+      let isResync = false;
+      if (lastAccepted !== undefined && now - lastAccepted > 250) {
+        isResync = true;
+      }
+
+      if (!isResync && lastSeq !== undefined) {
         const diff = (seq - lastSeq + 256) & 0xff;
-        // Treat forward difference of 1..127 as newer
-        if (diff === 0 || diff > 127) {
+        // diff === 0: exact duplicate
+        if (diff === 0) {
           return;
         }
+        // diff > 127: stale / out-of-order packet
+        if (diff > 127) {
+          const newStale = staleCount + 1;
+          if (newStale >= 8) {
+            isResync = true;
+          } else {
+            this.consecutiveStaleCounts.set(slot, newStale);
+            return;
+          }
+        }
       }
+
+      // Packet is accepted
       this.lastSequenceNumbers.set(slot, seq);
+      this.lastAcceptedTimes.set(slot, now);
+      this.consecutiveStaleCounts.set(slot, 0);
 
       this.callbacks.onRawPacketReceived?.(buffer);
-
-      const now = performance.now();
 
       // Calculate arrival intervals for Hz and Jitter
       if (!this.lastArrivalTimes.has(slot)) {
@@ -216,19 +245,27 @@ export class GameNetwork {
       const rawShake = hasButton(frame.buttonBitmask, BUTTON_SHAKE);
       const rawRecalibrate = hasButton(frame.buttonBitmask, BUTTON_RECALIBRATE);
 
-      const prevShake = this.prevRawShake.get(slot) ?? false;
-      const prevRecalibrate = this.prevRawRecalibrate.get(slot) ?? false;
+      let shakeEdge = false;
+      let recalibrateEdge = false;
 
-      this.prevRawShake.set(slot, rawShake);
-      this.prevRawRecalibrate.set(slot, rawRecalibrate);
+      if (isResync) {
+        // Reset previous raw bits so held bits are not misread as rising edges
+        this.prevRawShake.set(slot, rawShake);
+        this.prevRawRecalibrate.set(slot, rawRecalibrate);
+      } else {
+        const prevShake = this.prevRawShake.get(slot) ?? false;
+        const prevRecalibrate = this.prevRawRecalibrate.get(slot) ?? false;
 
-      // Rising-edge detection: pulse is triggered only when bit transitions from 0 to 1
-      const shakeEdge = rawShake && !prevShake;
-      const recalibrateEdge = rawRecalibrate && !prevRecalibrate;
+        this.prevRawShake.set(slot, rawShake);
+        this.prevRawRecalibrate.set(slot, rawRecalibrate);
+
+        shakeEdge = rawShake && !prevShake;
+        recalibrateEdge = rawRecalibrate && !prevRecalibrate;
+      }
 
       const prev = this.controllers.get(slot);
-      const shake = (prev?.shake ?? false) || shakeEdge;
-      const recalibrate = (prev?.recalibrate ?? false) || recalibrateEdge;
+      const shake = isResync ? false : ((prev?.shake ?? false) || shakeEdge);
+      const recalibrate = isResync ? false : ((prev?.recalibrate ?? false) || recalibrateEdge);
 
       const state: ControllerState = {
         playerSlot: slot,
@@ -268,6 +305,8 @@ export class GameNetwork {
         this.prevRawShake.delete(msg.playerSlot);
         this.prevRawRecalibrate.delete(msg.playerSlot);
         this.lastSequenceNumbers.delete(msg.playerSlot);
+        this.lastAcceptedTimes.delete(msg.playerSlot);
+        this.consecutiveStaleCounts.delete(msg.playerSlot);
         this.callbacks.onPlayerJoined(msg);
         break;
 
@@ -275,6 +314,8 @@ export class GameNetwork {
         this.prevRawShake.delete(msg.playerSlot);
         this.prevRawRecalibrate.delete(msg.playerSlot);
         this.lastSequenceNumbers.delete(msg.playerSlot);
+        this.lastAcceptedTimes.delete(msg.playerSlot);
+        this.consecutiveStaleCounts.delete(msg.playerSlot);
         this.callbacks.onPlayerDisconnected(msg);
         break;
 
@@ -282,6 +323,8 @@ export class GameNetwork {
         this.prevRawShake.delete(msg.playerSlot);
         this.prevRawRecalibrate.delete(msg.playerSlot);
         this.lastSequenceNumbers.delete(msg.playerSlot);
+        this.lastAcceptedTimes.delete(msg.playerSlot);
+        this.consecutiveStaleCounts.delete(msg.playerSlot);
         this.callbacks.onPlayerReconnected(msg);
         break;
 
@@ -290,6 +333,8 @@ export class GameNetwork {
         this.prevRawShake.delete(msg.playerSlot);
         this.prevRawRecalibrate.delete(msg.playerSlot);
         this.lastSequenceNumbers.delete(msg.playerSlot);
+        this.lastAcceptedTimes.delete(msg.playerSlot);
+        this.consecutiveStaleCounts.delete(msg.playerSlot);
         this.callbacks.onPlayerLeft(msg);
         break;
 
