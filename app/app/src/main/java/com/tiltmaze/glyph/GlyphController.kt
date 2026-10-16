@@ -44,9 +44,22 @@ class NothingGlyphController(private val context: Context) : GlyphController {
     private var lastSmoothTimeNs = 0L
     private var isTestModeRunning = false
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val reconnectBackoff = GlyphMath.ReconnectBackoff(
+        initialDelayMs = 500L,
+        maxDelayMs = 5000L,
+        factor = 2.0f
+    )
+    private var consecutiveFailures = 0
+    private var lastFailureLogMs = 0L
+    private var isDestroyed = false
+    private var isSupportedHardware = true
+    private val reconnectRunnable = Runnable { attemptReconnect() }
 
     private val glyphCallback = object : GlyphMatrixManager.Callback {
         override fun onServiceConnected(componentName: ComponentName) {
+            mainHandler.removeCallbacks(reconnectRunnable)
+            reconnectBackoff.reset()
+            consecutiveFailures = 0
             try {
                 // Glyph.DEVICE_23112 is Nothing Phone (3) with 25x25 Glyph Matrix
                 glyphManager?.register(Glyph.DEVICE_23112)
@@ -54,22 +67,78 @@ class NothingGlyphController(private val context: Context) : GlyphController {
                 Log.d(TAG, "Glyph Matrix service connected & registered successfully")
             } catch (e: Throwable) {
                 Log.w(TAG, "Glyph device register exception: ${e.message}")
+                isRegistered = false
+                if (!isDestroyed && isSupportedHardware) {
+                    val delay = reconnectBackoff.nextDelay()
+                    mainHandler.postDelayed(reconnectRunnable, delay)
+                }
             }
         }
 
         override fun onServiceDisconnected(componentName: ComponentName) {
+            Log.w(TAG, "Glyph service disconnected")
             isRegistered = false
+            if (isDestroyed || !isSupportedHardware) return
+            val delay = reconnectBackoff.nextDelay()
+            Log.i(TAG, "Scheduling Glyph re-init in ${delay}ms")
+            mainHandler.removeCallbacks(reconnectRunnable)
+            mainHandler.postDelayed(reconnectRunnable, delay)
         }
     }
 
+    private fun attemptReconnect() {
+        if (isDestroyed || !isSupportedHardware) return
+        Log.i(TAG, "Attempting Glyph service re-init (delay was ${reconnectBackoff.currentDelayMs}ms)...")
+        try {
+            glyphManager?.unInit()
+        } catch (e: Throwable) {
+            // ignore
+        }
+        init()
+    }
+
     override fun init() {
+        if (!isSupportedHardware) return
+        isDestroyed = false
         try {
             glyphManager = GlyphMatrixManager.getInstance(context.applicationContext)
             glyphManager?.init(glyphCallback)
+        } catch (e: ClassNotFoundException) {
+            isSupportedHardware = false
+            glyphManager = null
+            isRegistered = false
+        } catch (e: NoClassDefFoundError) {
+            isSupportedHardware = false
+            glyphManager = null
+            isRegistered = false
         } catch (e: Throwable) {
             // Silently handled on non-supported hardware
             Log.d(TAG, "Glyph SDK not active on current device: ${e.message}")
             glyphManager = null
+            isRegistered = false
+        }
+    }
+
+    private fun safeSetMatrixFrame(frame: IntArray): Boolean {
+        val manager = glyphManager ?: return false
+        return try {
+            manager.setMatrixFrame(frame)
+            consecutiveFailures = 0
+            true
+        } catch (e: Throwable) {
+            consecutiveFailures++
+            val now = System.currentTimeMillis()
+            if (now - lastFailureLogMs >= 1000L) {
+                lastFailureLogMs = now
+                Log.w(TAG, "setMatrixFrame failed (consecutive: $consecutiveFailures): ${e.message}")
+            }
+            if (consecutiveFailures >= 10) {
+                Log.w(TAG, "Repeated setMatrixFrame failures ($consecutiveFailures). Triggering re-init...")
+                consecutiveFailures = 0
+                mainHandler.removeCallbacks(reconnectRunnable)
+                mainHandler.post(reconnectRunnable)
+            }
+            false
         }
     }
 
@@ -88,11 +157,7 @@ class NothingGlyphController(private val context: Context) : GlyphController {
         val (smoothX, smoothY) = smoother.update(targetX, targetY, dt)
         GlyphMath.renderGaussianBlob(smoothX, smoothY, currentFrame)
 
-        try {
-            glyphManager?.setMatrixFrame(currentFrame)
-        } catch (e: Throwable) {
-            Log.w(TAG, "setMatrixFrame failed: ${e.message}")
-        }
+        safeSetMatrixFrame(currentFrame)
     }
 
     override fun runGlyphTest() {
@@ -104,27 +169,27 @@ class NothingGlyphController(private val context: Context) : GlyphController {
             Runnable {
                 Log.i(TAG, "[Glyph Test] Step 1/5: Outer Ring")
                 GlyphMath.renderOuterRing(currentFrame)
-                try { glyphManager?.setMatrixFrame(currentFrame) } catch (e: Throwable) {}
+                safeSetMatrixFrame(currentFrame)
             },
             Runnable {
                 Log.i(TAG, "[Glyph Test] Step 2/5: TOP")
                 GlyphMath.renderGaussianBlob(GlyphMath.CENTER, GlyphMath.CENTER - GlyphMath.TRAVEL_RADIUS, currentFrame)
-                try { glyphManager?.setMatrixFrame(currentFrame) } catch (e: Throwable) {}
+                safeSetMatrixFrame(currentFrame)
             },
             Runnable {
                 Log.i(TAG, "[Glyph Test] Step 3/5: RIGHT")
                 GlyphMath.renderGaussianBlob(GlyphMath.CENTER + GlyphMath.TRAVEL_RADIUS, GlyphMath.CENTER, currentFrame)
-                try { glyphManager?.setMatrixFrame(currentFrame) } catch (e: Throwable) {}
+                safeSetMatrixFrame(currentFrame)
             },
             Runnable {
                 Log.i(TAG, "[Glyph Test] Step 4/5: BOTTOM")
                 GlyphMath.renderGaussianBlob(GlyphMath.CENTER, GlyphMath.CENTER + GlyphMath.TRAVEL_RADIUS, currentFrame)
-                try { glyphManager?.setMatrixFrame(currentFrame) } catch (e: Throwable) {}
+                safeSetMatrixFrame(currentFrame)
             },
             Runnable {
                 Log.i(TAG, "[Glyph Test] Step 5/5: LEFT")
                 GlyphMath.renderGaussianBlob(GlyphMath.CENTER - GlyphMath.TRAVEL_RADIUS, GlyphMath.CENTER, currentFrame)
-                try { glyphManager?.setMatrixFrame(currentFrame) } catch (e: Throwable) {}
+                safeSetMatrixFrame(currentFrame)
             },
             Runnable {
                 Log.i(TAG, "[Glyph Test] Completed, returning to live mode")
@@ -140,25 +205,19 @@ class NothingGlyphController(private val context: Context) : GlyphController {
 
     override fun pulseSuccess() {
         if (!isRegistered || glyphManager == null) return
-        try {
-            val pulseFrame = IntArray(cellsPerFrame) { idx ->
-                if (GlyphMath.CIRCLE_MASK[idx]) 4095 else 0
-            }
-            glyphManager?.setMatrixFrame(pulseFrame)
-            Handler(Looper.getMainLooper()).postDelayed({
-                try {
-                    currentFrame.fill(0)
-                    glyphManager?.setMatrixFrame(currentFrame)
-                } catch (e: Throwable) {
-                    // ignore
-                }
-            }, 180L)
-        } catch (e: Throwable) {
-            // ignore
+        val pulseFrame = IntArray(cellsPerFrame) { idx ->
+            if (GlyphMath.CIRCLE_MASK[idx]) 4095 else 0
         }
+        safeSetMatrixFrame(pulseFrame)
+        mainHandler.postDelayed({
+            currentFrame.fill(0)
+            safeSetMatrixFrame(currentFrame)
+        }, 180L)
     }
 
     override fun destroy() {
+        isDestroyed = true
+        mainHandler.removeCallbacks(reconnectRunnable)
         try {
             glyphManager?.turnOff()
             glyphManager?.unInit()

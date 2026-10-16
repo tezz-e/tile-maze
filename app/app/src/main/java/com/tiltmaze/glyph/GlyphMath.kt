@@ -47,6 +47,28 @@ object GlyphMath {
     }
 
     /**
+     * Exponential backoff tracker for reconnect attempts (500ms up to 5000ms).
+     */
+    class ReconnectBackoff(
+        val initialDelayMs: Long = 500L,
+        val maxDelayMs: Long = 5000L,
+        val factor: Float = 2.0f
+    ) {
+        var currentDelayMs: Long = initialDelayMs
+            private set
+
+        fun nextDelay(): Long {
+            val delay = currentDelayMs
+            currentDelayMs = minOf(maxDelayMs, (currentDelayMs * factor).toLong())
+            return delay
+        }
+
+        fun reset() {
+            currentDelayMs = initialDelayMs
+        }
+    }
+
+    /**
      * Configurable axis mapping flags for the rear Glyph Matrix display.
      * Default for landscape ROTATION_90 viewed from the back: swapXY = true, invertX = true, invertY = false.
      */

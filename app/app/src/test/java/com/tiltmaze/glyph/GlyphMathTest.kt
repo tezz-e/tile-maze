@@ -192,5 +192,41 @@ class GlyphMathTest {
         }
         assertTrue("Outer ring must have lit LEDs", litCount > 0)
     }
+
+    @Test
+    fun testReconnectBackoff() {
+        val backoff = GlyphMath.ReconnectBackoff(
+            initialDelayMs = 500L,
+            maxDelayMs = 5000L,
+            factor = 2.0f
+        )
+        assertEquals(500L, backoff.currentDelayMs)
+
+        // 1st delay: 500ms, next becomes 1000ms
+        assertEquals(500L, backoff.nextDelay())
+        assertEquals(1000L, backoff.currentDelayMs)
+
+        // 2nd delay: 1000ms, next becomes 2000ms
+        assertEquals(1000L, backoff.nextDelay())
+        assertEquals(2000L, backoff.currentDelayMs)
+
+        // 3rd delay: 2000ms, next becomes 4000ms
+        assertEquals(2000L, backoff.nextDelay())
+        assertEquals(4000L, backoff.currentDelayMs)
+
+        // 4th delay: 4000ms, next clamped to 5000ms
+        assertEquals(4000L, backoff.nextDelay())
+        assertEquals(5000L, backoff.currentDelayMs)
+
+        // 5th delay: 5000ms, remains capped at 5000ms
+        assertEquals(5000L, backoff.nextDelay())
+        assertEquals(5000L, backoff.currentDelayMs)
+
+        // Reset back to initial
+        backoff.reset()
+        assertEquals(500L, backoff.currentDelayMs)
+        assertEquals(500L, backoff.nextDelay())
+    }
 }
+
 
