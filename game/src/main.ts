@@ -193,6 +193,7 @@ class GameApp {
       this.loadLevelData(LEVELS[0]);
     });
     this.network.connect();
+    window.addEventListener('beforeunload', () => this.network.close());
   }
 
   private loadLevelData(level: LevelDef): void {

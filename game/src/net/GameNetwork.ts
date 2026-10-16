@@ -62,17 +62,28 @@ export class GameNetwork {
   // NTP Sync metrics
   private rttMs: number = 0;
   private clockSkewMs: number = 0;
-  private ntpInterval: number | null = null;
+  private ntpInterval: any = null;
 
   // Previous raw button bits per slot for rising-edge detection
   private prevRawShake: Map<number, boolean> = new Map();
   private prevRawRecalibrate: Map<number, boolean> = new Map();
+
+  // Reconnect backoff state
+  private reconnectDelayMs: number = 1000;
+  private reconnectTimer: any = null;
+  private isIntentionallyClosed: boolean = false;
 
   constructor(callbacks: NetworkCallbacks) {
     this.callbacks = callbacks;
   }
 
   public connect(wsUrl?: string): void {
+    this.isIntentionallyClosed = false;
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
     const url =
       wsUrl ||
       `ws://${window.location.hostname || 'localhost'}:${window.location.port ? (window.location.port === '5173' ? '3000' : window.location.port) : '3000'}`;
@@ -82,6 +93,7 @@ export class GameNetwork {
 
     this.ws.onopen = () => {
       console.log('[GameNetwork] Connected to WebSocket server at', url);
+      this.reconnectDelayMs = 1000;
       if (this.roomCode && this.hostSessionId) {
         const reconMsg: ControlMessage = {
           type: 'HOST_RECONNECT',
@@ -105,14 +117,49 @@ export class GameNetwork {
     };
 
     this.ws.onclose = () => {
-      console.log('[GameNetwork] WebSocket connection closed. Attempting reconnect in 2s...');
       this.stopNtpLoop();
-      setTimeout(() => this.connect(wsUrl), 2000);
+      if (this.isIntentionallyClosed) {
+        console.log('[GameNetwork] WebSocket connection closed intentionally.');
+        return;
+      }
+      const delay = this.reconnectDelayMs;
+      console.log(`[GameNetwork] WebSocket connection closed. Attempting reconnect in ${delay / 1000}s...`);
+      this.reconnectDelayMs = Math.min(15000, this.reconnectDelayMs * 2);
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectTimer = null;
+        this.connect(wsUrl);
+      }, delay);
     };
 
     this.ws.onerror = (err) => {
       console.error('[GameNetwork] WebSocket error:', err);
     };
+  }
+
+  public close(): void {
+    this.isIntentionallyClosed = true;
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.stopNtpLoop();
+    if (this.ws) {
+      this.ws.onclose = null;
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+
+  public getReconnectDelayMs(): number {
+    return this.reconnectDelayMs;
+  }
+
+  public isClosed(): boolean {
+    return this.isIntentionallyClosed;
+  }
+
+  public isReconnectScheduled(): boolean {
+    return this.reconnectTimer !== null;
   }
 
   public handleBinaryTelemetry(buffer: ArrayBuffer): void {
@@ -254,7 +301,7 @@ export class GameNetwork {
 
   private startNtpLoop(): void {
     this.stopNtpLoop();
-    this.ntpInterval = window.setInterval(() => {
+    this.ntpInterval = setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         const ping: ControlMessage = {
           type: 'NTP_PING',

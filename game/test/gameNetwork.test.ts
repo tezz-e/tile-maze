@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GameNetwork } from '../src/net/GameNetwork.js';
 import {
   PACKET_TYPE_TELEMETRY,
@@ -134,3 +134,116 @@ describe('GameNetwork - Sequence Number and Stale Packet Discarding', () => {
     expect(net.getController(1)?.sequenceNumber).toBe(1);
   });
 });
+
+describe('GameNetwork - Reconnect Backoff and Close', () => {
+  class MockWebSocket {
+    public static instances: MockWebSocket[] = [];
+    public onopen: (() => void) | null = null;
+    public onclose: (() => void) | null = null;
+    public onmessage: ((e: any) => void) | null = null;
+    public onerror: ((e: any) => void) | null = null;
+    public readyState: number = 0;
+    public binaryType: string = 'blob';
+
+    constructor(public url: string) {
+      MockWebSocket.instances.push(this);
+    }
+    public send() {}
+    public close() {
+      this.readyState = 3;
+      if (this.onclose) this.onclose();
+    }
+  }
+
+  beforeEach(() => {
+    MockWebSocket.instances = [];
+    vi.stubGlobal('WebSocket', MockWebSocket);
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('backs off exponentially (1s, 2s, 4s, 8s, 15s) and resets on open', () => {
+    const net = new GameNetwork({
+      onRoomCreated: () => {},
+      onPlayerJoined: () => {},
+      onPlayerDisconnected: () => {},
+      onPlayerReconnected: () => {},
+      onPlayerLeft: () => {},
+      onLatencyUpdate: () => {},
+    });
+
+    net.connect('ws://test:3000');
+    expect(MockWebSocket.instances.length).toBe(1);
+
+    // Disconnect 1 -> 1s delay
+    MockWebSocket.instances[0].onclose?.();
+    expect(net.getReconnectDelayMs()).toBe(2000); // next scheduled will be 2s
+    vi.advanceTimersByTime(999);
+    expect(MockWebSocket.instances.length).toBe(1);
+    vi.advanceTimersByTime(1);
+    expect(MockWebSocket.instances.length).toBe(2);
+
+    // Disconnect 2 -> 2s delay
+    MockWebSocket.instances[1].onclose?.();
+    expect(net.getReconnectDelayMs()).toBe(4000);
+    vi.advanceTimersByTime(2000);
+    expect(MockWebSocket.instances.length).toBe(3);
+
+    // Disconnect 3 -> 4s delay
+    MockWebSocket.instances[2].onclose?.();
+    expect(net.getReconnectDelayMs()).toBe(8000);
+    vi.advanceTimersByTime(4000);
+    expect(MockWebSocket.instances.length).toBe(4);
+
+    // Disconnect 4 -> 8s delay
+    MockWebSocket.instances[3].onclose?.();
+    expect(net.getReconnectDelayMs()).toBe(15000); // capped at 15s
+    vi.advanceTimersByTime(8000);
+    expect(MockWebSocket.instances.length).toBe(5);
+
+    // Disconnect 5 -> 15s delay (capped)
+    MockWebSocket.instances[4].onclose?.();
+    expect(net.getReconnectDelayMs()).toBe(15000);
+    vi.advanceTimersByTime(15000);
+    expect(MockWebSocket.instances.length).toBe(6);
+
+    // Successful connect resets backoff to 1000
+    MockWebSocket.instances[5].onopen?.();
+    expect(net.getReconnectDelayMs()).toBe(1000);
+
+    net.close();
+  });
+
+  it('cancels pending reconnect timer and does not reconnect after close()', () => {
+    const net = new GameNetwork({
+      onRoomCreated: () => {},
+      onPlayerJoined: () => {},
+      onPlayerDisconnected: () => {},
+      onPlayerReconnected: () => {},
+      onPlayerLeft: () => {},
+      onLatencyUpdate: () => {},
+    });
+
+    net.connect('ws://test:3000');
+    expect(MockWebSocket.instances.length).toBe(1);
+
+    // Disconnect triggers pending timer
+    MockWebSocket.instances[0].onclose?.();
+    expect(net.isReconnectScheduled()).toBe(true);
+    expect(net.isClosed()).toBe(false);
+
+    // Intentional close cancels timer
+    net.close();
+    expect(net.isReconnectScheduled()).toBe(false);
+    expect(net.isClosed()).toBe(true);
+
+    // Fast-forwarding time does not create any new connections
+    vi.advanceTimersByTime(30000);
+    expect(MockWebSocket.instances.length).toBe(1);
+  });
+});
+
