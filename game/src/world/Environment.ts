@@ -61,11 +61,11 @@ export class SkyEnvironment {
       // Headless / mock environment fallback
     }
 
-    // Atmospheric Fog - soft cyan haze fading gently at distance, leaving near track razor sharp
-    scene.fog = new THREE.Fog(0xdbeafe, 40, 160);
+    // Atmospheric Fog - soft haze at distance, leaving track razor sharp with high contrast
+    scene.fog = new THREE.Fog(0xf0f9ff, 65, 220);
 
     // 2. Warm Sun Directional Light
-    this.dirLight = new THREE.DirectionalLight(0xfff7ed, 2.4);
+    this.dirLight = new THREE.DirectionalLight(0xfffaf0, 2.6);
     this.dirLight.position.set(16, 28, 16);
     this.dirLight.castShadow = true;
     this.dirLight.shadow.mapSize.width = 2048;
@@ -82,8 +82,8 @@ export class SkyEnvironment {
     scene.add(this.dirLight);
     scene.add(this.dirLight.target);
 
-    // 3. Hemisphere Ambient (warm sunlit sky + warm ground bounce)
-    this.hemiLight = new THREE.HemisphereLight(0xbae6fd, 0xfef08a, 1.2);
+    // 3. Hemisphere Ambient (crisp sky + ground bounce with deep shadow contrast)
+    this.hemiLight = new THREE.HemisphereLight(0x93c5fd, 0x94a3b8, 0.85);
     scene.add(this.hemiLight);
 
     // Gentle sun flare / rim light from opposite angle to catch marble & cloud rims
@@ -509,6 +509,7 @@ export class SkyEnvironment {
 
     this.hemiLight.color.setHex(theme.hemiSky);
     this.hemiLight.groundColor.setHex(theme.hemiGround);
+    this.hemiLight.intensity = isNight ? 0.6 : 0.85;
 
     if (isNight) {
       this.rimLight.color.setHex(0x38bdf8);

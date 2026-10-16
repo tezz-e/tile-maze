@@ -87,17 +87,17 @@ export const LEVELS: LevelDef[] = [
       '#########',
     ],
     theme: {
-      skyTop: '#1e3a8a',
-      skyBottom: '#60a5fa',
-      fogColor: 0xdbeafe,
-      fogNear: 40,
-      fogFar: 160,
-      sunColor: 0xfff7ed,
-      sunIntensity: 2.4,
-      hemiSky: 0xbae6fd,
-      hemiGround: 0xfef08a,
+      skyTop: '#1e40af', // Deep vivid cobalt blue at the zenith
+      skyBottom: '#bfdbfe', // Soft haze near the horizon
+      fogColor: 0xf0f9ff, // Clean white haze only near the horizon
+      fogNear: 65, // Push fog out so the track has crisp shadow contrast
+      fogFar: 220,
+      sunColor: 0xfffaf0,
+      sunIntensity: 2.6,
+      hemiSky: 0x93c5fd,
+      hemiGround: 0x94a3b8, // Slate ground bounce for rich, deep shadow contrast
       cloudTint: 0xffffff,
-      exposure: 1.15,
+      exposure: 1.0, // Reduced exposure prevents washout and restores contrast
       wallSideColor: 0xe2e8f0, // Light cream/white stone sides
       wallTopColor: 0xffffff, // Pure white stone top cap
       wallStripeColor: 0x38bdf8, // Bright azure top stripe
