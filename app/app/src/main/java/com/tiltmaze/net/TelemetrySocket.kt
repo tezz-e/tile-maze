@@ -3,6 +3,7 @@ package com.tiltmaze.net
 import kotlinx.coroutines.*
 import okhttp3.*
 import okio.ByteString
+import okio.ByteString.Companion.toByteString
 import org.json.JSONObject
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -26,7 +27,7 @@ class TelemetrySocket(private val listener: TelemetryListener) {
     private var isStreaming = false
     private var streamingJob: Job? = null
     private var ntpJob: Job? = null
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     // Protocol State
     private var playerSlot = 1
@@ -47,6 +48,10 @@ class TelemetrySocket(private val listener: TelemetryListener) {
     fun connect(wsUrl: String, code: String, existingSessionId: String? = null, deviceName: String = "Nothing Phone 3") {
         this.roomCode = code.uppercase()
         this.sessionId = existingSessionId
+
+        if (!scope.isActive) {
+            scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        }
 
         val request = Request.Builder().url(wsUrl).build()
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
@@ -107,6 +112,7 @@ class TelemetrySocket(private val listener: TelemetryListener) {
 
     /**
      * Starts the 60Hz coroutine loop streaming the 20-byte binary telemetry frame.
+     * Scheduled against a monotonic clock (System.nanoTime) to eliminate drift.
      */
     fun startStreaming(motionProvider: () -> com.tiltmaze.sensor.MotionData) {
         if (isStreaming) return
@@ -114,8 +120,25 @@ class TelemetrySocket(private val listener: TelemetryListener) {
 
         streamingJob = scope.launch {
             val byteBuffer = ByteBuffer.allocate(20).order(ByteOrder.LITTLE_ENDIAN)
+            val periodNs = 16_666_667L // 16.666ms period (60Hz)
+            var nextSendTimeNs = System.nanoTime()
 
             while (isActive && isStreaming) {
+                val ws = webSocket
+                if (ws == null) {
+                    delay(16)
+                    continue
+                }
+
+                // Check TCP queueSize first before consuming any motion pulses
+                // so that a Wi-Fi stall never discards pulses or builds a burst backlog.
+                if (ws.queueSize() > 512L) {
+                    nextSendTimeNs = System.nanoTime() + periodNs
+                    delay(16)
+                    continue
+                }
+
+                // Only consume motion frame when frame is guaranteed to be dispatched
                 val motion = motionProvider()
 
                 // Calculate Button Bitmask
@@ -137,20 +160,19 @@ class TelemetrySocket(private val listener: TelemetryListener) {
                 byteBuffer.putFloat(motion.yawRate)                  // Bytes 12-15: rawYawRate (Float32 LE)
                 byteBuffer.putInt((System.currentTimeMillis() and 0xFFFFFFFFL).toInt()) // Bytes 16-19: clientTimestamp
 
-                val ws = webSocket
-                if (ws != null) {
-                    // Skip the frame if queueSize exceeds ~512 bytes (~25 frames)
-                    // so a Wi-Fi stall never builds a backlog that bursts later.
-                    if (ws.queueSize() > 512L) {
-                        delay(16)
-                        continue
-                    }
-                    val byteString = ByteString.of(*byteBuffer.array())
-                    ws.send(byteString)
-                }
+                val byteString = byteBuffer.array().toByteString(0, 20)
+                ws.send(byteString)
 
-                // 60Hz ticker (~16.6ms)
-                delay(16)
+                // Schedule next frame against monotonic clock to eliminate drift
+                nextSendTimeNs += periodNs
+                val sleepNs = nextSendTimeNs - System.nanoTime()
+                if (sleepNs > 0) {
+                    delay(sleepNs / 1_000_000L)
+                } else {
+                    // Overran period, reset anchor to current time
+                    nextSendTimeNs = System.nanoTime()
+                    yield()
+                }
             }
         }
     }
@@ -173,6 +195,7 @@ class TelemetrySocket(private val listener: TelemetryListener) {
         isStreaming = false
         streamingJob?.cancel()
         ntpJob?.cancel()
+        scope.cancel()
         webSocket?.close(1000, "User disconnected")
         webSocket = null
     }
