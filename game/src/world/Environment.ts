@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { TextureGenerator } from './TextureGenerator.js';
-import type { LevelTheme } from '../levels/LevelData.js';
+import type { LevelTheme, LevelDef } from '../levels/LevelData.js';
 
 /**
  * Skyway Environment & Atmosphere
@@ -111,8 +111,30 @@ export class SkyEnvironment {
   }
 
   /**
-   * Dynamically repositions cloud clusters to guarantee clearance outside the track boundaries:
-   * Flank cloud centers are pushed outward (|x| > boardWidth / 2 + 3.0) and kept below track curb (y <= -1.6).
+   * Computes the 3D bounding envelope of the track including base tray and walls.
+   */
+  public static computeTrackBounds(boardWidth: number, boardDepth: number, wallHeight: number = 0.5): {
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+    bottomY: number;
+    topY: number;
+  } {
+    return {
+      minX: -boardWidth / 2 - 0.4,
+      maxX: boardWidth / 2 + 0.4,
+      minZ: -boardDepth / 2 - 0.4,
+      maxZ: boardDepth / 2 + 0.4,
+      bottomY: -0.65,
+      topY: wallHeight + 0.2,
+    };
+  }
+
+  /**
+   * Dynamically repositions cloud clusters to guarantee zero mesh intersection with the track:
+   * Flank clouds are pushed outward (|x| - scaleX > boardWidth / 2 + 0.8) and kept below track curb.
+   * Clouds under or overlapping the track horizontal bounding box are pushed strictly below the base tray.
    */
   public adjustCloudClearance(boardWidth: number, boardDepth: number = 40): void {
     this.currentBoardWidth = boardWidth;
@@ -120,81 +142,57 @@ export class SkyEnvironment {
     if (!this.cloudInstMesh) return;
 
     const dummy = new THREE.Object3D();
-    const flankDistX = boardWidth / 2 + 3.0;
-
-    const flankCenters = [
-      { x: -flankDistX - 1.0, z: -8 },
-      { x: -flankDistX - 2.5, z: 2 },
-      { x: -flankDistX - 1.5, z: 12 },
-      { x: -flankDistX - 3.0, z: 20 },
-      { x: -flankDistX - 0.5, z: -18 },
-      { x: flankDistX + 1.0, z: -8 },
-      { x: flankDistX + 2.5, z: 2 },
-      { x: flankDistX + 1.5, z: 12 },
-      { x: flankDistX + 3.0, z: 20 },
-      { x: flankDistX + 0.5, z: -18 },
-    ];
-
-    const clusterCenters = [
-      { x: -boardWidth / 2 - 8, z: -14 },
-      { x: boardWidth / 2 + 8, z: -12 },
-      { x: -boardWidth / 2 - 12, z: 16 },
-      { x: boardWidth / 2 + 10, z: 18 },
-      { x: 0, z: -boardDepth / 2 - 12 },
-      { x: -boardWidth / 2 - 18, z: -2 },
-      { x: boardWidth / 2 + 16, z: -2 },
-      { x: 0, z: boardDepth / 2 + 12 },
-    ];
+    const halfW = boardWidth / 2;
+    const halfD = boardDepth / 2;
 
     for (let i = 0; i < this.cloudCount; i++) {
       let x: number, z: number, y: number;
       let scaleX: number, scaleY: number, scaleZ: number;
 
       if (i < 130) {
-        // High billowing clouds hugging the track curbs (guaranteed |x| > boardWidth/2 + 3.0 and y <= -1.6)
-        const center = flankCenters[i % flankCenters.length];
-        const offsetAng = Math.random() * Math.PI * 2;
-        const offsetDist = Math.random() * 3.5;
-        if (center.x < 0) {
-          x = center.x - Math.abs(Math.cos(offsetAng) * offsetDist);
-        } else {
-          x = center.x + Math.abs(Math.cos(offsetAng) * offsetDist);
-        }
-        z = center.z + Math.sin(offsetAng) * offsetDist;
-        // Below track curb level (y <= -1.6)
-        y = -1.6 - Math.random() * 2.2;
+        // High billowing flank clouds: scaled and pushed outward so the entire mesh envelope
+        // clears the track curbs horizontally (|x| - scaleX > halfW + 0.8).
+        scaleX = 2.4 + Math.random() * 2.2;
+        scaleY = 1.4 + Math.random() * 1.8;
+        scaleZ = 2.4 + Math.random() * 2.2;
 
-        scaleX = 2.6 + Math.random() * 2.8;
-        scaleY = 1.6 + Math.random() * 2.0;
-        scaleZ = 2.6 + Math.random() * 2.8;
+        const side = i % 2 === 0 ? 1 : -1;
+        const flankDistance = halfW + scaleX + 0.9 + Math.random() * 3.5;
+        x = side * flankDistance;
+        z = (Math.random() - 0.5) * (boardDepth + 20);
+        // Kept at or below -1.8 to ensure beautiful billow below track surface
+        y = -1.8 - Math.random() * 2.2;
       } else if (i < 280) {
-        // Clustered midground cumulus formations
-        const center = clusterCenters[i % clusterCenters.length];
-        const offsetAng = Math.random() * Math.PI * 2;
-        const offsetDist = Math.random() * 10;
-        x = center.x + Math.cos(offsetAng) * offsetDist;
-        z = center.z + Math.sin(offsetAng) * offsetDist;
+        // Midground cumulus formations
+        scaleX = 3.0 + Math.random() * 3.5;
+        scaleY = 1.8 + Math.random() * 2.2;
+        scaleZ = 3.0 + Math.random() * 3.5;
+
+        const angle = Math.random() * Math.PI * 2;
+        const dist = halfW + 6 + Math.random() * 25;
+        x = Math.cos(angle) * dist;
+        z = Math.sin(angle) * (halfD + 8 + Math.random() * 20);
         y = -4.5 - Math.random() * 4.0;
 
-        // If inside track bounding box horizontally, push deep down
-        if (Math.abs(x) < flankDistX && Math.abs(z) < boardDepth / 2 + 3) {
-          y = Math.min(y, -6.0);
+        // If cloud mesh horizontal envelope overlaps track footprint, push strictly below base tray
+        if (Math.abs(x) - scaleX < halfW + 0.6 && Math.abs(z) - scaleZ < halfD + 0.6) {
+          y = -scaleY - 1.5 - Math.random() * 2.0;
         }
-
-        scaleX = 3.0 + Math.random() * 4.0;
-        scaleY = 1.8 + Math.random() * 2.5;
-        scaleZ = 3.0 + Math.random() * 4.0;
       } else {
         // Deep wide sea spread across radius
+        scaleX = 3.5 + Math.random() * 4.0;
+        scaleY = 2.0 + Math.random() * 2.5;
+        scaleZ = 3.5 + Math.random() * 4.0;
+
         const angle = Math.random() * Math.PI * 2;
-        const radius = Math.max(flankDistX + 3, 12 + Math.random() * 60);
+        const radius = Math.max(halfW + 8, 14 + Math.random() * 55);
         x = Math.cos(angle) * radius;
         z = Math.sin(angle) * radius;
-        y = -7.5 - Math.random() * 6.0;
+        y = -7.5 - Math.random() * 5.0;
 
-        scaleX = 3.5 + Math.random() * 4.5;
-        scaleY = 2.0 + Math.random() * 2.8;
-        scaleZ = 3.5 + Math.random() * 4.5;
+        if (Math.abs(x) - scaleX < halfW + 0.6 && Math.abs(z) - scaleZ < halfD + 0.6) {
+          y = -scaleY - 2.0 - Math.random() * 3.0;
+        }
       }
 
       dummy.position.set(x, y, z);
@@ -205,6 +203,41 @@ export class SkyEnvironment {
     }
 
     this.cloudInstMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  /**
+   * Verifies whether any cloud mesh instance intersects the track volume.
+   * Takes breathing undulation (+0.35 in Y) into account.
+   */
+  public hasCloudTrackIntersection(boardWidth: number, boardDepth: number, wallHeight: number = 0.5): boolean {
+    if (!this.cloudInstMesh) return false;
+    const bounds = SkyEnvironment.computeTrackBounds(boardWidth, boardDepth, wallHeight);
+    const mat = new THREE.Matrix4();
+    const pos = new THREE.Vector3();
+    const rot = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+
+    for (let i = 0; i < this.cloudCount; i++) {
+      this.cloudInstMesh.getMatrixAt(i, mat);
+      mat.decompose(pos, rot, scale);
+
+      // Max undulation peak is +0.35 in Y
+      const meshTop = pos.y + scale.y + 0.35;
+      const meshBottom = pos.y - scale.y - 0.35;
+      const meshLeft = pos.x - scale.x;
+      const meshRight = pos.x + scale.x;
+      const meshFront = pos.z - scale.z;
+      const meshBack = pos.z + scale.z;
+
+      const overlapX = meshLeft < bounds.maxX && meshRight > bounds.minX;
+      const overlapZ = meshFront < bounds.maxZ && meshBack > bounds.minZ;
+      const overlapY = meshBottom < bounds.topY && meshTop > bounds.bottomY;
+
+      if (overlapX && overlapZ && overlapY) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public getFlankCloudPositions(): { x: number; y: number; z: number }[] {

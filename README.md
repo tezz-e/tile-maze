@@ -166,6 +166,8 @@ If testing without a phone, use the built-in keyboard fallback:
 | **Shift** | Nitro Boost |
 | **C** | Calibrate Neutral posture |
 | **T** | Toggle Telemetry Lab / Flight Recorder |
+| **V** | Toggle Camera View (Standard vs Cinematic) |
+| **Q** | Toggle Low-Quality Mode (Performance Guard) |
 
 ---
 

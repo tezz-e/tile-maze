@@ -9,6 +9,7 @@ export class Board {
   private goldenRings: THREE.Mesh[] = [];
   private bouncerGroups: THREE.Group[] = [];
   private finishArch: THREE.Group | null = null;
+  private blueTileTexture!: THREE.Texture;
   private blueTileMat!: THREE.MeshStandardMaterial;
   private yellowCurbMat!: THREE.MeshStandardMaterial;
 
@@ -19,6 +20,7 @@ export class Board {
 
   private initMaterials(): void {
     const tileTex = TextureGenerator.createBlueTiles();
+    this.blueTileTexture = tileTex;
     this.blueTileMat = new THREE.MeshStandardMaterial({
       map: tileTex,
       roughness: 0.12,
@@ -34,11 +36,39 @@ export class Board {
     });
   }
 
+  private disposeHierarchy(obj: THREE.Object3D): void {
+    obj.traverse((node: any) => {
+      if (node.geometry) {
+        node.geometry.dispose();
+      }
+      if (node.material) {
+        if (Array.isArray(node.material)) {
+          node.material.forEach((m: THREE.Material) => this.disposeMaterial(m));
+        } else {
+          this.disposeMaterial(node.material);
+        }
+      }
+    });
+  }
+
+  private disposeMaterial(mat: THREE.Material): void {
+    // Preserve persistent shared tile and curb materials
+    if (mat === this.blueTileMat || mat === this.yellowCurbMat) {
+      return;
+    }
+    const standardMat = mat as THREE.MeshStandardMaterial;
+    if (standardMat.map && standardMat.map !== this.blueTileTexture) {
+      standardMat.map.dispose();
+    }
+    mat.dispose();
+  }
+
   public buildLevel(level: LevelDef): void {
-    // Clear previous children
+    // Clear and dispose previous level children to prevent VRAM memory leaks
     while (this.group.children.length > 0) {
       const child = this.group.children[0];
       this.group.remove(child);
+      this.disposeHierarchy(child);
     }
     this.spinnerMeshes = [];
     this.goldenRings = [];

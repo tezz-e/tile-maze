@@ -27,6 +27,7 @@ export class GameHUD {
   private disconnectOverlay!: HTMLElement;
   private disconnectTimerEl!: HTMLElement;
   private disconnectInterval: number | null = null;
+  private onContinueKeyboardCallback: (() => void) | null = null;
   private tiltPillEl!: HTMLElement;
   private tiltTitleEl!: HTMLElement;
   private tiltSubEl!: HTMLElement;
@@ -39,12 +40,7 @@ export class GameHUD {
   private toastTimer: number | null = null;
   private coachToastTimer: number | null = null;
   private victoryBestEl!: HTMLElement;
-  private bestTimes: Record<number, number> = {
-    1: 75.2, // 01:15.20
-    2: 92.15,
-    3: 114.5,
-    4: 138.0,
-  };
+  private bestTimes: Record<number, number> = {};
   private currentLevelId: number = 1;
 
   constructor(parent: HTMLElement, callbacks: HUDCallbacks) {
@@ -88,8 +84,8 @@ export class GameHUD {
     return { ...this.bestTimes };
   }
 
-  public getBestTime(levelId: number): number {
-    return this.bestTimes[levelId] || 60.0;
+  public getBestTime(levelId: number): number | null {
+    return this.bestTimes[levelId] ?? null;
   }
 
   private buildDOM(): void {
@@ -714,7 +710,7 @@ export class GameHUD {
               </svg>
             </span>
             <span style="color: #94a3b8;">BEST:</span>
-            <span id="hud-best" style="font-weight: 700; color: #ffffff;">01:15.20</span>
+            <span id="hud-best" style="font-weight: 700; color: #ffffff;">--:--.--</span>
           </div>
         </div>
 
@@ -865,12 +861,21 @@ export class GameHUD {
       this.victoryModal.style.display = 'none';
       this.callbacks.onReturnToLobby();
     });
+
+    const disconnectKbdBtn = this.container.querySelector('#disconnect-keyboard-btn');
+    if (disconnectKbdBtn) {
+      disconnectKbdBtn.addEventListener('click', () => {
+        const cb = this.onContinueKeyboardCallback;
+        this.hideDisconnectOverlay();
+        cb?.();
+      });
+    }
   }
 
   public setLevel(level: LevelDef): void {
     this.currentLevelId = level.id;
-    const bestSecs = this.bestTimes[level.id] || 60.0;
-    this.bestEl.textContent = this.formatTimeSecs(bestSecs);
+    const bestSecs = this.bestTimes[level.id];
+    this.bestEl.textContent = bestSecs !== undefined ? this.formatTimeSecs(bestSecs) : '--:--.--';
     this.resetTimer();
     this.startTimer();
     this.victoryModal.style.display = 'none';
@@ -961,9 +966,10 @@ export class GameHUD {
   }
 
   private formatTimeSecs(totalSecs: number): string {
-    const mins = Math.floor(totalSecs / 60);
-    const secs = Math.floor(totalSecs % 60);
-    const cs = Math.floor((totalSecs % 1) * 100);
+    const totalCentis = Math.round(totalSecs * 100);
+    const mins = Math.floor(totalCentis / 6000);
+    const secs = Math.floor((totalCentis % 6000) / 100);
+    const cs = totalCentis % 100;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${cs.toString().padStart(2, '0')}`;
   }
 
@@ -1002,6 +1008,7 @@ export class GameHUD {
   public showDisconnectOverlay(onContinueKeyboard: () => void): void {
     this.pauseTimer();
     this.disconnectOverlay.style.display = 'flex';
+    this.onContinueKeyboardCallback = onContinueKeyboard;
     let remainingSecs = 60;
     this.disconnectTimerEl.textContent = `${remainingSecs}`;
 
@@ -1014,21 +1021,12 @@ export class GameHUD {
       }
       this.disconnectTimerEl.textContent = `${remainingSecs}`;
     }, 1000);
-
-    const btn = this.container.querySelector('#disconnect-keyboard-btn');
-    if (btn) {
-      const clickHandler = () => {
-        btn.removeEventListener('click', clickHandler);
-        this.hideDisconnectOverlay();
-        onContinueKeyboard();
-      };
-      btn.addEventListener('click', clickHandler);
-    }
   }
 
   public hideDisconnectOverlay(): void {
     this.resumeTimer();
     this.disconnectOverlay.style.display = 'none';
+    this.onContinueKeyboardCallback = null;
     if (this.disconnectInterval) {
       clearInterval(this.disconnectInterval);
       this.disconnectInterval = null;
@@ -1039,8 +1037,8 @@ export class GameHUD {
     this.timerRunning = false;
     const current = this.pausedTime > 0 ? this.pausedTime : performance.now();
     const elapsedSecs = Math.max(0, (current - this.startTime - this.totalPausedDuration) / 1000);
-    const prevBest = this.bestTimes[this.currentLevelId] || 999.0;
-    const isNewRecord = elapsedSecs < prevBest;
+    const prevBest = this.bestTimes[this.currentLevelId];
+    const isNewRecord = prevBest === undefined || elapsedSecs < prevBest;
 
     if (isNewRecord) {
       this.bestTimes[this.currentLevelId] = Number(elapsedSecs.toFixed(2));
@@ -1049,7 +1047,7 @@ export class GameHUD {
     }
 
     this.victoryTimeEl.textContent = this.timerEl.textContent;
-    const bestSecs = this.bestTimes[this.currentLevelId] || elapsedSecs;
+    const bestSecs = this.bestTimes[this.currentLevelId] ?? elapsedSecs;
     if (this.victoryBestEl) {
       this.victoryBestEl.textContent = isNewRecord
         ? `NEW RECORD! BEST: ${this.formatTimeSecs(bestSecs)}`

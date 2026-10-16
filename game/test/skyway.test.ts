@@ -140,10 +140,18 @@ describe('Skyway Obstacles & Physics Mechanics', () => {
         // Kept below track curb (y <= -1.6)
         expect(pos.y).toBeLessThanOrEqual(-1.6);
       });
+
+      // Assert track bounds computation
+      const bounds = SkyEnvironment.computeTrackBounds(boardWidth, boardDepth, level.wallHeight);
+      expect(bounds.maxX - bounds.minX).toBeGreaterThanOrEqual(boardWidth);
+      expect(bounds.maxZ - bounds.minZ).toBeGreaterThanOrEqual(boardDepth);
+
+      // Assert zero cloud mesh instances intersect or poke through track volume
+      expect(env.hasCloudTrackIntersection(boardWidth, boardDepth, level.wallHeight)).toBe(false);
     });
   });
 
-  it('verifies Level 4 wide track (~21m) specifically pushes clouds to |x| > 13.5m', () => {
+  it('verifies Level 4 wide track (~21m) specifically pushes clouds to |x| > 13.5m and has zero cloud intersection', () => {
     const scene = new THREE.Scene();
     const mockRenderer = {
       toneMappingExposure: 1.0,
@@ -152,14 +160,18 @@ describe('Skyway Obstacles & Physics Mechanics', () => {
     const env = new SkyEnvironment(scene, mockRenderer);
     const l4 = LEVELS[3];
     const boardWidth = l4.grid[0].length * l4.cellSize;
+    const boardDepth = l4.grid.length * l4.cellSize;
     expect(boardWidth).toBeCloseTo(21.0, 1);
 
-    env.adjustCloudClearance(boardWidth, l4.grid.length * l4.cellSize);
+    env.adjustCloudClearance(boardWidth, boardDepth);
     const flankClouds = env.getFlankCloudPositions();
     flankClouds.forEach((pos) => {
       expect(Math.abs(pos.x)).toBeGreaterThan(13.5);
       expect(pos.y).toBeLessThanOrEqual(-1.6);
     });
+
+    // Zero cloud mesh intersection with wide track
+    expect(env.hasCloudTrackIntersection(boardWidth, boardDepth, l4.wallHeight)).toBe(false);
   });
 
   it('halves cloud mesh count and drops shadow map resolution in low quality mode', () => {

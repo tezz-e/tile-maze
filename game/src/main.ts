@@ -66,7 +66,8 @@ class GameApp {
   private isPhysicsPaused = false;
   private forceKeyboardMode = false;
   private isLowQuality = false;
-  private fpsTimestamps: number[] = [];
+  private fpsFramesInWindow = 0;
+  private fpsWindowStart = performance.now();
   private levelStartTime = performance.now();
 
   constructor() {
@@ -328,7 +329,8 @@ class GameApp {
   private startLevel(idx: number): void {
     this.triggerLevelTransition(() => {
       this.currentLevelIndex = idx;
-      this.fpsTimestamps = [];
+      this.fpsFramesInWindow = 0;
+      this.fpsWindowStart = performance.now();
       this.levelStartTime = performance.now();
       this.sounds.resume();
       const level = LEVELS[idx];
@@ -437,16 +439,16 @@ class GameApp {
 
     if (this.isPlaying) {
       if (!this.isPhysicsPaused) {
-        // Rolling 3-second FPS measurement & adaptive performance guard
-        this.fpsTimestamps.push(now);
-        while (this.fpsTimestamps.length > 0 && this.fpsTimestamps[0] < now - 3000) {
-          this.fpsTimestamps.shift();
-        }
-        if (!this.isLowQuality && (now - this.levelStartTime > 3500) && this.fpsTimestamps.length >= 20) {
-          const rollingFps = this.fpsTimestamps.length / 3.0;
-          if (rollingFps < 45) {
+        // Rolling 3-second FPS measurement & adaptive performance guard (zero allocation)
+        this.fpsFramesInWindow++;
+        const elapsedSinceWindow = now - this.fpsWindowStart;
+        if (elapsedSinceWindow >= 3000) {
+          const rollingFps = (this.fpsFramesInWindow * 1000) / elapsedSinceWindow;
+          if (!this.isLowQuality && now - this.levelStartTime > 3500 && rollingFps < 45) {
             this.setQualityMode(true, 'FPS < 45 AUTO-GUARD');
           }
+          this.fpsFramesInWindow = 0;
+          this.fpsWindowStart = now;
         }
 
         // 1. Update Physics Gravity with rotated vector
@@ -472,14 +474,13 @@ class GameApp {
         this.hud.showCoachToast(coachHint);
       }
 
-      // Landing detection
+      // Landing detection (must have been airborne and now touching track floor above void)
       const isAirborne = marblePos.y > 0.44;
-      if (this.wasAirborne && !isAirborne && this.prevLinvelY < -1.0) {
+      if (this.wasAirborne && !isAirborne && this.prevLinvelY < -1.0 && marblePos.y >= 0.20) {
         this.effectsManager.triggerLandingPuff(marblePos);
       }
       this.wasAirborne = isAirborne;
-      const currentVel = this.physics.marbleBody ? this.physics.marbleBody.linvel() : { y: 0 };
-      this.prevLinvelY = currentVel.y;
+      this.prevLinvelY = this.physics.marbleBody ? this.physics.marbleBody.linvel().y : 0;
 
       // Update pooled particle effects (trail, radial burst, landing dust, blob shadow)
       this.effectsManager.update(dt, marblePos, speed, boost);

@@ -41,12 +41,17 @@ export class TextureGenerator {
       skyGrad.addColorStop(0.50, '#0f172a');
       skyGrad.addColorStop(0.68, '#070d18');
       skyGrad.addColorStop(1.0, bottomColor);
-    } else {
+    } else if (topColor === '#1e3a8a') {
       skyGrad.addColorStop(0.0, topColor);
       skyGrad.addColorStop(0.25, topColor);
       skyGrad.addColorStop(0.48, '#bae6fd');
       skyGrad.addColorStop(0.50, '#fed7aa');
       skyGrad.addColorStop(0.68, bottomColor);
+      skyGrad.addColorStop(1.0, bottomColor);
+    } else {
+      skyGrad.addColorStop(0.0, topColor);
+      skyGrad.addColorStop(0.30, topColor);
+      skyGrad.addColorStop(0.65, bottomColor);
       skyGrad.addColorStop(1.0, bottomColor);
     }
     ctx.fillStyle = skyGrad;
