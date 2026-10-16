@@ -29,6 +29,7 @@ fun CockpitControllerScreen(
     rttMs: Long,
     pitch: Float,
     roll: Float,
+    calibrationFailed: Boolean = false,
     onBoostChange: (Boolean) -> Unit,
     onBrakeChange: (Boolean) -> Unit,
     onCalibrate: () -> Unit,
@@ -235,6 +236,16 @@ fun CockpitControllerScreen(
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
                     letterSpacing = 0.5.sp
+                )
+            }
+
+            if (calibrationFailed) {
+                Text(
+                    text = "Hold still and tap Calibrate again",
+                    color = Color(0xFFEA3323),
+                    fontSize = 9.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
                 )
             }
 

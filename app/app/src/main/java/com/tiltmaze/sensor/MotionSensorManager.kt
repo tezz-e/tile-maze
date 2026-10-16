@@ -75,6 +75,9 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
     @Volatile private var calibRequested = false
     @Volatile private var resetRequested = false
 
+    @Volatile var calibrationFailed: Boolean = false
+        private set
+
     // Calibration window state (runs over ~300ms of sensor time with 800ms max timeout)
     @Volatile private var pendingCalibration = true
     private var calibInitialRequestTimeNs = 0L
@@ -86,6 +89,9 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
     private var calibSumY = 0.0
     private var calibSumZ = 0.0
     private var calibSampleCount = 0
+    private val calibSamplesX = FloatArray(128)
+    private val calibSamplesY = FloatArray(128)
+    private val calibSamplesZ = FloatArray(128)
 
     // Pulse states
     private val recalibratePulse = AtomicBoolean(false)
@@ -108,6 +114,8 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
         private const val CALIBRATION_TIMEOUT_NS = 800_000_000L // 800ms max timeout
         // cos(3°) ≈ 0.99862953
         private const val MAX_CALIB_MOTION_COS = 0.99862953f
+        // cos(6°) ≈ 0.9945219
+        private const val COS_6_DEG = 0.9945219f
     }
 
     private val displayListener = object : DisplayManager.DisplayListener {
@@ -170,6 +178,7 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
 
         calibRequested = true
         resetRequested = false
+        calibrationFailed = false
 
         rotationSensor?.let {
             sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST, handler)
@@ -188,10 +197,12 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
     }
 
     fun calibrateNeutral() {
+        calibrationFailed = false
         calibRequested = true
     }
 
     fun resetToFlat() {
+        calibrationFailed = false
         resetRequested = true
     }
 
@@ -209,6 +220,7 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
             if (resetRequested) {
                 resetRequested = false
                 calibRequested = false
+                calibrationFailed = false
                 pendingCalibration = false
                 calibInitialRequestTimeNs = 0L
                 calibWindowStartTimeNs = 0L
@@ -222,6 +234,7 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
                 recalibratePulse.set(true)
             } else if (calibRequested) {
                 calibRequested = false
+                calibrationFailed = false
                 pendingCalibration = true
                 calibInitialRequestTimeNs = 0L
                 calibWindowStartTimeNs = 0L
@@ -255,6 +268,9 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
                     calibSumX = gx.toDouble()
                     calibSumY = gy.toDouble()
                     calibSumZ = gz.toDouble()
+                    calibSamplesX[0] = gx
+                    calibSamplesY[0] = gy
+                    calibSamplesZ[0] = gz
                     calibSampleCount = 1
                 } else {
                     val totalElapsedNs = event.timestamp - calibInitialRequestTimeNs
@@ -270,15 +286,23 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
                         calibSumX = gx.toDouble()
                         calibSumY = gy.toDouble()
                         calibSumZ = gz.toDouble()
+                        calibSamplesX[0] = gx
+                        calibSamplesY[0] = gy
+                        calibSamplesZ[0] = gz
                         calibSampleCount = 1
                     } else {
+                        if (calibSampleCount < calibSamplesX.size) {
+                            calibSamplesX[calibSampleCount] = gx
+                            calibSamplesY[calibSampleCount] = gy
+                            calibSamplesZ[calibSampleCount] = gz
+                        }
                         calibSumX += gx.toDouble()
                         calibSumY += gy.toDouble()
                         calibSumZ += gz.toDouble()
                         calibSampleCount++
 
                         val windowElapsedNs = event.timestamp - calibWindowStartTimeNs
-                        if (windowElapsedNs >= CALIBRATION_WINDOW_NS || isTimedOut) {
+                        if (windowElapsedNs >= CALIBRATION_WINDOW_NS) {
                             var gx0 = (calibSumX / calibSampleCount).toFloat()
                             var gy0 = (calibSumY / calibSampleCount).toFloat()
                             var gz0 = (calibSumZ / calibSampleCount).toFloat()
@@ -299,9 +323,55 @@ class MotionSensorManager(private val context: Context) : SensorEventListener {
                             currentPitch = 0.0f
                             currentRoll = 0.0f
                             recalibratePulse.set(true)
+                            calibrationFailed = false
+                            pendingCalibration = false
+                        } else if (isTimedOut) {
+                            var gx0 = (calibSumX / calibSampleCount).toFloat()
+                            var gy0 = (calibSumY / calibSampleCount).toFloat()
+                            var gz0 = (calibSumZ / calibSampleCount).toFloat()
+                            val g0Len = hypot(hypot(gx0, gy0), gz0)
+                            if (g0Len > 1e-4f) {
+                                gx0 /= g0Len
+                                gy0 /= g0Len
+                                gz0 /= g0Len
+                            } else {
+                                gx0 = 0f; gy0 = 0f; gz0 = 1f
+                            }
+
+                            val nSamples = minOf(calibSampleCount, calibSamplesX.size)
+                            var isSpreadSmall = nSamples >= 5
+                            for (i in 0 until nSamples) {
+                                val dotMean = calibSamplesX[i] * gx0 + calibSamplesY[i] * gy0 + calibSamplesZ[i] * gz0
+                                if (dotMean < COS_6_DEG) {
+                                    isSpreadSmall = false
+                                    break
+                                }
+                            }
+
+                            if (isSpreadSmall) {
+                                calibPitchAngle = atan2(-gy0, gz0)
+                                calibRollAngle = atan2(-gx0, hypot(gy0, gz0).coerceAtLeast(1e-4f))
+
+                                pitchFilter.reset(0.0f)
+                                rollFilter.reset(0.0f)
+                                currentPitch = 0.0f
+                                currentRoll = 0.0f
+                                recalibratePulse.set(true)
+                                calibrationFailed = false
+                            } else {
+                                // Calibration failed: keep previous calibration, don't send recalibrate pulse
+                                calibrationFailed = true
+                            }
                             pendingCalibration = false
                         }
                     }
+                }
+
+                if (pendingCalibration) {
+                    currentPitch = 0.0f
+                    currentRoll = 0.0f
+                    currentYawRate = atan2(screenRotMatrix[1], screenRotMatrix[4])
+                    return
                 }
             }
 
