@@ -10,15 +10,18 @@ pnpm-debug.log*
 
 # Android / Gradle
 .gradle/
-app/build/
-app/app/build/
+**/build/
 local.properties
+**/local.properties
+!local.properties.example
+!**/local.properties.example
 *.iml
 .idea/
 .navigation/
 captures/
 output.json
 *.apk
+**/*.apk
 
 # OS
 .DS_Store
