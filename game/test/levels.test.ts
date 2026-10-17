@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { LEVELS, validateLevelSolvability, checkCoachHints } from '../src/levels/LevelData.js';
+import { LEVELS, validateLevelSolvability, validateCorridorWidth, checkCoachHints } from '../src/levels/LevelData.js';
 
 describe('Level Geometry & Solvability Validator', () => {
-  it('has exactly 4 hand-crafted progressive courses', () => {
-    expect(LEVELS.length).toBe(4);
+  it('has exactly 6 hand-crafted progressive courses', () => {
+    expect(LEVELS.length).toBe(6);
   });
 
   it('ensures every row of every level has the same length as the first row', () => {
@@ -34,6 +34,68 @@ describe('Level Geometry & Solvability Validator', () => {
     });
   });
 
+  it('strictly escalates safe path step counts across courses 1 through 6', () => {
+    const lengths = LEVELS.map((lvl) => validateLevelSolvability(lvl).pathLength);
+    expect(lengths).toEqual([15, 20, 22, 28, 39, 47]);
+    for (let i = 1; i < lengths.length; i++) {
+      expect(lengths[i]).toBeGreaterThan(lengths[i - 1]);
+    }
+  });
+
+  it('validates Level 3 unequal branching: safe route (25 steps) vs risky jump shortcut (22 steps)', () => {
+    const l3 = LEVELS[2];
+    const safeResult = validateLevelSolvability(l3, false, false);
+    expect(safeResult.solvable).toBe(true);
+    expect(safeResult.pathLength).toBe(25);
+
+    const riskyResult = validateLevelSolvability(l3, false, true);
+    expect(riskyResult.solvable).toBe(true);
+    expect(riskyResult.pathLength).toBe(22);
+    expect(riskyResult.pathLength).toBeLessThan(safeResult.pathLength);
+  });
+
+  it('requires aerial jump edge to solve Level 1 over the cloud sea gap', () => {
+    const l1 = LEVELS[0];
+    const withoutJump = validateLevelSolvability(l1, false, false);
+    expect(withoutJump.solvable).toBe(false);
+
+    const withJump = validateLevelSolvability(l1, false, true);
+    expect(withJump.solvable).toBe(true);
+    expect(withJump.pathLength).toBe(15);
+  });
+
+  it('verifies Level 4 contains Kinetic Speedway mechanics: boost sweeps, catch-walls, and open abyss exits', () => {
+    const l4 = LEVELS[3];
+    const gridStr = l4.grid.join('');
+    expect((gridStr.match(/R/g) || []).length).toBeGreaterThanOrEqual(2);
+    expect((gridStr.match(/#/g) || []).length).toBeGreaterThan(0);
+    expect((gridStr.match(/ /g) || []).length).toBeGreaterThan(0);
+  });
+
+  it('verifies Level 6 contains required mechanics: dual rotors, spring leap, ramps, and optional hazard hole', () => {
+    const l6 = LEVELS[5];
+    const gridStr = l6.grid.join('');
+    expect((gridStr.match(/P/g) || []).length).toBeGreaterThanOrEqual(2);
+    expect((gridStr.match(/J/g) || []).length).toBeGreaterThanOrEqual(1);
+    expect((gridStr.match(/R/g) || []).length).toBeGreaterThanOrEqual(1);
+    expect((gridStr.match(/H/g) || []).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('verifies all 6 courses satisfy minimum corridor width rules', () => {
+    LEVELS.forEach((level) => {
+      const res = validateCorridorWidth(level);
+      expect(res.valid, `Level ${level.id} corridor violations: ${JSON.stringify(res.violations)}`).toBe(true);
+    });
+  });
+
+  it('verifies all 6 levels maintain camera-honest flow with <= 3 consecutive southward steps', () => {
+    LEVELS.forEach((level) => {
+      const res = validateLevelSolvability(level);
+      expect(res.solvable).toBe(true);
+      expect(res.maxConsecutiveSouthwardSteps).toBeLessThanOrEqual(3);
+    });
+  });
+
   it('detects an unsolvable blocked level correctly', () => {
     const blockedLevel = {
       id: 99,
@@ -53,15 +115,14 @@ describe('Level Geometry & Solvability Validator', () => {
     expect(result.pathLength).toBe(-1);
   });
 
-  it('verifies Level 1 contains the 4 tutorial coach hints', () => {
+  it('verifies Level 1 contains the 3 tutorial coach hints', () => {
     const l1 = LEVELS[0];
     expect(l1.hints).toBeDefined();
-    expect(l1.hints!.length).toBe(4);
+    expect(l1.hints!.length).toBe(3);
     const texts = l1.hints!.map((h) => h.text);
     expect(texts).toContain('TILT YOUR PHONE TO ROLL');
-    expect(texts).toContain('HOLD NITRO ON THE RAMP');
-    expect(texts).toContain('TIME YOUR PASS BETWEEN THE ARMS');
-    expect(texts).toContain('SHAKE TO JUMP (OPTIONAL)');
+    expect(texts).toContain('STEER THROUGH THE CHICANE');
+    expect(texts).toContain('COLLECT CHECKPOINT TO PROCEED');
   });
 
   it('triggers coach hints only when near cell and at most once per session', () => {
@@ -90,20 +151,15 @@ describe('Level Geometry & Solvability Validator', () => {
     // 3. Near start cell again -> returns null (already shown once)
     expect(checkCoachHints(nearPos, l1, shown)).toBeNull();
 
-    // 4. Approach ramp cell (x=4, y=10) -> returns second hint
-    const rampX = originX + 4 * l1.cellSize + l1.cellSize / 2;
-    const rampZ = originZ + 10 * l1.cellSize + l1.cellSize / 2;
-    expect(checkCoachHints({ x: rampX, z: rampZ }, l1, shown)).toBe('HOLD NITRO ON THE RAMP');
+    // 4. Approach chicane cell (x=3, y=9) -> returns second hint
+    const chicaneX = originX + 3 * l1.cellSize + l1.cellSize / 2;
+    const chicaneZ = originZ + 9 * l1.cellSize + l1.cellSize / 2;
+    expect(checkCoachHints({ x: chicaneX, z: chicaneZ }, l1, shown)).toBe('STEER THROUGH THE CHICANE');
 
-    // 5. Approach spinner cell (x=4, y=7) -> returns third hint
-    const spinX = originX + 4 * l1.cellSize + l1.cellSize / 2;
-    const spinZ = originZ + 7 * l1.cellSize + l1.cellSize / 2;
-    expect(checkCoachHints({ x: spinX, z: spinZ }, l1, shown)).toBe('TIME YOUR PASS BETWEEN THE ARMS');
-
-    // 6. Approach bounce pad cell (x=2, y=4) -> returns fourth hint
-    const bncX = originX + 2 * l1.cellSize + l1.cellSize / 2;
-    const bncZ = originZ + 4 * l1.cellSize + l1.cellSize / 2;
-    expect(checkCoachHints({ x: bncX, z: bncZ }, l1, shown)).toBe('SHAKE TO JUMP (OPTIONAL)');
+    // 5. Approach checkpoint cell (x=4, y=5) -> returns third hint
+    const cpX = originX + 4 * l1.cellSize + l1.cellSize / 2;
+    const cpZ = originZ + 5 * l1.cellSize + l1.cellSize / 2;
+    expect(checkCoachHints({ x: cpX, z: cpZ }, l1, shown)).toBe('COLLECT CHECKPOINT TO PROCEED');
   });
 
   it('formats time with exact centisecond precision without IEEE-754 float drift', () => {

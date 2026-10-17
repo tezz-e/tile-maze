@@ -17,7 +17,6 @@ export interface ControllerInputState {
 }
 
 export interface KeyboardControllerOptions {
-  onToggleTelemetryLab?: () => void;
   onToggleCameraView?: () => void;
   onToggleQuality?: () => void;
 }
@@ -30,12 +29,10 @@ export class KeyboardController {
   private currentRoll = 0;
   private shakeTriggered = false;
   private recalibrateTriggered = false;
-  private onToggleTelemetryLab?: () => void;
   private onToggleCameraView?: () => void;
   private onToggleQuality?: () => void;
 
   constructor(options?: KeyboardControllerOptions) {
-    this.onToggleTelemetryLab = options?.onToggleTelemetryLab;
     this.onToggleCameraView = options?.onToggleCameraView;
     this.onToggleQuality = options?.onToggleQuality;
     this.setupListeners();
@@ -52,10 +49,6 @@ export class KeyboardController {
 
       if (e.code === 'KeyC' && !e.repeat) {
         this.recalibrateTriggered = true;
-      }
-
-      if (e.code === 'KeyT' && !e.repeat) {
-        this.onToggleTelemetryLab?.();
       }
 
       if (e.code === 'KeyV' && !e.repeat) {

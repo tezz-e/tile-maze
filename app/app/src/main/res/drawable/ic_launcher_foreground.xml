@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Kinetic 18° Tilt Track Rail -->
+    <path
+        android:strokeColor="#EA3323"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:pathData="M30,70 L78,56" />
+
+    <!-- Circular Maze Path Accent Arc -->
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M38,54 A16,16 0 0,1 54,38" />
+
+    <!-- Cyan Goal Beacon Node -->
+    <path
+        android:fillColor="#00F5FF"
+        android:pathData="M74,38 A4,4 0 1,1 73.99,38" />
+
+    <!-- Marble Drop Shadow -->
+    <path
+        android:fillColor="#50000000"
+        android:pathData="M54,60 C60,60 65,58.5 65,57 C65,55.5 60,54 54,54 C48,54 43,55.5 43,57 C43,58.5 48,60 54,60 Z" />
+
+    <!-- Chrome Sphere Base -->
+    <path
+        android:fillColor="#94A3B8"
+        android:pathData="M54,52 A9.5,9.5 0 1,1 53.99,52" />
+
+    <!-- Chrome Midtone -->
+    <path
+        android:fillColor="#E2E8F0"
+        android:pathData="M52.5,50.5 A7.5,7.5 0 1,1 52.49,50.5" />
+
+    <!-- Specular Highlight -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M51,48 A3,3 0 1,1 50.99,48" />
+
+    <!-- Telemetry Signature Dots -->
+    <path
+        android:fillColor="#71717A"
+        android:pathData="M34,34 A1.2,1.2 0 1,1 33.99,34" />
+    <path
+        android:fillColor="#EA3323"
+        android:pathData="M38,34 A1.2,1.2 0 1,1 37.99,34" />
+</vector>

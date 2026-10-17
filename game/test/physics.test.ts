@@ -49,9 +49,9 @@ describe('PhysicsWorld - Rotated Gravity & Stability', () => {
 
   it('caps marble velocity during sustained boost without speed explosion', () => {
     physics.loadLevel(LEVELS[0]);
-    // Give initial speed
+    // Give initial speed northward along the runway corridor
     // @ts-expect-error accessing marbleBody
-    physics.marbleBody.setLinvel({ x: 2.0, y: 0, z: 0 }, true);
+    physics.marbleBody.setLinvel({ x: 0, y: 0, z: -2.0 }, true);
 
     // Apply continuous boost over 120 frames (2 seconds)
     for (let i = 0; i < 120; i++) {
@@ -99,5 +99,65 @@ describe('PhysicsWorld - Rotated Gravity & Stability', () => {
     const p1 = physics.getMarblePosition();
     const distMoved = Math.hypot(p1.x - p0.x, p1.z - p0.z);
     expect(distMoved).toBeGreaterThan(0.2);
+  });
+
+  it('accelerates rotor speeds by 25% in Hard Mode compared to Medium Mode', () => {
+    physics.loadLevel(LEVELS[1], 'medium');
+    const mediumSpinners = physics.getSpinners();
+    expect(mediumSpinners.length).toBeGreaterThan(0);
+    const mediumSpeed = Math.abs(mediumSpinners[0].speed);
+
+    physics.loadLevel(LEVELS[1], 'hard');
+    const hardSpinners = physics.getSpinners();
+    const hardSpeed = Math.abs(hardSpinners[0].speed);
+
+    expect(hardSpeed).toBeCloseTo(mediumSpeed * 1.25, 4);
+    expect(physics.getDifficulty()).toBe('hard');
+  });
+
+  it('generates physical safety guardrails in Easy Mode along exposed cliff edges', () => {
+    physics.loadLevel(LEVELS[1], 'medium');
+    let mediumColliders = 0;
+    // @ts-expect-error accessing world for collider counting
+    physics.world.forEachCollider(() => {
+      mediumColliders++;
+    });
+
+    physics.loadLevel(LEVELS[1], 'easy');
+    let easyColliders = 0;
+    // @ts-expect-error accessing world for collider counting
+    physics.world.forEachCollider(() => {
+      easyColliders++;
+    });
+
+    // Easy mode should have significantly more colliders for safety barriers along open edges
+    expect(easyColliders).toBeGreaterThan(mediumColliders + 10);
+    expect(physics.getDifficulty()).toBe('easy');
+  });
+
+  it('preserves jump gap trajectory in Easy Mode so gap leaps are not blocked', () => {
+    // Level 1 has a jump gap from (4, 4) north to (4, 2)
+    physics.loadLevel(LEVELS[0], 'easy');
+    const l1 = LEVELS[0];
+    const cellSize = l1.cellSize;
+    const originX = -(l1.grid[0].length * cellSize) / 2;
+    const originZ = -(l1.grid.length * cellSize) / 2;
+    const launchX = originX + 4 * cellSize + cellSize / 2;
+    const launchZ = originZ + 4 * cellSize + cellSize / 2;
+
+    // Place marble on launch ramp heading north towards goal
+    // @ts-expect-error accessing marbleBody
+    physics.marbleBody.setTranslation({ x: launchX, y: 0.4, z: launchZ }, true);
+    // @ts-expect-error accessing marbleBody
+    physics.marbleBody.setLinvel({ x: 0, y: 2.0, z: -8.0 }, true);
+
+    for (let i = 0; i < 15; i++) {
+      physics.step(0.016);
+    }
+
+    // Marble should have crossed north past the gap (z should be significantly less than launchZ)
+    // @ts-expect-error accessing marbleBody
+    const currentZ = physics.marbleBody.translation().z;
+    expect(currentZ).toBeLessThan(launchZ - cellSize);
   });
 });

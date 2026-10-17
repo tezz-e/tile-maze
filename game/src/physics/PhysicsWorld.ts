@@ -1,5 +1,28 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import type { LevelDef } from '../levels/LevelData.js';
+import { LEVEL_JUMP_EDGES } from '../levels/LevelData.js';
+
+export type DifficultyMode = 'easy' | 'medium' | 'hard';
+
+function isJumpGapEdge(levelId: number, c: number, r: number, edge: 'north' | 'south' | 'east' | 'west'): boolean {
+  const jumps = LEVEL_JUMP_EDGES[levelId];
+  if (!jumps) return false;
+  for (const j of jumps) {
+    if (j.from.x === c && j.from.y === r) {
+      if (j.to.y < j.from.y && edge === 'north') return true;
+      if (j.to.y > j.from.y && edge === 'south') return true;
+      if (j.to.x < j.from.x && edge === 'west') return true;
+      if (j.to.x > j.from.x && edge === 'east') return true;
+    }
+    if (j.to.x === c && j.to.y === r) {
+      if (j.from.y < j.to.y && edge === 'north') return true;
+      if (j.from.y > j.to.y && edge === 'south') return true;
+      if (j.from.x < j.to.x && edge === 'west') return true;
+      if (j.from.x > j.to.x && edge === 'east') return true;
+    }
+  }
+  return false;
+}
 
 export interface CollisionCallbacks {
   onWallImpact: (intensity: number) => void;
@@ -8,6 +31,7 @@ export interface CollisionCallbacks {
   onGoalReached: () => void;
   onBoostPad: () => void;
   onBouncer?: () => void;
+  onGoalBlocked?: (reached: number, total: number) => void;
 }
 
 export interface SpinnerObject {
@@ -24,6 +48,69 @@ export interface BouncerObject {
 
 const BASE_GRAVITY = -9.81;
 export const MAX_BOARD_TILT_RAD = (18.0 * Math.PI) / 180.0; // 18 degrees maximum physical tilt
+export const WALL_PHYSICAL_HEIGHT = 2.8; // Tall invisible barrier height to prevent jumping over maze dividers
+
+export interface FloorRect {
+  col: number;
+  row: number;
+  width: number;
+  depth: number;
+}
+
+/**
+ * Merges contiguous floor tiles along rows and columns into maximal rectangular
+ * box colliders to eliminate internal-edge seam bounces on the 0.64m marble.
+ */
+export function mergeFloorTiles(grid: string[]): FloorRect[] {
+  if (!grid || grid.length === 0 || !grid[0]) return [];
+  const rows = grid.length;
+  const cols = grid[0].length;
+  const isFloor: boolean[][] = [];
+
+  for (let r = 0; r < rows; r++) {
+    isFloor[r] = [];
+    for (let c = 0; c < cols; c++) {
+      isFloor[r][c] = grid[r][c] !== ' ';
+    }
+  }
+
+  const visited: boolean[][] = Array.from({ length: rows }, () => Array(cols).fill(false));
+  const rects: FloorRect[] = [];
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (!isFloor[r][c] || visited[r][c]) continue;
+
+      let width = 0;
+      while (c + width < cols && isFloor[r][c + width] && !visited[r][c + width]) {
+        width++;
+      }
+
+      let depth = 1;
+      while (r + depth < rows) {
+        let canExtend = true;
+        for (let k = 0; k < width; k++) {
+          if (!isFloor[r + depth][c + k] || visited[r + depth][c + k]) {
+            canExtend = false;
+            break;
+          }
+        }
+        if (!canExtend) break;
+        depth++;
+      }
+
+      for (let dr = 0; dr < depth; dr++) {
+        for (let dc = 0; dc < width; dc++) {
+          visited[r + dr][c + dc] = true;
+        }
+      }
+
+      rects.push({ col: c, row: r, width, depth });
+    }
+  }
+
+  return rects;
+}
 
 export class PhysicsWorld {
   public world!: RAPIER.World;
@@ -44,8 +131,14 @@ export class PhysicsWorld {
   private totalCheckpoints = 0;
   private currentCheckpointIndex = 0;
 
+  private currentDifficulty: DifficultyMode = 'medium';
+
   constructor(callbacks: CollisionCallbacks) {
     this.callbacks = callbacks;
+  }
+
+  public getDifficulty(): DifficultyMode {
+    return this.currentDifficulty;
   }
 
   public async init(): Promise<void> {
@@ -61,7 +154,11 @@ export class PhysicsWorld {
    * Builds physical geometry for the chosen level, including spinners,
    * spring bouncers, boost ramps, and golden ring checkpoints.
    */
-  public loadLevel(level: LevelDef): { startPos: { x: number; y: number; z: number } } {
+  public loadLevel(
+    level: LevelDef,
+    difficulty: DifficultyMode = 'medium'
+  ): { startPos: { x: number; y: number; z: number } } {
+    this.currentDifficulty = difficulty;
     // Clear ALL previous rigid bodies and colliders from the Rapier physics world
     const bodiesToRemove: RAPIER.RigidBody[] = [];
     this.world.forEachRigidBody((body) => {
@@ -97,17 +194,26 @@ export class PhysicsWorld {
     const originX = -boardWidth / 2;
     const originZ = -boardDepth / 2;
 
-    // 1. Static Floor Collider (underneath the board)
-    const floorDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(0, -0.25, 0);
-    const floorBody = this.world.createRigidBody(floorDesc);
-    const floorColliderDesc = RAPIER.ColliderDesc.cuboid(boardWidth / 2 + 1.0, 0.25, boardDepth / 2 + 1.0)
-      .setFriction(0.4)
-      .setRestitution(0.15);
-    this.world.createCollider(floorColliderDesc, floorBody);
+    // 1. Static Floor Colliders: Merge contiguous floor tiles into combined box colliders
+    // to prevent internal-edge seam bounces while allowing true open-air drops over ' ' tiles
+    const floorRects = mergeFloorTiles(grid);
+    for (const rect of floorRects) {
+      const rectWidth = rect.width * cellSize;
+      const rectDepth = rect.depth * cellSize;
+      const cx = originX + rect.col * cellSize + rectWidth / 2;
+      const cz = originZ + rect.row * cellSize + rectDepth / 2;
+
+      const floorDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(cx, -0.25, cz);
+      const floorBody = this.world.createRigidBody(floorDesc);
+      const floorColliderDesc = RAPIER.ColliderDesc.cuboid(rectWidth / 2, 0.25, rectDepth / 2)
+        .setFriction(0.4)
+        .setRestitution(0.15);
+      this.world.createCollider(floorColliderDesc, floorBody);
+    }
 
     let startX = 0;
     let startZ = 0;
-    let checkpointCount = 0;
+    const checkpointCoords: Array<{ x: number; y: number; cx: number; cz: number }> = [];
 
     // 2. Iterate Level Grid to build walls, obstacles and sensors
     for (let r = 0; r < rows; r++) {
@@ -117,12 +223,12 @@ export class PhysicsWorld {
         const cz = originZ + r * cellSize + cellSize / 2;
 
         if (cell === '#') {
-          // Wall / Curb Barrier Collider
-          const wallDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(cx, level.wallHeight / 2, cz);
+          // Wall / Curb Barrier Collider - Elevated to 2.8m to prevent marble from jumping over corridors
+          const wallDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(cx, WALL_PHYSICAL_HEIGHT / 2, cz);
           const wallBody = this.world.createRigidBody(wallDesc);
-          const wallColDesc = RAPIER.ColliderDesc.cuboid(cellSize / 2, level.wallHeight / 2, cellSize / 2)
+          const wallColDesc = RAPIER.ColliderDesc.cuboid(cellSize / 2, WALL_PHYSICAL_HEIGHT / 2, cellSize / 2)
             .setFriction(0.3)
-            .setRestitution(0.4)
+            .setRestitution(0.35)
             .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
           const col = this.world.createCollider(wallColDesc, wallBody);
           this.wallColliders.push(col);
@@ -178,14 +284,7 @@ export class PhysicsWorld {
           const col = this.world.createCollider(boostColDesc, boostBody);
           this.sensorColliders.set(col.handle, { type: 'boost' });
         } else if (cell === 'C' || cell === 'O') {
-          // Floating Golden Ring Checkpoint Gate
-          const cpDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(cx, 0.5, cz);
-          const cpBody = this.world.createRigidBody(cpDesc);
-          const cpColDesc = RAPIER.ColliderDesc.cylinder(0.5, cellSize * 0.45)
-            .setSensor(true)
-            .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
-          const col = this.world.createCollider(cpColDesc, cpBody);
-          this.sensorColliders.set(col.handle, { type: 'checkpoint', index: checkpointCount++ });
+          checkpointCoords.push({ x: c, y: r, cx, cz });
         } else if (cell === 'G') {
           // Checkered Finish Line Goal Arch
           const goalDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(cx, 0.4, cz);
@@ -205,10 +304,73 @@ export class PhysicsWorld {
           const col = this.world.createCollider(holeColDesc, holeBody);
           this.sensorColliders.set(col.handle, { type: 'hole' });
         }
+
+        // Easy Mode Guardrails: for any walkable tile bordering abyss or grid boundary,
+        // erect 2.8m tall physical box colliders along exposed edges so marble cannot fall off
+        if (difficulty === 'easy' && cell !== ' ' && cell !== '#') {
+          const ht = 0.06;
+          const hh = WALL_PHYSICAL_HEIGHT / 2;
+          const hl = cellSize / 2;
+
+          const spawnGuardrail = (gx: number, gz: number, hx: number, hz: number) => {
+            const railDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(gx, hh, gz);
+            const railBody = this.world.createRigidBody(railDesc);
+            const railColDesc = RAPIER.ColliderDesc.cuboid(hx, hh, hz)
+              .setFriction(0.3)
+              .setRestitution(0.35)
+              .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+            const col = this.world.createCollider(railColDesc, railBody);
+            this.wallColliders.push(col);
+          };
+
+          // North
+          if ((r === 0 || !grid[r - 1] || grid[r - 1][c] === ' ') && !isJumpGapEdge(level.id, c, r, 'north')) {
+            spawnGuardrail(cx, cz - cellSize / 2 + ht, hl, ht);
+          }
+          // South
+          if ((r === rows - 1 || !grid[r + 1] || grid[r + 1][c] === ' ') && !isJumpGapEdge(level.id, c, r, 'south')) {
+            spawnGuardrail(cx, cz + cellSize / 2 - ht, hl, ht);
+          }
+          // West
+          if ((c === 0 || grid[r][c - 1] === ' ') && !isJumpGapEdge(level.id, c, r, 'west')) {
+            spawnGuardrail(cx - cellSize / 2 + ht, cz, ht, hl);
+          }
+          // East
+          if ((c === cols - 1 || grid[r][c + 1] === ' ') && !isJumpGapEdge(level.id, c, r, 'east')) {
+            spawnGuardrail(cx + cellSize / 2 - ht, cz, ht, hl);
+          }
+        }
       }
     }
 
-    this.totalCheckpoints = checkpointCount;
+    // Hard Mode: accelerate rotor speeds by 25% for tighter obstacle timing
+    if (difficulty === 'hard') {
+      for (const spinner of this.spinners) {
+        spinner.speed *= 1.25;
+      }
+    }
+
+    // Sort checkpoints: use level.checkpointOrder if defined, otherwise strictly south-to-north
+    if (level.checkpointOrder && level.checkpointOrder.length === checkpointCoords.length) {
+      checkpointCoords.sort((a, b) => {
+        const idxA = level.checkpointOrder!.findIndex((p) => p.x === a.x && p.y === a.y);
+        const idxB = level.checkpointOrder!.findIndex((p) => p.x === b.x && p.y === b.y);
+        return (idxA !== -1 ? idxA : 999) - (idxB !== -1 ? idxB : 999);
+      });
+    } else {
+      checkpointCoords.sort((a, b) => b.y - a.y || a.x - b.x);
+    }
+    for (let i = 0; i < checkpointCoords.length; i++) {
+      const cp = checkpointCoords[i];
+      const cpDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(cp.cx, 0.5, cp.cz);
+      const cpBody = this.world.createRigidBody(cpDesc);
+      const cpColDesc = RAPIER.ColliderDesc.cylinder(0.5, cellSize * 0.45)
+        .setSensor(true)
+        .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+      const col = this.world.createCollider(cpColDesc, cpBody);
+      this.sensorColliders.set(col.handle, { type: 'checkpoint', index: i });
+    }
+    this.totalCheckpoints = checkpointCoords.length;
 
     // 3. Spawn Dynamic Marble RigidBody
     const marbleRadius = 0.32;
@@ -257,9 +419,9 @@ export class PhysicsWorld {
 
     if (shake) {
       const pos = this.marbleBody.translation();
-      // Shake-to-Jump vertical pop - only when grounded (y near floor ~0.32)
+      // Shake-to-Jump vertical pop - controlled hop (0.9) to prevent wall jumping
       if (pos.y < 0.45) {
-        this.marbleBody.applyImpulse({ x: 0, y: 1.6, z: 0 }, true);
+        this.marbleBody.applyImpulse({ x: 0, y: 0.9, z: 0 }, true);
       }
     }
 
@@ -331,7 +493,11 @@ export class PhysicsWorld {
           this.currentCheckpointIndex = Math.max(this.currentCheckpointIndex, idx + 1);
           this.callbacks.onCheckpoint(idx);
         } else if (sensor.type === 'goal') {
-          this.callbacks.onGoalReached();
+          if (this.currentCheckpointIndex < this.totalCheckpoints) {
+            this.callbacks.onGoalBlocked?.(this.currentCheckpointIndex, this.totalCheckpoints);
+          } else {
+            this.callbacks.onGoalReached();
+          }
         } else if (sensor.type === 'boost') {
           // Speed Boost Ramp: forward propulsion along travel heading (or -Z towards goal if slow)
           const vel = this.marbleBody.linvel();
@@ -363,9 +529,9 @@ export class PhysicsWorld {
       }
     });
 
-    // Check if marble fell off the board into the cloud sea
+    // Check if marble fell off the board into the cloud sea or through an open ' ' air gap
     const pos = this.marbleBody.translation();
-    if (pos.y < -3.5) {
+    if (pos.y < -3.0) {
       this.callbacks.onHoleFall();
       this.respawnAtLastCheckpoint();
     }
@@ -410,5 +576,9 @@ export class PhysicsWorld {
       current: this.currentCheckpointIndex,
       total: Math.max(this.totalCheckpoints, 1),
     };
+  }
+
+  public allCheckpointsReached(): boolean {
+    return this.currentCheckpointIndex >= this.totalCheckpoints;
   }
 }

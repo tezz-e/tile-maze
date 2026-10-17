@@ -55,6 +55,23 @@ app.get('/api/info', (req, res) => {
   });
 });
 
+// Direct APK Download Endpoint (For judges & quick sideloading without Android Studio)
+const apkCandidatePaths = [
+  path.resolve(__dirname, '../../app-debug.apk'),
+  path.resolve(__dirname, '../../app/app/build/outputs/apk/debug/app-debug.apk'),
+];
+
+app.get(['/apk', '/download/apk', '/tiltmaze.apk'], (req, res) => {
+  for (const apkPath of apkCandidatePaths) {
+    if (fs.existsSync(apkPath)) {
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.setHeader('Content-Disposition', 'attachment; filename="Tiltmaze-Controller.apk"');
+      return res.sendFile(apkPath);
+    }
+  }
+  res.status(404).send('APK not found on server. Please download from GitHub Releases or build via `./gradlew assembleDebug`.');
+});
+
 // Serve built game static files from game/dist if available
 const gameDistPath = path.resolve(__dirname, '../../game/dist');
 if (fs.existsSync(gameDistPath)) {
@@ -95,6 +112,21 @@ if (fs.existsSync(gameDistPath)) {
 }
 
 /**
+ * Safely dispatches data over a WebSocket without throwing on closing states.
+ */
+export function safeSend(ws: WebSocket | null | undefined, data: any, options?: { binary?: boolean }): void {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    try {
+      ws.send(data, options as any, (err) => {
+        if (err) console.warn('[WebSocket Send Error]', err.message);
+      });
+    } catch (err: any) {
+      console.warn('[WebSocket Send Exception]', err.message);
+    }
+  }
+}
+
+/**
  * Processes incoming WebSocket message frames (binary telemetry or JSON control).
  */
 export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buffer[], isBinary: boolean): void {
@@ -132,7 +164,7 @@ export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buff
         return;
       }
       // Zero-copy direct pass-through to the laptop host socket
-      room.hostSocket.send(buf, { binary: true });
+      safeSend(room.hostSocket, buf, { binary: true });
     }
     return;
   }
@@ -164,7 +196,7 @@ export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buff
         lanIp,
         port: PORT,
       };
-      socket.send(serializeControlMessage(reply));
+      safeSend(socket, serializeControlMessage(reply));
       console.log(`[Room] Host created room ${room.code} (LAN: ${lanIp}:${PORT})`);
       break;
     }
@@ -181,7 +213,7 @@ export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buff
           lanIp,
           port: PORT,
         };
-        socket.send(serializeControlMessage(reply));
+        safeSend(socket, serializeControlMessage(reply));
         console.log(`[Room ${room.code}] Host reconnected with session ${msg.hostSessionId}`);
         for (const player of room.players.values()) {
           if (player.connected) {
@@ -191,7 +223,7 @@ export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buff
               sessionId: player.sessionId,
               deviceName: player.deviceName,
             };
-            socket.send(serializeControlMessage(joinNotif));
+            safeSend(socket, serializeControlMessage(joinNotif));
           }
         }
       } else {
@@ -203,7 +235,7 @@ export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buff
           lanIp,
           port: PORT,
         };
-        socket.send(serializeControlMessage(reply));
+        safeSend(socket, serializeControlMessage(reply));
         console.log(`[Room] Host reconnect failed for ${msg.roomCode}; created new room ${room.code}`);
       }
       break;
@@ -217,7 +249,7 @@ export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buff
           code: result.error,
           message: result.message,
         };
-        socket.send(serializeControlMessage(err));
+        safeSend(socket, serializeControlMessage(err));
         return;
       }
 
@@ -229,7 +261,7 @@ export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buff
         sessionId: result.sessionId,
         assignedName: result.assignedName,
       };
-      socket.send(serializeControlMessage(joinedMsg));
+      safeSend(socket, serializeControlMessage(joinedMsg));
 
       // Notify host
       if (result.room.hostSocket && result.room.hostSocket.readyState === WebSocket.OPEN) {
@@ -239,7 +271,7 @@ export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buff
             playerSlot: result.slot,
             sessionId: result.sessionId,
           };
-          result.room.hostSocket.send(serializeControlMessage(reconMsg));
+          safeSend(result.room.hostSocket, serializeControlMessage(reconMsg));
           console.log(`[Room ${result.room.code}] Player ${result.slot} reconnected (session: ${result.sessionId})`);
         } else {
           const joinNotif: ControlMessage = {
@@ -248,7 +280,7 @@ export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buff
             sessionId: result.sessionId,
             deviceName: result.assignedName,
           };
-          result.room.hostSocket.send(serializeControlMessage(joinNotif));
+          safeSend(result.room.hostSocket, serializeControlMessage(joinNotif));
           console.log(`[Room ${result.room.code}] Player ${result.slot} joined: ${result.assignedName}`);
         }
       }
@@ -257,7 +289,7 @@ export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buff
 
     case 'NTP_PING': {
       const pong = handleNtpPing(msg);
-      socket.send(serializeControlMessage(pong));
+      safeSend(socket, serializeControlMessage(pong));
       break;
     }
 
@@ -269,7 +301,7 @@ export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buff
         if (room) {
           const targetPlayer = room.players.get(msg.playerSlot);
           if (targetPlayer && targetPlayer.socket && targetPlayer.socket.readyState === WebSocket.OPEN) {
-            targetPlayer.socket.send(serializeControlMessage(msg));
+            safeSend(targetPlayer.socket, serializeControlMessage(msg));
           }
         }
       }
@@ -285,12 +317,12 @@ export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buff
           if (msg.playerSlot) {
             const target = room.players.get(msg.playerSlot);
             if (target?.socket?.readyState === WebSocket.OPEN) {
-              target.socket.send(serializeControlMessage(msg));
+              safeSend(target.socket, serializeControlMessage(msg));
             }
           } else {
             for (const p of room.players.values()) {
               if (p.socket?.readyState === WebSocket.OPEN) {
-                p.socket.send(serializeControlMessage(msg));
+                safeSend(p.socket, serializeControlMessage(msg));
               }
             }
           }
@@ -305,7 +337,7 @@ export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buff
       if (meta && meta.role === 'controller') {
         const room = roomManager.getRoom(meta.roomCode);
         if (room?.hostSocket?.readyState === WebSocket.OPEN) {
-          room.hostSocket.send(serializeControlMessage(msg));
+          safeSend(room.hostSocket, serializeControlMessage(msg));
         }
       }
       break;
@@ -320,7 +352,7 @@ export function onMessage(socket: ExtWebSocket, raw: Buffer | ArrayBuffer | Buff
           const payload = serializeControlMessage(msg);
           for (const p of room.players.values()) {
             if (p.socket?.readyState === WebSocket.OPEN) {
-              p.socket.send(payload);
+              safeSend(p.socket, payload);
             }
           }
         }
@@ -362,7 +394,7 @@ wss.on('connection', (socket: ExtWebSocket, req) => {
             playerSlot: slot,
             sessionId,
           };
-          room.hostSocket.send(serializeControlMessage(leftMsg));
+          safeSend(room.hostSocket, serializeControlMessage(leftMsg));
           console.log(`[Room ${room.code}] Player ${slot} grace period expired; slot freed`);
         }
       },
@@ -381,7 +413,7 @@ wss.on('connection', (socket: ExtWebSocket, req) => {
           sessionId: meta.sessionId,
           gracePeriodSeconds: DEFAULT_GRACE_PERIOD_MS / 1000,
         };
-        room.hostSocket.send(serializeControlMessage(disconnectMsg));
+        safeSend(room.hostSocket, serializeControlMessage(disconnectMsg));
         console.log(`[Room ${meta.roomCode}] Player ${meta.slot} disconnected (60s grace active)`);
       }
     }
@@ -390,6 +422,40 @@ wss.on('connection', (socket: ExtWebSocket, req) => {
   socket.on('error', (err) => {
     console.error('[WebSocket Error]', err.message);
   });
+});
+
+// Process-level resilience against crashes
+process.on('uncaughtException', (err) => {
+  console.error('[Server UncaughtException]', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[Server UnhandledRejection]', reason);
+});
+
+server.on('error', (err) => {
+  console.error('[HTTP Server Error]', err.message);
+});
+
+server.on('clientError', (err: any, socket: any) => {
+  console.warn('[HTTP Client Error]', err.message);
+  if (err.code === 'ECONNRESET' || !socket.writable) {
+    try {
+      socket.destroy();
+    } catch {}
+    return;
+  }
+  try {
+    socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+  } catch {
+    try {
+      socket.destroy();
+    } catch {}
+  }
+});
+
+wss.on('error', (err) => {
+  console.error('[WSS Server Error]', err.message);
 });
 
 // Periodic heartbeat to prune dead sockets

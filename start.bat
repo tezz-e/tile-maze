@@ -1,27 +1,42 @@
 @echo off
+setlocal
 echo ========================================================
-echo   TILTMAZE: KINETIC EDITION - 1-Click Startup
+echo   TILTMAZE: KINETIC EDITION - Windows Startup
 echo ========================================================
 echo.
 
 cd /d "%~dp0"
 
-echo [1/3] Building Protocol Package...
-call npm.cmd --workspace=packages/protocol run build
+where node >nul 2>nul
 if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Protocol build failed.
+    echo [ERROR] Node.js is not installed or not in PATH.
+    echo Please install Node.js 18+ from https://nodejs.org
+    pause
+    exit /b 1
+)
+
+if not exist "node_modules\" (
+    echo [1/3] Installing dependencies...
+    call npm.cmd install
+    if %ERRORLEVEL% neq 0 (
+        echo [ERROR] Dependency installation failed.
+        pause
+        exit /b %ERRORLEVEL%
+    )
+) else (
+    echo [1/3] Dependencies found.
+)
+
+echo [2/3] Building packages and game client...
+call npm.cmd run build
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] Build failed.
     pause
     exit /b %ERRORLEVEL%
 )
 
-echo [2/3] Building Game Client...
-call npm.cmd --workspace=game run build
-if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Game build failed.
-    pause
-    exit /b %ERRORLEVEL%
-)
-
-echo [3/3] Launching WebSocket Relay Server and Static Host...
+echo [3/3] Launching server on http://localhost:3000...
 start http://localhost:3000
-call npm.cmd --workspace=server start
+node server/dist/index.js
+
+endlocal

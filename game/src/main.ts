@@ -9,10 +9,10 @@ import { OneEuroFilter } from './input/OneEuroFilter.js';
 import { GameNetwork } from './net/GameNetwork.js';
 import { LobbyUI } from './ui/LobbyUI.js';
 import { GameHUD } from './ui/GameHUD.js';
-import { TelemetryLab } from './ui/TelemetryLab.js';
 import { ClickSpark } from './ui/ClickSpark.js';
 import { LEVELS, type LevelDef, checkCoachHints } from './levels/LevelData.js';
 import { EffectsManager } from './world/EffectsManager.js';
+import type { DifficultyMode } from './physics/PhysicsWorld.js';
 
 export const GAME_FEEL_CONFIG = {
   nitroFovEnabled: true,
@@ -44,13 +44,16 @@ class GameApp {
   private keyboard!: KeyboardController;
   private pitchFilter = new OneEuroFilter(1.2, 0.4);
   private rollFilter = new OneEuroFilter(1.2, 0.4);
+  private phonePitchFilter = new OneEuroFilter(0.85, 0.25);
+  private phoneRollFilter = new OneEuroFilter(0.85, 0.25);
+  private currentCameraRoll = 0;
   private network!: GameNetwork;
 
   // UI Systems
   private lobbyUI!: LobbyUI;
   private hud!: GameHUD;
-  private telemetryLab!: TelemetryLab;
   private clickSpark = new ClickSpark();
+  private currentDifficulty: DifficultyMode = 'medium';
 
   // State
   private currentLevelIndex = 0;
@@ -74,6 +77,7 @@ class GameApp {
   private prevPhoneBoost = false;
   private prevPhoneBrake = false;
   private isTransitioning = false;
+  private nextLightningTime = 0;
 
   constructor() {
     this.loadCameraPreference();
@@ -86,6 +90,18 @@ class GameApp {
 
   private setupKeyboardShortcuts(): void {
     window.addEventListener('keydown', (e) => {
+      if (this.hud && this.hud.isDisconnectShowing()) {
+        if (e.code === 'Enter' || e.code === 'Space') {
+          e.preventDefault();
+          this.hud.continueWithKeyboard();
+          return;
+        } else if (e.code === 'Escape') {
+          e.preventDefault();
+          this.hud.hideDisconnectOverlay();
+          this.returnToLobby();
+          return;
+        }
+      }
       if (this.hud && this.hud.isVictoryShowing()) {
         if (e.code === 'Enter' || e.code === 'Space') {
           e.preventDefault();
@@ -109,9 +125,8 @@ class GameApp {
     this.isLowQuality = low;
     this.environment.setQuality(low);
     this.effectsManager.setQuality(low);
-    this.telemetryLab.setLowQuality(low);
-    const msg = low ? 'LOW QUALITY MODE (45 FPS GUARD)' : 'HIGH QUALITY MODE';
-    this.hud.showToast(reason ? `${msg} // ${reason}` : msg, low ? '#f59e0b' : '#38bdf8');
+    const msg = low ? 'Low graphics mode enabled' : 'High graphics mode enabled';
+    this.hud.showToast(msg, low ? '#f59e0b' : '#38bdf8');
   }
 
   private loadCameraPreference(): void {
@@ -132,7 +147,7 @@ class GameApp {
     } catch {
       // Ignore localStorage errors
     }
-    this.hud.showToast(`CAMERA // ${this.cameraMode.toUpperCase()}`);
+    this.hud.showToast(`Camera: ${this.cameraMode === 'standard' ? 'Standard' : 'Cinematic'}`);
   }
 
   private initGraphics(): void {
@@ -175,25 +190,31 @@ class GameApp {
       onHoleFall: () => {
         if (this.isVictoryCelebration) return;
         this.sounds.playHoleFall();
-        this.hud.showToast('HAZARD! MARBLE FELL', '#ef4444');
+        this.hud.showToast('Hazard — respawning marble', '#ef4444');
         this.network.sendHaptic(1, 'warning', 250);
+        this.environment.setSanctumDimming(1.0);
         this.physics.respawnAtLastCheckpoint();
       },
       onCheckpoint: (idx) => {
         this.sounds.playCheckpoint();
         const cp = this.physics.getCheckpointProgress();
         this.hud.setCheckpoints(cp.current, cp.total);
-        this.hud.showToast(`CHECKPOINT ${idx + 1} REACHED!`, '#38bdf8');
+        this.hud.showToast(`Checkpoint ${idx + 1} reached`, '#38bdf8');
         this.network.sendHaptic(1, 'success', 80);
         this.effectsManager.triggerCheckpointBurst(this.physics.getMarblePosition());
+        this.board.collectCheckpoint(idx);
       },
       onGoalReached: () => {
         if (this.isVictoryCelebration) return;
         this.isVictoryCelebration = true;
         this.victoryTime = 0;
-        this.sounds.playWin();
+        if (this.currentLevelIndex === LEVELS.length - 1) {
+          this.sounds.playGrandVictoryFanfare();
+        } else {
+          this.sounds.playWin();
+        }
         this.effectsManager.triggerVictoryBurst(this.physics.getMarblePosition());
-        this.hud.showVictory();
+        this.hud.showVictory(this.currentLevelIndex, LEVELS.length);
         this.network.sendHaptic(1, 'success', 400);
         this.network.sendGameStateSync('VICTORY', this.currentLevelIndex);
         if (this.physics.marbleBody) {
@@ -203,13 +224,18 @@ class GameApp {
       },
       onBoostPad: () => {
         this.sounds.playBoost();
-        this.hud.showToast('NITRO BOOST!', '#f59e0b');
+        this.hud.showToast('Speed Boost', '#f59e0b');
         this.network.sendHaptic(1, 'impactLight', 80);
       },
       onBouncer: () => {
         this.sounds.playSpring();
-        this.hud.showToast('SPRING BOUNCE!', '#f43f5e');
+        this.hud.showToast('Spring Bounce', '#f43f5e');
         this.network.sendHaptic(1, 'impactLight', 120);
+      },
+      onGoalBlocked: (reached, total) => {
+        this.sounds.playImpact(0.4);
+        this.hud.showToast(`Checkpoints required: ${reached}/${total}`, '#f59e0b');
+        this.network.sendHaptic(1, 'warning', 150);
       },
     });
 
@@ -224,34 +250,38 @@ class GameApp {
 
     // 3. Controllers
     this.keyboard = new KeyboardController({
-      onToggleTelemetryLab: () => this.telemetryLab.toggle(),
       onToggleCameraView: () => this.toggleCameraView(),
       onToggleQuality: () => this.toggleQualityMode(),
     });
 
     // 4. UI
-    this.telemetryLab = new TelemetryLab(uiLayer);
-
     this.hud = new GameHUD(uiLayer, {
       onNextLevel: () => this.nextLevel(),
       onRestartLevel: () => this.startLevel(this.currentLevelIndex),
       onReturnToLobby: () => this.returnToLobby(),
-      onToggleTelemetryLab: () => this.telemetryLab.toggle(),
       onToggleCameraView: () => this.toggleCameraView(),
     });
 
+    try {
+      const savedDiff = localStorage.getItem('tiltmaze_difficulty');
+      if (savedDiff === 'easy' || savedDiff === 'medium' || savedDiff === 'hard') {
+        this.currentDifficulty = savedDiff;
+      }
+    } catch {}
+
     this.lobbyUI = new LobbyUI(uiLayer, {
-      onStartGame: (level) => {
+      onStartGame: (level, difficulty) => {
+        this.currentDifficulty = difficulty;
         this.forceKeyboardMode = false;
         this.currentLevelIndex = level.id - 1;
         this.startLevel(this.currentLevelIndex);
       },
-      onPlayKeyboard: (level) => {
+      onPlayKeyboard: (level, difficulty) => {
+        this.currentDifficulty = difficulty;
         this.forceKeyboardMode = true;
         this.currentLevelIndex = level.id - 1;
         this.startLevel(this.currentLevelIndex);
       },
-      onOpenTelemetryLab: () => this.telemetryLab.toggle(),
     });
 
     // 5. Network
@@ -294,14 +324,8 @@ class GameApp {
         }
         this.hud.showToast(`Player ${p.playerSlot} Left`, '#94a3b8');
       },
-      onLatencyUpdate: (rttMs, skewMs) => {
-        const ctrl = this.network.getController(1);
-        this.telemetryLab.updateMetrics(
-          rttMs,
-          skewMs,
-          ctrl?.packetRateHz ?? 60,
-          ctrl?.jitterMs ?? 0
-        );
+      onLatencyUpdate: (_rttMs, _skewMs) => {
+        // Network round-trip latency and clock skew monitored
       },
       onRawPacketReceived: (raw) => {
         this.lastRawBuffer = raw;
@@ -317,7 +341,7 @@ class GameApp {
   }
 
   private loadLevelData(level: LevelDef): void {
-    const isNight = level.id === 4 || (level.theme && level.theme.sunIntensity < 2.0);
+    const isNight = level.id === 6 || (level.theme && level.theme.sunIntensity < 2.0);
     if (level.theme) {
       this.environment.applyTheme(level.theme, isNight);
     }
@@ -328,9 +352,10 @@ class GameApp {
     this.effectsManager?.reset();
     this.wasAirborne = false;
     this.prevLinvelY = 0;
-    this.board.buildLevel(level);
-    const { startPos } = this.physics.loadLevel(level);
+    this.board.buildLevel(level, this.currentDifficulty);
+    const { startPos } = this.physics.loadLevel(level, this.currentDifficulty);
     this.marble.mesh.position.set(startPos.x, startPos.y, startPos.z);
+    this.hud.setDifficulty(this.currentDifficulty);
 
     // Follow camera initial setup (standard vs cinematic view)
     const isStandard = this.cameraMode === 'standard';
@@ -341,6 +366,10 @@ class GameApp {
     this.cameraTarget.set(startPos.x, startPos.y + 0.65, startPos.z - 5.5);
     this.camera.position.copy(this.cameraPosition);
     this.camera.lookAt(this.cameraTarget);
+    this.currentCameraRoll = 0;
+    this.camera.rotation.z = 0;
+    this.phonePitchFilter.reset();
+    this.phoneRollFilter.reset();
 
     const cp = this.physics.getCheckpointProgress();
     this.hud.setCheckpoints(cp.current, cp.total);
@@ -373,10 +402,13 @@ class GameApp {
       this.levelStartTime = performance.now();
       this.isVictoryCelebration = false;
       this.victoryTime = 0;
+      this.environment.setSanctumDimming(1.0);
+      this.nextLightningTime = performance.now() + 5000 + Math.random() * 4000;
       this.sounds.resume();
       const level = LEVELS[idx];
       this.loadLevelData(level);
       this.hud.setLevel(level);
+      this.hud.setDifficulty(this.currentDifficulty);
       this.isPlaying = true;
       this.isPhysicsPaused = false;
       this.hud.hideDisconnectOverlay();
@@ -427,6 +459,8 @@ class GameApp {
     }
 
     if (this.network.consumeRecalibrate(1)) {
+      this.phonePitchFilter.reset();
+      this.phoneRollFilter.reset();
       this.smoothedPitch = 0;
       this.smoothedRoll = 0;
     }
@@ -463,13 +497,13 @@ class GameApp {
       shake = this.network.consumeShake(1);
       isKeyboard = false;
 
-      // Frame-rate-independent exponential smoother to interpolate between 60Hz packets
-      const k = 1 - Math.exp(-dt / 0.02);
-      this.smoothedPitch += (phoneCtrl.pitch - this.smoothedPitch) * k;
-      this.smoothedRoll += (phoneCtrl.roll - this.smoothedRoll) * k;
+      // Adaptive One-Euro Filtering for phone IMU motion to eliminate Wi-Fi latency & sensor jitter
+      const nowSec = now / 1000;
+      finalPitch = this.phonePitchFilter.filter(phoneCtrl.pitch, nowSec);
+      finalRoll = this.phoneRollFilter.filter(phoneCtrl.roll, nowSec);
 
-      finalPitch = this.smoothedPitch;
-      finalRoll = this.smoothedRoll;
+      this.smoothedPitch = finalPitch;
+      this.smoothedRoll = finalRoll;
     } else {
       boost = kb.boost;
       brake = kb.brake;
@@ -484,13 +518,8 @@ class GameApp {
       this.smoothedRoll = finalRoll;
     }
 
-    // Update Telemetry Lab if visible
-    if (this.telemetryLab.isOpen() && this.lastRawBuffer) {
-      this.telemetryLab.updatePacket(this.lastRawBuffer, finalPitch);
-    }
-
-    // Update Environment (clouds breathing)
-    this.environment.update(now / 1000);
+    // Update Environment (clouds breathing, lightning decays, sanctum eases)
+    this.environment.update(now / 1000, dt);
 
     if (!this.isPlaying) {
       this.lobbyUI.updateLiveTilt(finalPitch, finalRoll);
@@ -530,8 +559,29 @@ class GameApp {
 
       this.marble.update(marblePos, marbleRot, speed);
 
+      const currentLevel = LEVELS[this.currentLevelIndex];
+
+      // Atmospheric Storm Lightning (Level 5)
+      if (currentLevel?.lightingProfile?.hasLightning && now >= this.nextLightningTime) {
+        this.environment.triggerLightning(0.75 + Math.random() * 0.45);
+        this.nextLightningTime = now + 6500 + Math.random() * 4500;
+      }
+
+      // Blackout Sanctum dynamic ambient dimming (Level 6)
+      if (currentLevel?.lightingProfile?.blackoutSanctumRow !== undefined) {
+        const sanctumRow = currentLevel.lightingProfile.blackoutSanctumRow;
+        const boardDepth = currentLevel.grid.length * currentLevel.cellSize;
+        const originZ = -boardDepth / 2;
+        const thresholdZ = originZ + (sanctumRow + 0.5) * currentLevel.cellSize;
+        if (marblePos.z <= thresholdZ) {
+          this.environment.setSanctumDimming(0.12);
+        } else {
+          this.environment.setSanctumDimming(1.0);
+        }
+      }
+
       // Check coach toast trigger cells
-      const coachHint = checkCoachHints(marblePos, LEVELS[this.currentLevelIndex], this.sessionShownHints);
+      const coachHint = checkCoachHints(marblePos, currentLevel, this.sessionShownHints);
       if (coachHint) {
         this.hud.showCoachToast(coachHint);
       }
@@ -576,13 +626,17 @@ class GameApp {
         this.targetCamPos.set(marblePos.x, safeCamY, marblePos.z + camOffsetZ);
         this.targetCamTarget.set(marblePos.x, marblePos.y + 0.65, marblePos.z - 5.5);
 
-        this.cameraPosition.lerp(this.targetCamPos, 1 - Math.exp(-6.5 * dt));
-        this.cameraTarget.lerp(this.targetCamTarget, 1 - Math.exp(-8.5 * dt));
+        // Silky-smooth critically damped camera follow (eliminates jerky micro-corrections)
+        this.cameraPosition.lerp(this.targetCamPos, 1 - Math.exp(-4.2 * dt));
+        this.cameraTarget.lerp(this.targetCamTarget, 1 - Math.exp(-5.5 * dt));
 
         this.camera.position.copy(this.cameraPosition);
         this.camera.lookAt(this.cameraTarget);
-        // Dynamic camera banking into steering turns
-        this.camera.rotation.z = -finalRoll * 0.08;
+
+        // Smoothly damped camera banking (prevents rotational horizon snapping when tilting phone)
+        const targetRoll = -finalRoll * 0.06;
+        this.currentCameraRoll += (targetRoll - this.currentCameraRoll) * (1 - Math.exp(-4.5 * dt));
+        this.camera.rotation.z = this.currentCameraRoll;
       }
 
       // Nitro FOV & Shake (Toggleable via GAME_FEEL_CONFIG)

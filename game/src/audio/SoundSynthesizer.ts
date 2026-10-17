@@ -202,6 +202,55 @@ export class SoundSynthesizer {
   }
 
   /**
+   * Triumphant orchestral grand victory fanfare for completing the entire campaign (Level 4).
+   * Multi-voice harmonic arpeggios culminating in a sustained celebratory C-major chord.
+   */
+  public playGrandVictoryFanfare(): void {
+    const ctx = this.initContext();
+    if (this.isMuted) return;
+
+    // Fanfare arpeggio: C4, E4, G4, C5, E5, G5, C6
+    const arpeggio = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+    arpeggio.forEach((freq, idx) => {
+      const now = ctx.currentTime + idx * 0.09;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now);
+
+      gain.gain.setValueAtTime(0.22, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.9);
+    });
+
+    // Sustained grand championship chord after arpeggio
+    const chordTime = ctx.currentTime + arpeggio.length * 0.09;
+    const chordNotes = [261.63, 392.00, 523.25, 659.25, 1046.50]; // C4, G4, C5, E5, C6
+    chordNotes.forEach((freq) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, chordTime);
+
+      gain.gain.setValueAtTime(0.18, chordTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, chordTime + 1.8);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(chordTime);
+      osc.stop(chordTime + 1.9);
+    });
+  }
+
+  /**
    * Sudden air burst sound on phone shake / jump.
    */
   public playShake(): void {

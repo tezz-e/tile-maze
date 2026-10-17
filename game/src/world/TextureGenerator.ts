@@ -396,6 +396,136 @@ export class TextureGenerator {
   }
 
   /**
+   * Generates a 256x256 radial high-tech championship finish pad texture:
+   * Concentric rings, alternating checkered track pattern, and glowing emerald neon borders.
+   */
+  public static createChampionshipGoalPad(): THREE.Texture {
+    const c = this.createCanvas(256, 256);
+    if (!c) {
+      const tex = new THREE.DataTexture(new Uint8Array([16, 185, 129, 255]), 1, 1);
+      tex.needsUpdate = true;
+      return tex;
+    }
+    const { canvas, ctx } = c;
+    const cx = 128;
+    const cy = 128;
+    const rOuter = 120;
+
+    // Dark titanium background
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Radial checkered pattern
+    const sectors = 16;
+    const rings = 3;
+    const ringW = (rOuter - 30) / rings;
+
+    for (let ring = 0; ring < rings; ring++) {
+      const r1 = 30 + ring * ringW;
+      const r2 = r1 + ringW;
+      for (let s = 0; s < sectors; s++) {
+        const a1 = (s * Math.PI * 2) / sectors;
+        const a2 = ((s + 1) * Math.PI * 2) / sectors;
+        ctx.fillStyle = (ring + s) % 2 === 0 ? '#ffffff' : '#090d16';
+        ctx.beginPath();
+        ctx.arc(cx, cy, r2, a1, a2);
+        ctx.arc(cx, cy, r1, a2, a1, true);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    // Concentric emerald neon separator rings
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rOuter, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#34d399';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 30, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Center jewel / emblem
+    const centerGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 28);
+    centerGrad.addColorStop(0, '#6ee7b7');
+    centerGrad.addColorStop(0.5, '#10b981');
+    centerGrad.addColorStop(1, '#065f46');
+    ctx.fillStyle = centerGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 28, 0, Math.PI * 2);
+    ctx.fill();
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
+  }
+
+  /**
+   * Generates a 256x256 golden cybernetic energy glyph texture for checkpoint pads:
+   * Concentric glowing amber rings with radial circuit ticks.
+   */
+  public static createCheckpointEnergyGlyph(): THREE.Texture {
+    const c = this.createCanvas(256, 256);
+    if (!c) {
+      const tex = new THREE.DataTexture(new Uint8Array([250, 204, 21, 255]), 1, 1);
+      tex.needsUpdate = true;
+      return tex;
+    }
+    const { canvas, ctx } = c;
+    const cx = 128;
+    const cy = 128;
+
+    // Dark slate background
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Glowing golden rings
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 115, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 90, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Radial glyph ticks
+    ctx.strokeStyle = '#fef08a';
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 12; i++) {
+      const angle = (i * Math.PI * 2) / 12;
+      const x1 = cx + Math.cos(angle) * 70;
+      const y1 = cy + Math.sin(angle) * 70;
+      const x2 = cx + Math.cos(angle) * 88;
+      const y2 = cy + Math.sin(angle) * 88;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    // Inner glowing core
+    const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 50);
+    coreGrad.addColorStop(0, '#fef08a');
+    coreGrad.addColorStop(0.6, '#f59e0b');
+    coreGrad.addColorStop(1, '#b45309');
+    ctx.fillStyle = coreGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 45, 0, Math.PI * 2);
+    ctx.fill();
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
+  }
+
+  /**
    * Generates a 128x128 soft radial dark blob shadow for the marble.
    */
   public static createBlobShadow(): THREE.Texture {

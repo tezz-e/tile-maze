@@ -28,6 +28,13 @@ export class SkyEnvironment {
   private currentEnvTexture: THREE.Texture | null = null;
   private pillarMaterials: THREE.Material[] = [];
   private pillarTextures: THREE.Texture[] = [];
+  private baseSunIntensity = 2.6;
+  private baseHemiIntensity = 0.85;
+  private baseRimIntensity = 0.75;
+  private baseExposure = 1.0;
+  private targetDimFactor = 1.0;
+  private currentDimFactor = 1.0;
+  private lightningPulse = 0.0;
 
   constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
     this.scene = scene;
@@ -518,19 +525,27 @@ export class SkyEnvironment {
     }
 
     // 5. Update Lights
+    this.baseSunIntensity = theme.sunIntensity;
+    this.baseHemiIntensity = isNight ? 0.6 : 0.65;
+    this.baseRimIntensity = isNight ? 1.25 : 0.75;
+    this.baseExposure = theme.exposure;
+    this.targetDimFactor = 1.0;
+    this.currentDimFactor = 1.0;
+    this.lightningPulse = 0.0;
+
     this.dirLight.color.setHex(theme.sunColor);
-    this.dirLight.intensity = theme.sunIntensity;
+    this.dirLight.intensity = this.baseSunIntensity;
 
     this.hemiLight.color.setHex(theme.hemiSky);
     this.hemiLight.groundColor.setHex(theme.hemiGround);
-    this.hemiLight.intensity = isNight ? 0.6 : 0.65;
+    this.hemiLight.intensity = this.baseHemiIntensity;
 
     if (isNight) {
       this.rimLight.color.setHex(0x38bdf8);
-      this.rimLight.intensity = 1.25;
+      this.rimLight.intensity = this.baseRimIntensity;
     } else {
       this.rimLight.color.setHex(0x7dd3fc);
-      this.rimLight.intensity = 0.75;
+      this.rimLight.intensity = this.baseRimIntensity;
     }
 
     // 6. Update Cloud Material tint & emissive
@@ -546,16 +561,32 @@ export class SkyEnvironment {
     }
 
     // 7. Update Exposure
-    this.renderer.toneMappingExposure = theme.exposure;
+    this.renderer.toneMappingExposure = this.baseExposure;
 
     // 8. Rebuild Themed Monolith Pillars
     this.rebuildPillars(theme, isNight);
   }
 
   /**
-   * Slowly undulates the cloud sea bed to make the world breathe.
+   * Triggers a subtle lightning flash pulse for atmospheric storm courses (Level 5).
    */
-  public update(timeSec: number): void {
+  public triggerLightning(intensity: number = 0.8): void {
+    this.lightningPulse = intensity;
+  }
+
+  /**
+   * Smoothly adjusts the ambient/sun dimming factor for the Blackout Sanctum (Level 6).
+   * Emissive neon outlines and beacons remain glowing while environmental light darkens.
+   */
+  public setSanctumDimming(dimFactor: number): void {
+    this.targetDimFactor = Math.max(0.08, Math.min(1.0, dimFactor));
+  }
+
+  /**
+   * Slowly undulates the cloud sea bed to make the world breathe,
+   * eases sanctum dimming, and decays atmospheric lightning flashes.
+   */
+  public update(timeSec: number, dtSec: number = 0.016): void {
     for (const c of this.cloudClusters) {
       c.mesh.position.y = Math.sin(timeSec * 0.4 + c.phase) * 0.3;
     }
@@ -563,6 +594,30 @@ export class SkyEnvironment {
       const ring = this.decorativeRings[i];
       ring.rotation.y += 0.002 * (i % 2 === 0 ? 1 : -1);
       ring.rotation.x = Math.sin(timeSec * 0.15 + i) * 0.12;
+    }
+
+    // Smoothly decay lightning pulse
+    if (this.lightningPulse > 0.002) {
+      this.lightningPulse *= Math.exp(-dtSec * 5.0);
+    } else {
+      this.lightningPulse = 0;
+    }
+
+    // Smoothly interpolate sanctum dimming
+    const dimK = 1 - Math.exp(-dtSec * 3.5);
+    this.currentDimFactor += (this.targetDimFactor - this.currentDimFactor) * dimK;
+
+    // Apply lighting modulation
+    if (this.dirLight) {
+      const flash = this.lightningPulse * 1.6;
+      this.dirLight.intensity = this.baseSunIntensity * this.currentDimFactor + flash;
+    }
+    if (this.hemiLight) {
+      const flash = this.lightningPulse * 1.0;
+      this.hemiLight.intensity = this.baseHemiIntensity * this.currentDimFactor + flash;
+    }
+    if (this.renderer) {
+      this.renderer.toneMappingExposure = this.baseExposure * (0.35 + 0.65 * this.currentDimFactor);
     }
   }
 }

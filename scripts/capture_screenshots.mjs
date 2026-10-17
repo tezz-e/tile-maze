@@ -23,33 +23,46 @@ async function main() {
     fs.mkdirSync(mediaDir, { recursive: true });
   }
 
+  // Set unlock all in localStorage
+  await page.addInitScript(() => {
+    localStorage.setItem('tiltmaze_unlock_all', 'true');
+  });
+
   // 1. Lobby Screenshot
   console.log('Navigating to lobby...');
   await page.goto('http://127.0.0.1:3000', { waitUntil: 'load' });
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(1500);
   console.log('Capturing lobby screenshot...');
   await page.screenshot({ path: path.join(mediaDir, 'lobby.png') });
   console.log('Saved lobby.png');
 
-  // 2. Capture each Level (index 0 to 3)
-  for (let idx = 0; idx < 4; idx++) {
+  // 2. Capture each Level (index 0 to 5 for all 6 campaign courses)
+  for (let idx = 0; idx < 6; idx++) {
     const lvlNum = idx + 1;
     console.log(`Loading Level ${lvlNum} (index ${idx})...`);
 
     await page.goto('http://127.0.0.1:3000', { waitUntil: 'load' });
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(800);
 
-    // Click level tab
-    const tabBtn = page.locator(`.level-tab-btn[data-index="${idx}"]`);
-    await tabBtn.click();
-    await page.waitForTimeout(500);
+    // Select course and click play keyboard directly
+    const courseName = await page.evaluate((courseIdx) => {
+      const track = document.getElementById('course-segmented-track');
+      if (track) {
+        const rect = track.getBoundingClientRect();
+        const clientX = rect.left + ((courseIdx + 0.5) / 6) * rect.width;
+        const clientY = rect.top + rect.height / 2;
+        track.dispatchEvent(new PointerEvent('pointerdown', { clientX, clientY, bubbles: true }));
+        track.dispatchEvent(new PointerEvent('pointerup', { clientX, clientY, bubbles: true }));
+      }
+      const name = document.getElementById('course-selected-name')?.innerText || `Level ${courseIdx + 1}`;
+      document.getElementById('play-keyboard-btn')?.click();
+      return name;
+    }, idx);
 
-    // Click Play Keyboard button
-    const playBtn = page.locator('#play-keyboard-btn');
-    await playBtn.click();
+    console.log(`Launched ${courseName}`);
 
     // Wait for fade curtain and 3D scene to fully render
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(1500);
 
     const outPath = path.join(mediaDir, `level-${lvlNum}.png`);
     await page.screenshot({ path: outPath });
@@ -57,7 +70,7 @@ async function main() {
   }
 
   await browser.close();
-  console.log('All 5 screenshots captured successfully into docs/media/!');
+  console.log('All 6 course screenshots + lobby captured successfully into docs/media/!');
 }
 
 main().catch(err => {

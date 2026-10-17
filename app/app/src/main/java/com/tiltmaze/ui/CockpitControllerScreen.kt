@@ -223,7 +223,7 @@ fun CockpitControllerScreen(
                 fontWeight = FontWeight.Bold
             )
 
-            // Zero IMU Neutral (Hold in comfortable hand position)
+            // Calibrate Neutral (Hold in comfortable hand position)
             Button(
                 onClick = onCalibrate,
                 colors = ButtonDefaults.buttonColors(
@@ -236,7 +236,7 @@ fun CockpitControllerScreen(
                 contentPadding = PaddingValues(0.dp)
             ) {
                 Text(
-                    text = "[ ZERO IMU ]",
+                    text = "CALIBRATE",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
@@ -259,29 +259,6 @@ fun CockpitControllerScreen(
                     fontSize = 9.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
-                )
-            }
-
-            // Reset to Level Flat Horizon (Tap: Reset flat, Long-press: Glyph Test)
-            Box(
-                modifier = Modifier
-                    .size(width = 140.dp, height = 34.dp)
-                    .border(BorderStroke(1.dp, Color(0xFF444444)), RoundedCornerShape(0.dp))
-                    .background(Color.Black)
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = { onResetFlat() },
-                            onLongPress = { onGlyphTest() }
-                        )
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "RESET FLAT",
-                    color = Color(0xFF888888),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Normal,
-                    fontFamily = FontFamily.Monospace
                 )
             }
 
