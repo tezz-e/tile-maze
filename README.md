@@ -63,10 +63,9 @@ The companion Android app samples device rotation at 100 Hz, filters physiologic
 
 ### Windows (One-Click)
 
-The repository includes a self-contained Windows startup script:
-
-1. Double-click `start.bat` in the repository root (or run `.\start.bat` from PowerShell / Command Prompt).
-2. The script verifies Node.js, installs dependencies if `node_modules` is missing, builds the shared protocol package, compiles the server and client bundles, launches the relay server, and opens `http://localhost:3000` in your default browser.
+1. **Download the project:** Click the green **Code** button at the top of this GitHub repository and select **Download ZIP**, then extract the downloaded ZIP archive (or clone via `git clone https://github.com/tezz-e/tile-maze.git`).
+2. **Launch:** Open the extracted folder and double-click `start.bat` (or run `.\start.bat` from PowerShell / Command Prompt).
+3. The script automatically verifies Node.js, installs dependencies if `node_modules` is missing, compiles the shared protocol, server, and game client, launches the relay server, and opens `http://localhost:3000` in your default browser.
 
 ### Manual Setup (Cross-Platform)
 
