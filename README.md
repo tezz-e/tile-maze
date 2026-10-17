@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="docs/media/logo.svg" alt="Tiltmaze" width="680" />
+  <img src="docs/media/logo.svg" alt="Tiltmaze" width="600" />
 </p>
 
 <p align="center">
-  A 3D motion-controlled marble platformer. Your phone acts as the physical labyrinth tray, transmitting high-frequency motion sensor telemetry over WebSockets to steer a marble across suspended skyways in the browser.
+  A 3D motion-controlled marble platformer. Your smartphone acts as the physical balancing tray, streaming high-frequency IMU telemetry over WebSockets to steer a chrome marble across suspended skyways in the browser.
 </p>
 
 ---
@@ -11,15 +11,28 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [System Requirements](#system-requirements)
 - [Quick Start](#quick-start)
   - [Windows (One-Click)](#windows-one-click)
   - [Manual Setup (Cross-Platform)](#manual-setup-cross-platform)
+  - [Development Mode](#development-mode)
 - [Android Controller Setup](#android-controller-setup)
+  - [Option A: GitHub Releases (Recommended)](#option-a-github-releases-recommended)
+  - [Option B: Direct Local Download](#option-b-direct-local-download)
+  - [Option C: Build from Source](#option-c-build-from-source)
+- [Pairing and Calibration](#pairing-and-calibration)
 - [Controls](#controls)
+  - [Phone Motion Controller](#phone-motion-controller)
+  - [Keyboard Fallback](#keyboard-fallback)
 - [Difficulty Modes](#difficulty-modes)
 - [Campaign Courses](#campaign-courses)
-- [Architecture](#architecture)
-- [A Quirky Side Note: Glyph Matrix](#a-quirky-side-note-glyph-matrix)
+- [Architecture & Implementation](#architecture--implementation)
+  - [Sensor Fusion and 1€ Adaptive Filter](#sensor-fusion-and-1-adaptive-filter)
+  - [Rotated Gravity Tensor (Rapier 3D)](#rotated-gravity-tensor-rapier-3d)
+  - [Contiguous Floor Collider Merging](#contiguous-floor-collider-merging)
+  - [Compact Binary Telemetry Protocol](#compact-binary-telemetry-protocol)
+- [Side Note: Nothing Phone Glyph Matrix](#side-note-nothing-phone-glyph-matrix)
+- [Troubleshooting](#troubleshooting)
 - [Repository Structure](#repository-structure)
 - [License](#license)
 
@@ -27,9 +40,22 @@
 
 ## Overview
 
-Tiltmaze turns your Android smartphone into a physical balancing tray. Holding the phone flat and tilting it in real space dynamically steers a virtual marble across elevated platforms, tight chicanes, and open-air drops.
+Traditional maze and marble games rely on touch joysticks or analog sticks. Tiltmaze returns to the tactile feel of physical wooden labyrinth games: you hold your smartphone flat, and physical tilts directly steer the virtual marble.
 
-The system pairs the phone and browser over local Wi-Fi with a 4-letter room code or QR scan. Orientation data is filtered on-device using a 1€ adaptive filter, packed into 20-byte binary frames at 60 Hz, and relayed to a Three.js and Rapier 3D (WASM) physics simulation in the browser.
+The companion Android app samples device rotation at 100 Hz, filters physiological hand tremor with an adaptive 1€ filter, packs calibrated orientations into compact 20-byte binary packets, and streams them over low-latency local WebSockets to the web client. The web game runs on Three.js (WebGL2) and Rapier 3D physics compiled to WebAssembly.
+
+---
+
+## System Requirements
+
+- **Computer / Host:**
+  - Node.js 18.0.0 or higher (tested on Node 20 and Node 22)
+  - npm 9.0.0 or higher
+  - Modern web browser with WebGL2 and Web Audio API support (Chrome, Edge, Firefox, Brave, Safari)
+- **Phone / Controller:**
+  - Android 8.0 or higher (API level 26+)
+  - Hardware accelerometer and gyroscope (rotation vector sensor)
+  - Connected to the same local Wi-Fi network as the computer
 
 ---
 
@@ -37,16 +63,16 @@ The system pairs the phone and browser over local Wi-Fi with a 4-letter room cod
 
 ### Windows (One-Click)
 
-If you are on Windows, the fastest way to run the project is using the included batch file:
+The repository includes a self-contained Windows startup script:
 
 1. Double-click `start.bat` in the repository root (or run `.\start.bat` from PowerShell / Command Prompt).
-2. The script checks for Node.js, installs dependencies if missing, compiles the shared protocol, server, and game client, launches the server, and opens `http://localhost:3000` in your default browser.
+2. The script verifies Node.js, installs dependencies if `node_modules` is missing, builds the shared protocol package, compiles the server and client bundles, launches the relay server, and opens `http://localhost:3000` in your default browser.
 
 ### Manual Setup (Cross-Platform)
 
-Prerequisites: **Node.js 18+** and **npm**.
+For macOS, Linux, or manual terminal execution:
 
-1. Clone the repository and navigate into the project directory:
+1. Clone the repository and enter the directory:
    ```bash
    git clone https://github.com/tezz-e/tile-maze.git
    cd tile-maze
@@ -57,7 +83,7 @@ Prerequisites: **Node.js 18+** and **npm**.
    npm install
    ```
 
-3. Build all workspace packages:
+3. Build all workspace packages (shared protocol, relay server, and game client):
    ```bash
    npm run build
    ```
@@ -67,115 +93,160 @@ Prerequisites: **Node.js 18+** and **npm**.
    npm start
    ```
 
-5. Open `http://localhost:3000` in your web browser. The lobby will display your computer's local network IP, room pairing code, and a QR code for your phone.
+5. Open `http://localhost:3000` in your browser. The lobby displays your computer's local network IP, active port, a 4-letter room pairing code, and a QR code for your phone.
+
+### Development Mode
+
+To run the server and game client with concurrent hot-reloading and source watching:
+```bash
+npm run dev
+```
 
 ---
 
 ## Android Controller Setup
 
-You can install the controller app on any Android device (Android 8.0+, API 26+) using one of the following methods:
+### Option A: GitHub Releases (Recommended)
 
-1. **Direct Download from the Web Server**
-   Make sure your phone is connected to the same Wi-Fi network as your computer, then navigate to `http://<your-computer-ip>:3000/apk` in your mobile browser (or tap the **Download APK** link in the web lobby). Open the downloaded file to install.
+Pre-built APK binaries are generated automatically by GitHub Actions CI for every release:
 
-2. **GitHub Releases**
-   Download the latest pre-compiled `Tiltmaze-Controller.apk` from the [Releases](https://github.com/tezz-e/tile-maze/releases) section of this repository.
+1. Navigate to the [Releases](https://github.com/tezz-e/tile-maze/releases/tag/latest) page of this repository.
+2. Download `Tiltmaze-Controller.apk`.
+3. Open the downloaded file on your Android device to install (allow "Install unknown apps" if prompted).
 
-3. **ADB Sideload**
-   If your device is connected via USB with USB debugging enabled, run:
-   ```bash
-   adb install -r app-debug.apk
+### Option B: Direct Local Download
+
+When the server is running on your computer:
+
+1. Connect your phone to the same Wi-Fi network.
+2. In your mobile browser, navigate to:
+   ```text
+   http://<your-computer-ip>:3000/apk
    ```
+   *(You can also tap the "Download APK" link directly in the web game lobby).*
+3. Install the downloaded APK.
 
-4. **Build from Source**
-   Open the `app/` directory in Android Studio or compile it with the Gradle wrapper:
+### Option C: Build from Source
+
+Prerequisites: JDK 17+ and the Android SDK (API 34).
+
+1. Navigate to the `app/` directory:
    ```bash
    cd app
-   ./gradlew assembleDebug
    ```
-   The APK will be generated at `app/app/build/outputs/apk/debug/app-debug.apk`.
+2. Build the debug APK using the Gradle wrapper:
+   - On Windows:
+     ```cmd
+     gradlew.bat assembleDebug
+     ```
+   - On macOS / Linux:
+     ```bash
+     chmod +x gradlew
+     ./gradlew assembleDebug
+     ```
+3. The compiled APK will be located at:
+   `app/app/build/outputs/apk/debug/app-debug.apk`
+4. If your phone is connected via USB with USB debugging enabled, install it directly:
+   ```bash
+   adb install -r app/build/outputs/apk/debug/app-debug.apk
+   ```
+
+---
+
+## Pairing and Calibration
+
+1. Open the **Tiltmaze** app on your phone.
+2. **Pairing:**
+   - Tap **Scan Laptop QR Code** and point your phone camera at the QR code displayed on your computer screen.
+   - Alternatively, enter the computer's IP (e.g. `192.168.1.15:3000`) and the 4-letter room code manually, then tap **Connect**.
+3. **Neutral Calibration:**
+   - Once connected, hold your phone in whatever posture feels natural and comfortable.
+   - Tap **Calibrate**. The controller records your orientation over a 300ms window and sets that angle as the virtual level plane. You can re-calibrate at any point during gameplay without leaving the course.
+4. **Connection State:**
+   - If the connection drops or the phone app enters the background, the web game automatically pauses physics and displays a reconnection overlay. When the controller reconnects, gameplay resumes seamlessly.
 
 ---
 
 ## Controls
 
-### Phone Controller
+### Phone Motion Controller
 
-1. Open the Tiltmaze app on your phone.
-2. Tap **Scan Laptop QR Code** and point your camera at the QR code on your computer screen (or manually enter the IP and 4-letter room code).
-3. Hold the phone in your natural, comfortable resting posture and tap **Calibrate**. The app records your resting baseline over a 300ms window so you never have to hold the device unnaturally flat.
-4. **Steer:** Tilt the phone in any direction to roll the marble.
-5. **Jump:** Perform a quick upward wrist flick or shake to hop over gaps.
-6. **Nitro Boost:** Hold the on-screen Nitro button for a burst of speed.
-7. **Brake:** Hold the on-screen Brake button to bleed velocity before tight corners.
+| Action | Gesture / Input | Description |
+| :--- | :--- | :--- |
+| **Roll / Steer** | Physical Tilt | Tilting pitch and roll dynamically accelerates the marble along the track. |
+| **Jump** | Upward Wrist Flick | Rapid upward acceleration hops the marble across open-air gaps. |
+| **Nitro Boost** | Hold Nitro Button | Applies forward propulsion for high-speed straightaways. |
+| **Brake** | Hold Brake Button | Dampens marble velocity to prevent flying off un-walled corners. |
+| **Calibrate** | Tap Calibrate Button | Sets the current phone orientation as neutral horizontal level. |
 
 ### Keyboard Fallback
 
-If you want to test or play without a phone, the web client includes full keyboard support:
+The web game includes full keyboard controls for local testing without an Android device. Select **Play with Keyboard** on any level card in the lobby:
 
-- Click **Play with Keyboard** on any course in the lobby.
-- **Steer:** `W`, `A`, `S`, `D` or `Arrow Keys`
-- **Jump:** `Spacebar`
-- **Nitro Boost:** `Shift`
-- **Brake:** `B`
-- **Toggle Camera View:** `V` (cycles between standard chase and close follow cameras)
-- **Recalibrate Neutral:** `C`
-- **Return to Lobby:** `Esc`
+| Key | Action |
+| :--- | :--- |
+| `W`, `A`, `S`, `D` or `Arrow Keys` | Steer marble (simulates board tilt) |
+| `Spacebar` | Jump over air gaps |
+| `Shift` | Nitro speed boost |
+| `B` | Brake velocity dampener |
+| `V` | Cycle camera view (Standard Chase vs. Cinematic Close Follow) |
+| `C` | Recalibrate neutral tilt |
+| `Esc` | Return to Lobby |
 
 ---
 
 ## Difficulty Modes
 
-Difficulty can be toggled in the lobby prior to launching any course. The underlying level layouts remain identical, but hazard collision and rotor dynamics adjust to your preferred challenge:
+Difficulty can be selected in the lobby prior to starting any level. The underlying track geometry remains identical across all modes, while collision boundaries and obstacle speeds adapt dynamically:
 
-| Mode | Gameplay Adjustments | Description |
+| Mode | Mechanism | In-Game Behavior |
 | :--- | :--- | :--- |
-| **Easy** | Safety guardrails active | Walkable borders facing an abyss spawn 2.8m physical collision barriers and translucent glowing acrylic rails. Jump gaps remain leapable. Marble cannot fall off ledges. |
-| **Medium** | Standard campaign rules | Authentic skyway platforming with real open-air drops, selective corner catch-walls, and standard par times. |
-| **Hard** | Pro labyrinth | Completely un-walled ridges, strict championship par targets, and turnstile rotors spinning 25% faster. |
+| **Easy** | Safety Guardrails | Walkable edges bordering an abyss spawn 2.8m physical box colliders and translucent glowing acrylic rails. Intentional jump gaps remain open. The marble cannot fall into the void. |
+| **Medium** | Authentic Skyway | True open-valley drops on sweeping exits, narrow 2-cell ridges, and jump gaps. Key sharp turns retain selective catch-walls. |
+| **Hard** | Pro Labyrinth | Completely un-walled ridges, strict championship par times, and turnstile rotors spinning 25% faster (`speed * 1.25`). |
 
 ---
 
 ## Campaign Courses
 
-The campaign consists of 6 progressive courses, each introducing specific kinematic obstacles, track geometries, and lighting themes:
+The campaign consists of 6 progressive courses, each introducing new physics elements, track geometries, and lighting profiles:
 
-| Course | Subtitle | Key Mechanics | Par Time |
+| Course | Subtitle | Key Mechanics & Edge Geometry | Gold Par |
 | :--- | :--- | :--- | :---: |
-| **01 • Skyway Runway** | The Teaser | Walled introductory corridor leading into an open chicane and a 1-cell leap over the cloud sea directly onto the Goal. | 00:14.00 |
-| **02 • Serpent's Ridge** | The Elevated Spine | Narrow 2-cell winding spine flanked by open drop-offs, entry apex catch-wall, and an un-walled rotor bridge. | 00:22.00 |
-| **03 • Twin Paths** | Island Shortcut | Safe winding corridor (25 steps) versus a disconnected sky-island leap across open void (22 steps). | 00:26.00 |
-| **04 • Kinetic Speedway** | High-Speed Tangents | Long boost pad straights into sweeping corners where the exit opens into raw abyss, demanding disciplined braking. | 00:32.00 |
-| **05 • Vortex Valley** | Central Chasm Spiral | Storm atmosphere with ambient lightning. The elevated track spirals inward around a central abyss void onto a suspended Goal island. | 00:40.00 |
-| **06 • Master's Labyrinth** | Championship Climax | Stepping-stone islands, dual kinematic rotors, spring jumps, and the Blackout Sanctum finale where path lighting dims to neon edge strips. | 00:52.00 |
+| **01 • Skyway Runway** | The Teaser | 2-cell runway with walled entry, an open chicane overlooking the clouds, and an air gap leap over the abyss directly onto the Goal platform. | 00:20.00 |
+| **02 • Serpent's Ridge** | The Elevated Spine | Narrow 2-cell winding spine flanked by open drop-offs. Catch-walls protect only the first S-turn apex; the second turn and rotor bridge are completely open. | 00:26.00 |
+| **03 • Twin Paths** | Island Shortcut | Safe winding corridor (25 steps) versus a disconnected sky-island leap across open void (22 steps) launching from a spring bouncer pad. | 00:35.00 |
+| **04 • Kinetic Speedway** | High-Speed Tangents | Long boost pad straightaways into sweeping corners where the exit opens into raw abyss, requiring disciplined counter-tilting or braking. | 00:44.00 |
+| **05 • Vortex Valley** | Central Chasm Spiral | Atmospheric storm sky with ambient lightning. The track spirals inward around a massive central chasm, ending with a narrow bridge onto the Goal island. | 00:58.00 |
+| **06 • Master's Labyrinth** | Championship Climax | Stepping-stone islands, dual kinematic rotors, and the Blackout Sanctum finale where ambient lights dim, leaving only cyan neon edge strips tracing the razor ridge. | 01:16.00 |
 
-### Screenshots
+### Course Previews
 
 | Course 01: Skyway Runway | Course 02: Serpent's Ridge |
 | :---: | :---: |
-| <img src="docs/media/level-1.png" alt="Level 1" width="450" /> | <img src="docs/media/level-2.png" alt="Level 2" width="450" /> |
+| <img src="docs/media/level-1.png" alt="Course 1" width="450" /> | <img src="docs/media/level-2.png" alt="Course 2" width="450" /> |
 
 | Course 03: Twin Paths | Course 04: Kinetic Speedway |
 | :---: | :---: |
-| <img src="docs/media/level-3.png" alt="Level 3" width="450" /> | <img src="docs/media/level-4.png" alt="Level 4" width="450" /> |
+| <img src="docs/media/level-3.png" alt="Course 3" width="450" /> | <img src="docs/media/level-4.png" alt="Course 4" width="450" /> |
 
 | Course 05: Vortex Valley | Course 06: Master's Labyrinth |
 | :---: | :---: |
-| <img src="docs/media/level-5.png" alt="Level 5" width="450" /> | <img src="docs/media/level-6.png" alt="Level 6" width="450" /> |
+| <img src="docs/media/level-5.png" alt="Course 5" width="450" /> | <img src="docs/media/level-6.png" alt="Course 6" width="450" /> |
 
 ---
 
-## Architecture
+## Architecture & Implementation
 
 ```
 Phone (Android IMU)
-  └─ Rotation Vector @ 100 Hz
+  └─ TYPE_GAME_ROTATION_VECTOR @ 100 Hz
   └─ 1€ Adaptive Jitter Filter (1.0 Hz - 30.0 Hz)
   └─ 20-Byte Compact Binary Frame @ 60 Hz
        │
        ▼ (WebSocket over Local Wi-Fi)
 Server (Node.js Relay on :3000)
-  └─ Room management & zero-copy packet forwarding
+  └─ Room management & zero-copy packet relay
   └─ Static web game host & /apk distribution
        │
        ▼
@@ -185,28 +256,28 @@ Browser (Three.js + Rapier 3D WASM)
   └─ Procedural Web Audio synthesizer for rolling friction & impacts
 ```
 
-### Sensor Filtering and Neutral Calibration
+### Sensor Fusion and 1€ Adaptive Filter
 
-Raw smartphone sensors suffer from hand tremor at rest and phase delay during fast motion. The Android app passes IMU rotation vector data through an implementation of the **1€ (One-Euro) Filter**:
-- At low angular velocities, the cutoff frequency drops toward 1.0 Hz to eliminate resting jitter.
-- During rapid wrist movements, the cutoff frequency expands up to 30.0 Hz to maintain responsive tracking without noticeable latency.
-- Calibration captures the resting quaternion $q_{ref}$ over a 300ms window and computes relative rotation via quaternion conjugation:
+Raw smartphone IMU sensors contain physiological hand tremor at rest and phase delay during fast motion. The Android app runs incoming rotation vector readings through an implementation of the **1€ (One-Euro) Filter**:
+- **Low Angular Velocity:** The cutoff frequency drops toward $f_{min} = 1.0\text{ Hz}$, eliminating micro-tremor when holding the phone still.
+- **High Angular Velocity:** During rapid wrist movements, the cutoff frequency dynamically expands up to $30.0\text{ Hz}$ ($\beta = 0.007$), eliminating phase lag and keeping controls responsive.
+- **Relative Quaternion Calibration:** The app records the neutral resting quaternion $q_{ref}$ over a 300ms window and computes relative orientation via quaternion conjugation:
   $$q_{rel} = q_{ref}^* \otimes q_{curr}$$
-  This avoids gimbal lock and ensures the player can hold the device at whatever angle feels natural.
+  This avoids gimbal lock and ensures players can hold the device at whatever angle feels natural.
 
-### Rotated Gravity Simulation
+### Rotated Gravity Tensor (Rapier 3D)
 
-Instead of physically tilting the entire 3D level geometry (which can cause collision jitter, tunneling, or camera instability), the skyway track is static at $y = 0$. The phone's pitch and roll are translated into a rotated gravity vector in Rapier 3D:
+Rather than physically tilting the entire 3D level geometry in Three.js (which can introduce collision tunneling, visual jitter, and camera instability), the skyway track remains static at $y = 0$. Calibrated phone pitch and roll are translated into a dynamically rotated global gravity vector in Rapier 3D:
 $$\vec{g}_{effective} = \begin{bmatrix} -g \sin(\text{roll}) \\ g \cos(\text{pitch})\cos(\text{roll}) \\ g \sin(\text{pitch}) \end{bmatrix}$$
-This preserves realistic momentum, centrifugal behavior around banked curves, and smooth rolling physics.
+This preserves accurate rolling inertia, momentum conservation, and centrifugal forces on banked curves.
 
-### Anti-Seam Tile Merging
+### Contiguous Floor Collider Merging
 
-Individually placing 1×1 tile colliders in a physics engine causes internal seam bounces when a rolling sphere crosses tile boundaries. The game uses a 2D rectangular decomposition algorithm (`mergeFloorTiles` in `PhysicsWorld.ts`) that combines contiguous walkable cells into single continuous box colliders while leaving empty void cells completely open.
+In a physics engine, placing individual 1×1 tile box colliders side-by-side causes internal-edge seam bounces when a rolling sphere crosses boundaries. Tiltmaze implements a 2D rectangular decomposition algorithm (`mergeFloorTiles` in `PhysicsWorld.ts`) that combines contiguous walkable cells along rows and rectangles into larger unified box colliders, ensuring the 0.64m marble rolls smoothly without catching on internal seams.
 
-### Binary Protocol
+### Compact Binary Telemetry Protocol
 
-Telemetry packets are transmitted over WebSockets as compact 20-byte binary buffers:
+Motion telemetry is streamed over WebSockets using a zero-copy 20-byte binary frame structure:
 
 ```text
  0                   1                   2                   3
@@ -224,11 +295,47 @@ Telemetry packets are transmitted over WebSockets as compact 20-byte binary buff
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
 
+- **Type (uint8):** Packet identifier (`0x01` for IMU telemetry).
+- **Player Slot (uint8):** Player identification index.
+- **Button Bitmask (uint8):** Bit 0 = Nitro Boost, Bit 1 = Jump, Bit 2 = Brake.
+- **Sequence Number (uint8):** Wraparound index for tracking packet arrival and jitter.
+- **Calibrated Pitch / Roll / Yaw (Float32 LE):** Filtered angles in radians.
+- **Client Timestamp (Uint32 LE):** Millisecond timestamp for clock skew and latency monitoring.
+
 ---
 
-## A Quirky Side Note: Glyph Matrix
+## Side Note: Nothing Phone Glyph Matrix
 
-While building the Android companion app, I noticed the Nothing Phone has an addressable LED matrix on the back. So naturally, because why not, I hooked up the Glyph SDK: a 3×3 LED dot mirrors the marble's position across the rear glass while you tilt, radar sweeps fire during pairing, and celebration strobes flash when you cross the finish line. It is completely unnecessary, but fun if you happen to have a Nothing Phone.
+While building the companion app, I noticed the Nothing Phone has an addressable LED matrix on the back. So because why not, I hooked up the Glyph SDK:
+- A 3×3 LED dot mirrors the marble's position across the rear glass while you tilt.
+- Radar sweeps fire during the QR code pairing sequence.
+- Celebration strobes illuminate upon crossing the finish line.
+
+It is an optional bonus for Nothing Phone users; standard Android devices simply use the cockpit screen and haptic motors.
+
+---
+
+## Troubleshooting
+
+### Connection & Networking Issues
+
+- **Phone cannot reach computer:**
+  - Verify that both devices are connected to the exact same Wi-Fi router.
+  - Check for **Access Point (AP) Isolation** or client isolation on your router (common on university or public networks). If AP isolation is enabled, devices cannot communicate directly; create a mobile Wi-Fi hotspot from your phone and connect your computer to it.
+- **Windows Firewall blocking port 3000:**
+  - When running `start.bat` or `npm start` for the first time, Windows Defender may ask for network permissions. Select **Allow on Private Networks**.
+  - To manually permit traffic, open PowerShell as Administrator and run:
+    ```powershell
+    New-NetFirewallRule -DisplayName "Tiltmaze Relay Server" -Direction Inbound -LocalPort 3000 -Protocol TCP -Action Allow
+    ```
+- **Camera permission denied for QR scanning:**
+  - If you decline camera permissions, you can enter the computer IP and 4-letter room code manually in the input fields on the app home screen.
+
+### Calibration & Sensor Drift
+
+- **Marble rolls when holding phone level:**
+  - Hold the phone in your natural resting hand position and tap **Calibrate**. The system zeroes out your current holding angle.
+  - If drift persists, lay the phone on a flat surface and tap Calibrate to reset the sensor baseline.
 
 ---
 
@@ -237,10 +344,15 @@ While building the Android companion app, I noticed the Nothing Phone has an add
 ```text
 .
 ├── .github/workflows/
-│   └── build-and-release.yml      # CI/CD: Automated builds and Android APK release
-├── app/                           # Android Kotlin companion app (sensor capture, haptics)
+│   └── build-and-release.yml      # CI/CD: Automated build, test, and release pipeline
+├── app/                           # Android Kotlin companion app
+│   ├── app/src/main/
+│   │   ├── java/com/tiltmaze/     # Sensor manager, 1€ filter, Glyph LED driver, haptics
+│   │   ├── res/                   # Adaptive launcher icon & Nothing OS vector resources
+│   │   └── AndroidManifest.xml
+│   └── gradlew                    # Gradle wrapper
 ├── packages/
-│   └── protocol/                  # Shared TypeScript binary protocol definitions
+│   └── protocol/                  # Shared TypeScript binary protocol definitions & codecs
 ├── server/                        # Express HTTP server & WebSocket relay (:3000)
 ├── game/                          # Three.js + Rapier 3D browser client
 │   ├── src/
@@ -248,10 +360,10 @@ While building the Android companion app, I noticed the Nothing Phone has an add
 │   │   ├── input/                 # Keyboard controller
 │   │   ├── levels/                # 6 campaign courses and par times
 │   │   ├── physics/               # Rapier 3D world, rotated gravity, collider merging
-│   │   ├── ui/                    # Lobby UI and HUD
+│   │   ├── ui/                    # Lobby UI, HUD, and mobile pairing flow
 │   │   └── world/                 # Track meshes, materials, and environment
-├── docs/                          # Screenshots, logo, and media assets
-├── app-debug.apk                  # Pre-compiled Android controller APK
+│   └── test/                      # Vitest test suite
+├── docs/                          # Screenshots, logo, and documentation media
 ├── start.bat                      # Windows one-click startup script
 └── package.json                   # Root workspace configuration
 ```
