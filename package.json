@@ -13,10 +13,12 @@
     "dev": "concurrently -k -p \"[{name}]\" -n \"SERVER,GAME\" -c \"cyan,magenta\" \"npm run dev:server\" \"npm run dev:game\"",
     "dev:server": "npm --workspace=server run dev",
     "dev:game": "npm --workspace=game run dev",
+    "prepare": "npm --workspace=@tiltmaze/protocol run build",
+    "build:protocol": "npm --workspace=@tiltmaze/protocol run build",
     "build": "npm run --workspaces --if-present build",
     "start": "npm --workspace=server start",
     "test": "vitest run",
-    "typecheck": "npm run --workspaces --if-present typecheck",
+    "typecheck": "npm run build:protocol && npm run --workspaces --if-present typecheck",
     "lint": "npm run typecheck"
   },
   "devDependencies": {

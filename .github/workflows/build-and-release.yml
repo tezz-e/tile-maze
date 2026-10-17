@@ -28,14 +28,14 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Build Web Game & Server
+        run: npm run build
+
       - name: Typecheck
         run: npm run typecheck
 
       - name: Run Automated Test Suite
         run: npm --workspace=game test
-
-      - name: Build Web Game & Server
-        run: npm run build
 
   android-apk:
     name: Build Android APK
