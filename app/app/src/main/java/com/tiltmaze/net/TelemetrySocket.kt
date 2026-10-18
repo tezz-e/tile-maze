@@ -1,5 +1,6 @@
 package com.tiltmaze.net
 
+import android.os.Build
 import kotlinx.coroutines.*
 import okhttp3.*
 import okio.ByteString
@@ -8,6 +9,18 @@ import org.json.JSONObject
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.TimeUnit
+
+fun getDeviceModelName(): String {
+    val manufacturer = Build.MANUFACTURER.orEmpty().replaceFirstChar {
+        if (it.isLowerCase()) it.titlecase() else it.toString()
+    }
+    val model = Build.MODEL.orEmpty()
+    return if (model.startsWith(manufacturer, ignoreCase = true)) {
+        model
+    } else {
+        "$manufacturer $model".trim().ifBlank { "Android Device" }
+    }
+}
 
 interface TelemetryListener {
     fun onConnected(playerSlot: Int, sessionId: String, roomCode: String)
@@ -50,7 +63,7 @@ class TelemetrySocket(private val listener: TelemetryListener) {
     private val BUTTON_SHAKE = 1 shl 2
     private val BUTTON_RECALIBRATE = 1 shl 3
 
-    fun connect(wsUrl: String, code: String, existingSessionId: String? = null, deviceName: String = "Nothing Phone 3") {
+    fun connect(wsUrl: String, code: String, existingSessionId: String? = null, deviceName: String = getDeviceModelName()) {
         this.roomCode = code.uppercase()
         this.sessionId = existingSessionId
 
