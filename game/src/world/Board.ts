@@ -554,17 +554,17 @@ export class Board {
           chevMesh.position.set(0, rampHeight / 2 + 0.05, 0);
           rampGroup.add(chevMesh);
 
-          // Yellow side guide rails along flanks
+          // Yellow side guide rails along flanks (sloping up towards gap along with wedge)
           const guideRailGeo = new THREE.BoxGeometry(0.1, 0.15, rampLength);
           const leftRail = new THREE.Mesh(guideRailGeo, this.yellowCurbMat);
           leftRail.position.set(-rampWidth / 2 + 0.05, rampHeight / 2 + 0.04, 0);
-          leftRail.rotation.x = -Math.atan2(rampHeight, rampLength);
+          leftRail.rotation.x = Math.atan2(rampHeight, rampLength);
           leftRail.castShadow = true;
           rampGroup.add(leftRail);
 
           const rightRail = new THREE.Mesh(guideRailGeo, this.yellowCurbMat);
           rightRail.position.set(rampWidth / 2 - 0.05, rampHeight / 2 + 0.04, 0);
-          rightRail.rotation.x = -Math.atan2(rampHeight, rampLength);
+          rightRail.rotation.x = Math.atan2(rampHeight, rampLength);
           rightRail.castShadow = true;
           rampGroup.add(rightRail);
 

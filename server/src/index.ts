@@ -76,9 +76,18 @@ app.get(['/apk', '/download/apk', '/tiltmaze.apk'], (req, res) => {
 const gameDistPath = path.resolve(__dirname, '../../game/dist');
 if (fs.existsSync(gameDistPath)) {
   console.log(`[Static] Serving web game from ${gameDistPath}`);
-  app.use(express.static(gameDistPath));
+  app.use(
+    express.static(gameDistPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html') || filePath.endsWith('.js')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+      },
+    })
+  );
   // SPA fallback to index.html
   app.get('*', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.sendFile(path.join(gameDistPath, 'index.html'));
   });
 } else {
