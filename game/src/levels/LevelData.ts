@@ -635,46 +635,31 @@ export interface BoostPadOrientation {
 }
 
 /**
- * Determines boost ramp orientation from the surrounding grid topology.
- * Default direction in north-south corridors is forward (-Z, North, angleY: 0).
- * In east-west corridors (e.g. Level 2, Level 4), rotates 90° (+X, East, angleY: -Math.PI / 2).
+ * Determines boost ramp orientation from surrounding grid topology.
+ * Default direction across vertical runways and aerial jump gaps (Level 1, Level 6)
+ * is forward towards the course goal (-Z, North, angleY: 0).
+ * In horizontal east-west corridors (e.g. Level 2, Level 4), rotates 90° clockwise (+X, East, angleY: -Math.PI / 2).
  */
 export function getBoostRampOrientation(grid: string[], r: number, c: number): BoostPadOrientation {
   const rows = grid.length;
   const cols = grid[0].length;
 
-  const isPath = (row: number, col: number) => {
+  const isWalkable = (row: number, col: number) => {
     if (row < 0 || row >= rows || col < 0 || col >= cols) return false;
     const ch = grid[row][col];
     return ch !== '#' && ch !== ' ';
   };
 
-  const north = isPath(r - 1, c);
-  const south = isPath(r + 1, c);
-  const west = isPath(r, c - 1);
-  const east = isPath(r, c + 1);
+  const west = isWalkable(r, c - 1);
+  const east = isWalkable(r, c + 1);
 
-  // If horizontal corridor (West and/or East are open while North and/or South are closed/walls)
-  if ((west || east) && (!north || !south)) {
-    if (west && east) {
-      return { dirX: 1, dirZ: 0, angleY: -Math.PI / 2 };
-    } else if (east) {
-      return { dirX: 1, dirZ: 0, angleY: -Math.PI / 2 };
-    } else {
-      return { dirX: -1, dirZ: 0, angleY: Math.PI / 2 };
-    }
+  // In an East-West corridor bounded by north/south walls or void (e.g. Level 2, Level 4):
+  const northWallOrVoid = r <= 0 || grid[r - 1][c] === '#' || grid[r - 1][c] === ' ';
+  const southWallOrVoid = r >= rows - 1 || grid[r + 1][c] === '#' || grid[r + 1][c] === ' ';
+  if (west && east && (northWallOrVoid || southWallOrVoid)) {
+    return { dirX: 1, dirZ: 0, angleY: -Math.PI / 2 };
   }
 
-  // If vertical corridor (North and/or South are open)
-  if (north || south) {
-    if (north && south) {
-      return { dirX: 0, dirZ: -1, angleY: 0 };
-    } else if (north) {
-      return { dirX: 0, dirZ: -1, angleY: 0 };
-    } else {
-      return { dirX: 0, dirZ: 1, angleY: Math.PI };
-    }
-  }
-
+  // Vertical runways and jump ramps launching across chasms (Level 1, Level 6) face North (-Z)
   return { dirX: 0, dirZ: -1, angleY: 0 };
 }

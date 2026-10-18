@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { LEVELS, validateLevelSolvability, validateCorridorWidth, checkCoachHints } from '../src/levels/LevelData.js';
+import { LEVELS, validateLevelSolvability, validateCorridorWidth, checkCoachHints, getBoostRampOrientation } from '../src/levels/LevelData.js';
 
 describe('Level Geometry & Solvability Validator', () => {
   it('has exactly 6 hand-crafted progressive courses', () => {
@@ -177,4 +177,21 @@ describe('Level Geometry & Solvability Validator', () => {
     expect(formatTime(125.99)).toBe('02:05.99');
     expect(formatTime(3599.99)).toBe('59:59.99');
   });
+
+  it('correctly aligns boost ramps: Level 1 launches forward (North, -Z) across gap, Level 2 launches East (+X)', () => {
+    // Level 1: Launch ramp at row 4, col 4 must face North (-Z) across the chasm towards the goal
+    const l1 = LEVELS[0];
+    const l1Ramp = getBoostRampOrientation(l1.grid, 4, 4);
+    expect(l1Ramp.dirZ).toBe(-1);
+    expect(l1Ramp.dirX).toBe(0);
+    expect(l1Ramp.angleY).toBe(0);
+
+    // Level 2: Horizontal runway ramp at row 9, col 3 must face East (+X) along the corridor
+    const l2 = LEVELS[1];
+    const l2Ramp = getBoostRampOrientation(l2.grid, 9, 3);
+    expect(l2Ramp.dirX).toBe(1);
+    expect(l2Ramp.dirZ).toBe(0);
+    expect(l2Ramp.angleY).toBe(-Math.PI / 2);
+  });
 });
+
