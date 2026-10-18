@@ -341,6 +341,10 @@ class GameApp {
         this.currentLevelIndex = level.id - 1;
         this.startLevel(this.currentLevelIndex);
       },
+      onToggleKeyboardP2: (enabled) => {
+        this.keyboard.isP2Enabled = enabled;
+        this.hud.showToast(enabled ? 'Player 2: Keyboard Co-Op Enabled (Arrows / Enter)' : 'Player 2: Keyboard Disabled', '#a855f7');
+      },
     });
 
     // 5. Network
@@ -635,14 +639,41 @@ class GameApp {
       this.smoothedRoll = finalRoll;
     }
 
+    // If Player 2 is on Keyboard (co-op mode without 2nd phone), sample and blend P2 Arrow keys
+    let p2KbPitch: number | undefined;
+    let p2KbRoll: number | undefined;
+    if (this.keyboard.isP2Enabled && !hasP2) {
+      const p2Kb = this.keyboard.getP2State(dt);
+      p2KbPitch = p2Kb.pitch;
+      p2KbRoll = p2Kb.roll;
+
+      if (hasP1 || kb.isKeyboard) {
+        // Tandem blend: both players cooperate to balance board
+        finalPitch = (finalPitch + p2Kb.pitch) * 0.5;
+        finalRoll = (finalRoll + p2Kb.roll) * 0.5;
+        boost = boost || p2Kb.boost;
+        brake = brake || p2Kb.brake;
+        shake = shake || p2Kb.shake;
+      } else {
+        // Solo P2 keyboard
+        finalPitch = p2Kb.pitch;
+        finalRoll = p2Kb.roll;
+        boost = p2Kb.boost;
+        brake = p2Kb.brake;
+        shake = p2Kb.shake;
+      }
+      this.smoothedPitch = finalPitch;
+      this.smoothedRoll = finalRoll;
+    }
+
     // Update Environment (clouds breathing, lightning decays, sanctum eases)
     this.environment.update(now / 1000, dt);
 
     if (!this.isPlaying) {
       const p1RawPitch = phoneCtrl1 ? phoneCtrl1.pitch : finalPitch;
       const p1RawRoll = phoneCtrl1 ? phoneCtrl1.roll : finalRoll;
-      const p2RawPitch = phoneCtrl2 ? phoneCtrl2.pitch : undefined;
-      const p2RawRoll = phoneCtrl2 ? phoneCtrl2.roll : undefined;
+      const p2RawPitch = phoneCtrl2 ? phoneCtrl2.pitch : p2KbPitch;
+      const p2RawRoll = phoneCtrl2 ? phoneCtrl2.roll : p2KbRoll;
       this.lobbyUI.updateLiveTilt(p1RawPitch, p1RawRoll, p2RawPitch, p2RawRoll);
     }
 

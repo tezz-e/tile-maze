@@ -6,6 +6,7 @@ import type { DifficultyMode } from '../physics/PhysicsWorld.js';
 export interface LobbyCallbacks {
   onStartGame: (selectedLevel: LevelDef, difficulty: DifficultyMode) => void;
   onPlayKeyboard: (selectedLevel: LevelDef, difficulty: DifficultyMode) => void;
+  onToggleKeyboardP2?: (enabled: boolean) => void;
 }
 
 interface LedDotState {
@@ -32,6 +33,7 @@ export class LobbyUI {
   private selectedDifficulty: DifficultyMode = 'medium';
   private hasPlayer1 = false;
   private hasPlayer2 = false;
+  public isKeyboardP2 = false;
   private p1TiltIndicator: HTMLElement | null = null;
   private p1TiltBubble: HTMLElement | null = null;
   private p2TiltIndicator: HTMLElement | null = null;
@@ -701,14 +703,14 @@ export class LobbyUI {
               <span id="p1-status" class="status-badge status-waiting waiting-pulse">Waiting for phone</span>
             </div>
 
-            <div class="player-slot-chip" id="p2-slot-chip">
+            <div class="player-slot-chip" id="p2-slot-chip" style="cursor: pointer;" title="Click to toggle Keyboard as Player 2 for local co-op!">
               <div style="display: flex; align-items: center; gap: 8px;">
                 <div id="p2-tilt-indicator" class="tilt-gauge" style="display: none;">
                   <div id="p2-tilt-bubble" class="tilt-gauge-bubble" style="background: #a855f7; box-shadow: 0 0 6px rgba(168, 85, 247, 0.8);"></div>
                 </div>
                 <div>
                   <div class="slot-title">Player 2</div>
-                  <div class="slot-subtitle">Tandem Co-Op / Spectator</div>
+                  <div class="slot-subtitle">Click for Keyboard Co-Op or scan phone</div>
                 </div>
               </div>
               <span id="p2-status" class="status-badge status-waiting">Available</span>
@@ -786,6 +788,49 @@ export class LobbyUI {
     this.courseLockIndicator = this.container.querySelector('#course-lock-indicator')!;
     this.courseMedalBadge = this.container.querySelector('#course-medal-badge')!;
     this.courseBestTimeEl = this.container.querySelector('#course-best-time')!;
+
+    // Player 2 Chip: Click to toggle Keyboard as Player 2 for instant local co-op
+    const p2Chip = this.container.querySelector<HTMLElement>('#p2-slot-chip');
+    if (p2Chip) {
+      p2Chip.addEventListener('click', () => {
+        if (this.hasPlayer2) {
+          // Physical phone connected in slot 2 takes precedence
+          return;
+        }
+        this.isKeyboardP2 = !this.isKeyboardP2;
+        this.callbacks.onToggleKeyboardP2?.(this.isKeyboardP2);
+
+        if (this.isKeyboardP2) {
+          p2Chip.classList.add('connected');
+          p2Chip.style.borderColor = 'rgba(168, 85, 247, 0.6)';
+          p2Chip.style.background = 'rgba(168, 85, 247, 0.1)';
+          this.p2StatusElement.className = 'status-badge status-connected-green';
+          this.p2StatusElement.style.background = 'rgba(168, 85, 247, 0.2)';
+          this.p2StatusElement.style.borderColor = 'rgba(168, 85, 247, 0.5)';
+          this.p2StatusElement.style.color = '#c084fc';
+          this.p2StatusElement.textContent = 'Keyboard Active';
+          const sub = p2Chip.querySelector('.slot-subtitle');
+          if (sub) sub.textContent = 'Arrow Keys • Enter • Shift';
+          if (this.p2TiltIndicator) this.p2TiltIndicator.style.display = 'flex';
+          this.startBtn.disabled = false;
+          this.startBtn.textContent = this.hasPlayer1 ? 'Start Tandem Co-Op' : 'Start with Keyboard P2';
+        } else {
+          p2Chip.classList.remove('connected');
+          p2Chip.style.borderColor = '';
+          p2Chip.style.background = '';
+          this.p2StatusElement.className = 'status-badge status-waiting';
+          this.p2StatusElement.style.background = '';
+          this.p2StatusElement.style.borderColor = '';
+          this.p2StatusElement.style.color = '';
+          this.p2StatusElement.textContent = 'Available';
+          const sub = p2Chip.querySelector('.slot-subtitle');
+          if (sub) sub.textContent = 'Click for Keyboard Co-Op or scan phone';
+          if (this.p2TiltIndicator) this.p2TiltIndicator.style.display = 'none';
+          this.startBtn.disabled = !this.hasPlayer1;
+          this.startBtn.textContent = this.hasPlayer1 ? 'Start with Phone' : 'Start with Phone';
+        }
+      });
+    }
 
     // Apple-style Fluid Sliding Segmented Control for Courses
     const track = this.container.querySelector<HTMLElement>('#course-segmented-track')!;
