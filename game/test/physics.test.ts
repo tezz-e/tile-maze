@@ -160,4 +160,33 @@ describe('PhysicsWorld - Rotated Gravity & Stability', () => {
     const currentZ = physics.marbleBody.translation().z;
     expect(currentZ).toBeLessThan(launchZ - cellSize);
   });
+
+  it('preserves Level 3 bouncer jump and island trajectory in Easy Mode without invisible walls', () => {
+    physics.loadLevel(LEVELS[2], 'easy');
+    const l3 = LEVELS[2];
+    const cellSize = l3.cellSize;
+    const originX = -(l3.grid[0].length * cellSize) / 2;
+    const originZ = -(l3.grid.length * cellSize) / 2;
+
+    // Launch from bouncy pad J at (9, 9)
+    const jX = originX + 9 * cellSize + cellSize / 2;
+    const jZ = originZ + 9 * cellSize + cellSize / 2;
+
+    // @ts-expect-error accessing marbleBody
+    physics.marbleBody.setTranslation({ x: jX, y: 0.5, z: jZ }, true);
+    // @ts-expect-error accessing marbleBody
+    physics.marbleBody.setLinvel({ x: 0, y: 6.8, z: -5.0 }, true);
+
+    for (let i = 0; i < 110; i++) {
+      physics.step(0.016);
+    }
+
+    // @ts-expect-error accessing marbleBody
+    const landedPos = physics.marbleBody.translation();
+    // Marble should have crossed north across the gap into row 7 or beyond (z <= jZ - cellSize * 1.5)
+    expect(landedPos.z).toBeLessThan(jZ - cellSize * 1.5);
+    // Marble should be grounded on or near the floor (y <= 0.6m), not stuck at y=2.4m on a tall wall
+    expect(landedPos.y).toBeLessThan(0.8);
+  });
 });
+

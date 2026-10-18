@@ -42,16 +42,14 @@ describe('Level Geometry & Solvability Validator', () => {
     }
   });
 
-  it('validates Level 3 unequal branching: safe route (25 steps) vs risky jump shortcut (22 steps)', () => {
+  it('validates Level 3 requires jump edge across abyss with direct spawn path to goal blocked', () => {
     const l3 = LEVELS[2];
     const safeResult = validateLevelSolvability(l3, false, false);
-    expect(safeResult.solvable).toBe(true);
-    expect(safeResult.pathLength).toBe(25);
+    expect(safeResult.solvable).toBe(false);
 
-    const riskyResult = validateLevelSolvability(l3, false, true);
-    expect(riskyResult.solvable).toBe(true);
-    expect(riskyResult.pathLength).toBe(22);
-    expect(riskyResult.pathLength).toBeLessThan(safeResult.pathLength);
+    const jumpResult = validateLevelSolvability(l3, false, true);
+    expect(jumpResult.solvable).toBe(true);
+    expect(jumpResult.pathLength).toBe(22);
   });
 
   it('requires aerial jump edge to solve Level 1 over the cloud sea gap', () => {
@@ -178,7 +176,7 @@ describe('Level Geometry & Solvability Validator', () => {
     expect(formatTime(3599.99)).toBe('59:59.99');
   });
 
-  it('correctly aligns boost ramps: Level 1 launches forward (North, -Z) across gap, Level 2 launches East (+X)', () => {
+  it('correctly aligns boost ramps: Level 1 launches forward (North, -Z), Level 2 launches East (+X), Level 4 launches West (-X)', () => {
     // Level 1: Launch ramp at row 4, col 4 must face North (-Z) across the chasm towards the goal
     const l1 = LEVELS[0];
     const l1Ramp = getBoostRampOrientation(l1.grid, 4, 4);
@@ -192,6 +190,13 @@ describe('Level Geometry & Solvability Validator', () => {
     expect(l2Ramp.dirX).toBe(1);
     expect(l2Ramp.dirZ).toBe(0);
     expect(l2Ramp.angleY).toBe(-Math.PI / 2);
+
+    // Level 4: Final approach ramp at row 4, col 4 must face West (-X, 180° rotated from +X) towards chicane & goal
+    const l4 = LEVELS[3];
+    const l4Ramp = getBoostRampOrientation(l4.grid, 4, 4);
+    expect(l4Ramp.dirX).toBe(-1);
+    expect(l4Ramp.dirZ).toBe(0);
+    expect(l4Ramp.angleY).toBe(Math.PI / 2);
   });
 });
 

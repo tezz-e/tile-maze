@@ -346,7 +346,7 @@ export class Board {
 
         // 3. Hazard Edge Trim / Warning Bevel:
         // Rendered whenever a walkable tile borders an open ' ' abyss tile without a # wall
-        if (cell !== '#') {
+        if (cell !== '#' && cell !== ' ') {
           this.addEdgeTrimsIfNeeded(grid, r, c, rows, cols, cx, cz, cellSize, edgeTrimMat, hTrimGeo, vTrimGeo);
           if (difficulty === 'easy' && acrylicMat && warningCapMat && panelGeoH && capGeoH && panelGeoV && capGeoV) {
             this.addSafetyGuardrailsIfNeeded(

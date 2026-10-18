@@ -311,10 +311,11 @@ export class PhysicsWorld {
         }
 
         // Easy Mode Guardrails: for any walkable tile bordering abyss or grid boundary,
-        // erect 2.8m tall physical box colliders along exposed edges so marble cannot fall off
+        // erect physical box colliders along exposed edges so marble cannot fall off (0.40m tall safety bumper)
         if (difficulty === 'easy' && cell !== ' ' && cell !== '#') {
           const ht = 0.06;
-          const hh = WALL_PHYSICAL_HEIGHT / 2;
+          const GUARDRAIL_PHYSICAL_HEIGHT = 0.40;
+          const hh = GUARDRAIL_PHYSICAL_HEIGHT / 2;
           const hl = cellSize / 2;
 
           const spawnGuardrail = (gx: number, gz: number, hx: number, hz: number) => {
@@ -525,7 +526,8 @@ export class PhysicsWorld {
         } else if (sensor.type === 'bouncer') {
           // BlockBouncer: Launch marble vertically into satisfying ~1.9m arcade arc
           const vel = this.marbleBody.linvel();
-          this.marbleBody.setLinvel({ x: vel.x * 0.9, y: 6.2, z: vel.z * 0.9 }, true);
+          const forwardZ = Math.min(vel.z, -4.5);
+          this.marbleBody.setLinvel({ x: vel.x * 0.9, y: 6.8, z: forwardZ }, true);
           if (this.callbacks.onBouncer) {
             this.callbacks.onBouncer();
           }

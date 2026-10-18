@@ -183,12 +183,12 @@ export const LEVELS: LevelDef[] = [
       '#############',
       '####G########',
       '#.......C...#',
-      '#..######.. #',
-      '#..#     .. #',
-      '#...#    .. #',
-      '##..#    .. #',
-      '###..#   .. #',
-      '####.C      #',
+      '#########.. #',
+      '#######  .. #',
+      '#######  .. #',
+      '#######  .. #',
+      '#######  .. #',
+      '####.C...   #',
       '#S.......J.H#',
       '#############',
     ],
@@ -393,7 +393,10 @@ export interface SolvabilityResult {
  */
 export const LEVEL_JUMP_EDGES: Record<number, JumpEdge[]> = {
   1: [{ from: { x: 4, y: 4 }, to: { x: 4, y: 2 } }],
-  3: [{ from: { x: 9, y: 9 }, to: { x: 9, y: 7 } }],
+  3: [
+    { from: { x: 9, y: 9 }, to: { x: 9, y: 7 } },
+    { from: { x: 10, y: 9 }, to: { x: 10, y: 7 } },
+  ],
   6: [
     { from: { x: 2, y: 7 }, to: { x: 2, y: 5 } },
     { from: { x: 12, y: 7 }, to: { x: 12, y: 5 } },
@@ -657,6 +660,10 @@ export function getBoostRampOrientation(grid: string[], r: number, c: number): B
   const northWallOrVoid = r <= 0 || grid[r - 1][c] === '#' || grid[r - 1][c] === ' ';
   const southWallOrVoid = r >= rows - 1 || grid[r + 1][c] === '#' || grid[r + 1][c] === ' ';
   if (west && east && (northWallOrVoid || southWallOrVoid)) {
+    // Level 4 finish approach (row 4, col 4): corridor sprints West (-X) towards final chicane and goal
+    if (r === 4 && c === 4) {
+      return { dirX: -1, dirZ: 0, angleY: Math.PI / 2 };
+    }
     return { dirX: 1, dirZ: 0, angleY: -Math.PI / 2 };
   }
 
