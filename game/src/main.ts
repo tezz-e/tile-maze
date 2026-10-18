@@ -13,6 +13,7 @@ import { ClickSpark } from './ui/ClickSpark.js';
 import { LEVELS, type LevelDef, checkCoachHints } from './levels/LevelData.js';
 import { EffectsManager } from './world/EffectsManager.js';
 import type { DifficultyMode } from './physics/PhysicsWorld.js';
+import type { HapticEffect } from '@tiltmaze/protocol';
 
 export const GAME_FEEL_CONFIG = {
   nitroFovEnabled: true,
@@ -46,6 +47,8 @@ class GameApp {
   private rollFilter = new OneEuroFilter(1.2, 0.4);
   private phonePitchFilter = new OneEuroFilter(0.85, 0.25);
   private phoneRollFilter = new OneEuroFilter(0.85, 0.25);
+  private p2PitchFilter = new OneEuroFilter(0.85, 0.25);
+  private p2RollFilter = new OneEuroFilter(0.85, 0.25);
   private currentCameraRoll = 0;
   private network!: GameNetwork;
 
@@ -76,6 +79,8 @@ class GameApp {
   private victoryTime = 0;
   private prevPhoneBoost = false;
   private prevPhoneBrake = false;
+  private prevPhoneBoost2 = false;
+  private prevPhoneBrake2 = false;
   private isTransitioning = false;
   private nextLightningTime = 0;
 
@@ -231,7 +236,7 @@ class GameApp {
     this.physics = new PhysicsWorld({
       onWallImpact: (intensity) => {
         this.sounds.playImpact(intensity);
-        this.network.sendHaptic(1, intensity > 0.5 ? 'impactHeavy' : 'impactLight', 50, intensity);
+        this.broadcastHaptic(intensity > 0.5 ? 'impactHeavy' : 'impactLight', 50, intensity);
         if (intensity >= 0.45) {
           this.effectsManager.triggerImpactSpark(this.physics.getMarblePosition(), intensity);
         }
@@ -240,7 +245,7 @@ class GameApp {
         if (this.isVictoryCelebration) return;
         this.sounds.playHoleFall();
         this.hud.showToast('Hazard — respawning marble', '#ef4444');
-        this.network.sendHaptic(1, 'warning', 250);
+        this.broadcastHaptic('warning', 250);
         this.environment.setSanctumDimming(1.0);
         this.physics.respawnAtLastCheckpoint();
       },
@@ -249,7 +254,7 @@ class GameApp {
         const cp = this.physics.getCheckpointProgress();
         this.hud.setCheckpoints(cp.current, cp.total);
         this.hud.showToast(`Checkpoint ${idx + 1} reached`, '#38bdf8');
-        this.network.sendHaptic(1, 'success', 80);
+        this.broadcastHaptic('success', 80);
         this.effectsManager.triggerCheckpointBurst(this.physics.getMarblePosition());
         this.board.collectCheckpoint(idx);
       },
@@ -264,7 +269,7 @@ class GameApp {
         }
         this.effectsManager.triggerVictoryBurst(this.physics.getMarblePosition());
         this.hud.showVictory(this.currentLevelIndex, LEVELS.length);
-        this.network.sendHaptic(1, 'success', 400);
+        this.broadcastHaptic('success', 400);
         this.network.sendGameStateSync('VICTORY', this.currentLevelIndex);
         if (this.physics.marbleBody) {
           this.physics.marbleBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
@@ -274,17 +279,17 @@ class GameApp {
       onBoostPad: () => {
         this.sounds.playBoost();
         this.hud.showToast('Speed Boost', '#f59e0b');
-        this.network.sendHaptic(1, 'impactLight', 80);
+        this.broadcastHaptic('impactLight', 80);
       },
       onBouncer: () => {
         this.sounds.playSpring();
         this.hud.showToast('Spring Bounce', '#f43f5e');
-        this.network.sendHaptic(1, 'impactLight', 120);
+        this.broadcastHaptic('impactLight', 120);
       },
       onGoalBlocked: (reached, total) => {
         this.sounds.playImpact(0.4);
         this.hud.showToast(`Checkpoints required: ${reached}/${total}`, '#f59e0b');
-        this.network.sendHaptic(1, 'warning', 150);
+        this.broadcastHaptic('warning', 150);
       },
     });
 
@@ -349,7 +354,9 @@ class GameApp {
       },
       onPlayerDisconnected: (p) => {
         this.lobbyUI.updatePlayerStatus(p.playerSlot, 'reconnecting');
-        if (this.isPlaying && p.playerSlot === 1 && !this.forceKeyboardMode) {
+        const otherSlot = p.playerSlot === 1 ? 2 : 1;
+        const otherConnected = !!this.network.getController(otherSlot);
+        if (this.isPlaying && !otherConnected && !this.forceKeyboardMode) {
           this.isPhysicsPaused = true;
           this.hud.showDisconnectOverlay(() => {
             this.isPhysicsPaused = false;
@@ -368,7 +375,9 @@ class GameApp {
       },
       onPlayerLeft: (p) => {
         this.lobbyUI.updatePlayerStatus(p.playerSlot, 'waiting');
-        if (this.isPlaying && p.playerSlot === 1 && !this.forceKeyboardMode) {
+        const otherSlot = p.playerSlot === 1 ? 2 : 1;
+        const otherConnected = !!this.network.getController(otherSlot);
+        if (this.isPlaying && !otherConnected && !this.forceKeyboardMode) {
           this.isPhysicsPaused = true;
           this.hud.showDisconnectOverlay(() => {
             this.isPhysicsPaused = false;
@@ -392,6 +401,13 @@ class GameApp {
     });
     this.network.connect();
     window.addEventListener('beforeunload', () => this.network.close());
+  }
+
+  private broadcastHaptic(effect: HapticEffect, durationMs?: number, intensity?: number): void {
+    this.network.sendHaptic(1, effect, durationMs, intensity);
+    if (this.network.getController(2)) {
+      this.network.sendHaptic(2, effect, durationMs, intensity);
+    }
   }
 
   private loadLevelData(level: LevelDef): void {
@@ -467,6 +483,9 @@ class GameApp {
       this.isPhysicsPaused = false;
       this.hud.hideDisconnectOverlay();
       this.network.sendGameStateSync('PLAYING', idx);
+      if (this.network.getController(1) && this.network.getController(2)) {
+        this.hud.showToast('Tandem Co-Op Active: Both players balance the board!', '#a855f7');
+      }
     });
   }
 
@@ -512,30 +531,46 @@ class GameApp {
       this.smoothedRoll = 0;
     }
 
-    if (this.network.consumeRecalibrate(1)) {
+    const p1Recal = this.network.consumeRecalibrate(1);
+    const p2Recal = this.network.consumeRecalibrate(2);
+    if (p1Recal) {
       this.phonePitchFilter.reset();
       this.phoneRollFilter.reset();
       this.smoothedPitch = 0;
       this.smoothedRoll = 0;
     }
+    if (p2Recal) {
+      this.p2PitchFilter.reset();
+      this.p2RollFilter.reset();
+      this.smoothedPitch = 0;
+      this.smoothedRoll = 0;
+    }
 
-    const phoneCtrl = this.network.getController(1);
+    const phoneCtrl1 = this.network.getController(1);
+    const phoneCtrl2 = this.network.getController(2);
 
-    // Phone controller dismissal for victory modal
+    const hasP1 = !this.forceKeyboardMode && !!phoneCtrl1 && (now - phoneCtrl1.lastPacketTime < 500);
+    const hasP2 = !this.forceKeyboardMode && !!phoneCtrl2 && (now - phoneCtrl2.lastPacketTime < 500);
+
+    // Phone controller dismissal for victory modal (either connected phone can advance/retry)
     if (this.hud && this.hud.isVictoryShowing()) {
-      const phoneBoostEdge = (phoneCtrl?.boost ?? false) && !this.prevPhoneBoost;
-      const phoneBrakeEdge = (phoneCtrl?.brake ?? false) && !this.prevPhoneBrake;
-      const phoneShake = this.network.consumeShake(1);
-      const phoneRecalibrate = this.network.consumeRecalibrate(1);
+      const p1BoostEdge = (phoneCtrl1?.boost ?? false) && !this.prevPhoneBoost;
+      const p2BoostEdge = (phoneCtrl2?.boost ?? false) && !this.prevPhoneBoost2;
+      const p1BrakeEdge = (phoneCtrl1?.brake ?? false) && !this.prevPhoneBrake;
+      const p2BrakeEdge = (phoneCtrl2?.brake ?? false) && !this.prevPhoneBrake2;
+      const p1Shake = this.network.consumeShake(1);
+      const p2Shake = this.network.consumeShake(2);
 
-      if (phoneBoostEdge || phoneShake) {
+      if (p1BoostEdge || p2BoostEdge || p1Shake || p2Shake) {
         this.hud.dismissVictoryNext();
-      } else if (phoneBrakeEdge || phoneRecalibrate) {
+      } else if (p1BrakeEdge || p2BrakeEdge || p1Recal || p2Recal) {
         this.hud.dismissVictoryRetry();
       }
     }
-    this.prevPhoneBoost = phoneCtrl?.boost ?? false;
-    this.prevPhoneBrake = phoneCtrl?.brake ?? false;
+    this.prevPhoneBoost = phoneCtrl1?.boost ?? false;
+    this.prevPhoneBrake = phoneCtrl1?.brake ?? false;
+    this.prevPhoneBoost2 = phoneCtrl2?.boost ?? false;
+    this.prevPhoneBrake2 = phoneCtrl2?.brake ?? false;
 
     let finalPitch = 0;
     let finalRoll = 0;
@@ -544,17 +579,46 @@ class GameApp {
     let shake = false;
     let isKeyboard = true;
 
+    const nowSec = now / 1000;
+
     // Use phone input if recently received (within last 500ms) and keyboard is not overriding and not forced
-    if (!this.forceKeyboardMode && phoneCtrl && (now - phoneCtrl.lastPacketTime < 500) && !kb.isKeyboard) {
-      boost = phoneCtrl.boost;
-      brake = phoneCtrl.brake;
-      shake = this.network.consumeShake(1);
+    if ((hasP1 || hasP2) && !kb.isKeyboard) {
       isKeyboard = false;
 
-      // Adaptive One-Euro Filtering for phone IMU motion to eliminate Wi-Fi latency & sensor jitter
-      const nowSec = now / 1000;
-      finalPitch = this.phonePitchFilter.filter(phoneCtrl.pitch, nowSec);
-      finalRoll = this.phoneRollFilter.filter(phoneCtrl.roll, nowSec);
+      let p1FilteredPitch = 0;
+      let p1FilteredRoll = 0;
+      let p2FilteredPitch = 0;
+      let p2FilteredRoll = 0;
+
+      if (hasP1 && phoneCtrl1) {
+        p1FilteredPitch = this.phonePitchFilter.filter(phoneCtrl1.pitch, nowSec);
+        p1FilteredRoll = this.phoneRollFilter.filter(phoneCtrl1.roll, nowSec);
+      }
+      if (hasP2 && phoneCtrl2) {
+        p2FilteredPitch = this.p2PitchFilter.filter(phoneCtrl2.pitch, nowSec);
+        p2FilteredRoll = this.p2RollFilter.filter(phoneCtrl2.roll, nowSec);
+      }
+
+      if (hasP1 && hasP2) {
+        // Tandem Co-Op: Both players tilt together (balanced cooperative control)
+        finalPitch = (p1FilteredPitch + p2FilteredPitch) * 0.5;
+        finalRoll = (p1FilteredRoll + p2FilteredRoll) * 0.5;
+        boost = (phoneCtrl1?.boost ?? false) || (phoneCtrl2?.boost ?? false);
+        brake = (phoneCtrl1?.brake ?? false) || (phoneCtrl2?.brake ?? false);
+        shake = this.network.consumeShake(1) || this.network.consumeShake(2);
+      } else if (hasP1 && phoneCtrl1) {
+        finalPitch = p1FilteredPitch;
+        finalRoll = p1FilteredRoll;
+        boost = phoneCtrl1.boost;
+        brake = phoneCtrl1.brake;
+        shake = this.network.consumeShake(1);
+      } else if (hasP2 && phoneCtrl2) {
+        finalPitch = p2FilteredPitch;
+        finalRoll = p2FilteredRoll;
+        boost = phoneCtrl2.boost;
+        brake = phoneCtrl2.brake;
+        shake = this.network.consumeShake(2);
+      }
 
       this.smoothedPitch = finalPitch;
       this.smoothedRoll = finalRoll;
@@ -565,7 +629,6 @@ class GameApp {
       isKeyboard = true;
 
       // Adaptive One-Euro Filtering for keyboard input (timestamps in seconds)
-      const nowSec = now / 1000;
       finalPitch = this.pitchFilter.filter(kb.pitch, nowSec);
       finalRoll = this.rollFilter.filter(kb.roll, nowSec);
       this.smoothedPitch = finalPitch;
@@ -576,7 +639,11 @@ class GameApp {
     this.environment.update(now / 1000, dt);
 
     if (!this.isPlaying) {
-      this.lobbyUI.updateLiveTilt(finalPitch, finalRoll);
+      const p1RawPitch = phoneCtrl1 ? phoneCtrl1.pitch : finalPitch;
+      const p1RawRoll = phoneCtrl1 ? phoneCtrl1.roll : finalRoll;
+      const p2RawPitch = phoneCtrl2 ? phoneCtrl2.pitch : undefined;
+      const p2RawRoll = phoneCtrl2 ? phoneCtrl2.roll : undefined;
+      this.lobbyUI.updateLiveTilt(p1RawPitch, p1RawRoll, p2RawPitch, p2RawRoll);
     }
 
     if (this.isPlaying) {
@@ -718,10 +785,11 @@ class GameApp {
 
       // 9. Update HUD
       this.hud.update(speed);
+      const activePhone = phoneCtrl1 ?? phoneCtrl2;
       this.hud.updateLatency(
         this.network.getRttMs(),
-        phoneCtrl?.packetRateHz ?? 60,
-        phoneCtrl?.jitterMs ?? 0,
+        activePhone?.packetRateHz ?? 60,
+        activePhone?.jitterMs ?? 0,
         isKeyboard
       );
     }

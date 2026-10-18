@@ -31,8 +31,11 @@ export class LobbyUI {
   private selectedLevelIndex = 0;
   private selectedDifficulty: DifficultyMode = 'medium';
   private hasPlayer1 = false;
+  private hasPlayer2 = false;
   private p1TiltIndicator: HTMLElement | null = null;
   private p1TiltBubble: HTMLElement | null = null;
+  private p2TiltIndicator: HTMLElement | null = null;
+  private p2TiltBubble: HTMLElement | null = null;
   private debugUnlockAll = false;
   private courseDifficultyBadge!: HTMLElement;
   private courseLockIndicator!: HTMLElement;
@@ -699,9 +702,14 @@ export class LobbyUI {
             </div>
 
             <div class="player-slot-chip" id="p2-slot-chip">
-              <div>
-                <div class="slot-title">Player 2</div>
-                <div class="slot-subtitle">Local co-op / Spectator</div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div id="p2-tilt-indicator" class="tilt-gauge" style="display: none;">
+                  <div id="p2-tilt-bubble" class="tilt-gauge-bubble" style="background: #a855f7; box-shadow: 0 0 6px rgba(168, 85, 247, 0.8);"></div>
+                </div>
+                <div>
+                  <div class="slot-title">Player 2</div>
+                  <div class="slot-subtitle">Tandem Co-Op / Spectator</div>
+                </div>
               </div>
               <span id="p2-status" class="status-badge status-waiting">Available</span>
             </div>
@@ -772,6 +780,8 @@ export class LobbyUI {
     this.keyboardStartBtn = this.container.querySelector('#play-keyboard-btn')!;
     this.p1TiltIndicator = this.container.querySelector('#p1-tilt-indicator');
     this.p1TiltBubble = this.container.querySelector('#p1-tilt-bubble');
+    this.p2TiltIndicator = this.container.querySelector('#p2-tilt-indicator');
+    this.p2TiltBubble = this.container.querySelector('#p2-tilt-bubble');
     this.courseDifficultyBadge = this.container.querySelector('#course-difficulty-badge')!;
     this.courseLockIndicator = this.container.querySelector('#course-lock-indicator')!;
     this.courseMedalBadge = this.container.querySelector('#course-medal-badge')!;
@@ -1260,10 +1270,15 @@ export class LobbyUI {
       }
       if (slot === 1) {
         this.hasPlayer1 = true;
+        if (this.p1TiltIndicator) this.p1TiltIndicator.style.display = 'flex';
+      } else if (slot === 2) {
+        this.hasPlayer2 = true;
+        if (this.p2TiltIndicator) this.p2TiltIndicator.style.display = 'flex';
+      }
+      if (this.hasPlayer1 || this.hasPlayer2) {
         this.container.classList.add('phone-ready');
         this.startBtn.disabled = false;
-        this.startBtn.textContent = 'Start with Phone';
-        if (this.p1TiltIndicator) this.p1TiltIndicator.style.display = 'flex';
+        this.startBtn.textContent = (this.hasPlayer1 && this.hasPlayer2) ? 'Start Tandem Co-Op' : 'Start with Phone';
       }
     } else if (status === 'reconnecting') {
       el.classList.add('status-recon');
@@ -1274,10 +1289,17 @@ export class LobbyUI {
       }
       if (slot === 1) {
         this.hasPlayer1 = false;
+        if (this.p1TiltIndicator) this.p1TiltIndicator.style.display = 'none';
+      } else if (slot === 2) {
+        this.hasPlayer2 = false;
+        if (this.p2TiltIndicator) this.p2TiltIndicator.style.display = 'none';
+      }
+      if (!this.hasPlayer1 && !this.hasPlayer2) {
         this.container.classList.remove('phone-ready');
         this.startBtn.disabled = true;
         this.startBtn.textContent = 'Reconnecting...';
-        if (this.p1TiltIndicator) this.p1TiltIndicator.style.display = 'none';
+      } else {
+        this.startBtn.textContent = (this.hasPlayer1 && this.hasPlayer2) ? 'Start Tandem Co-Op' : 'Start with Phone';
       }
     } else {
       el.classList.add('status-waiting');
@@ -1289,10 +1311,17 @@ export class LobbyUI {
       }
       if (slot === 1) {
         this.hasPlayer1 = false;
+        if (this.p1TiltIndicator) this.p1TiltIndicator.style.display = 'none';
+      } else if (slot === 2) {
+        this.hasPlayer2 = false;
+        if (this.p2TiltIndicator) this.p2TiltIndicator.style.display = 'none';
+      }
+      if (!this.hasPlayer1 && !this.hasPlayer2) {
         this.container.classList.remove('phone-ready');
         this.startBtn.disabled = true;
         this.startBtn.textContent = 'Start with Phone';
-        if (this.p1TiltIndicator) this.p1TiltIndicator.style.display = 'none';
+      } else {
+        this.startBtn.textContent = (this.hasPlayer1 && this.hasPlayer2) ? 'Start Tandem Co-Op' : 'Start with Phone';
       }
     }
   }
@@ -1494,16 +1523,25 @@ export class LobbyUI {
     this.bgAnimFrame = requestAnimationFrame(loop);
   }
 
-  public updateLiveTilt(pitch: number, roll: number): void {
+  public updateLiveTilt(pitch: number, roll: number, p2Pitch?: number, p2Roll?: number): void {
     const clampedRoll = Math.max(-1, Math.min(1, roll));
     const clampedPitch = Math.max(-1, Math.min(1, pitch));
     this.bgTiltOffset.targetX = clampedRoll * 28;
     this.bgTiltOffset.targetY = -clampedPitch * 28;
 
-    if (!this.p1TiltBubble) return;
-    const tx = Math.round(clampedRoll * 11);
-    const ty = Math.round(-clampedPitch * 11);
-    this.p1TiltBubble.style.transform = `translate(${tx}px, ${ty}px)`;
+    if (this.p1TiltBubble) {
+      const tx = Math.round(clampedRoll * 11);
+      const ty = Math.round(-clampedPitch * 11);
+      this.p1TiltBubble.style.transform = `translate(${tx}px, ${ty}px)`;
+    }
+
+    if (this.p2TiltBubble && p2Pitch !== undefined && p2Roll !== undefined) {
+      const cRoll2 = Math.max(-1, Math.min(1, p2Roll));
+      const cPitch2 = Math.max(-1, Math.min(1, p2Pitch));
+      const tx2 = Math.round(cRoll2 * 11);
+      const ty2 = Math.round(-cPitch2 * 11);
+      this.p2TiltBubble.style.transform = `translate(${tx2}px, ${ty2}px)`;
+    }
   }
 
   public show(): void {
