@@ -89,32 +89,81 @@ class GameApp {
   }
 
   private setupKeyboardShortcuts(): void {
-    window.addEventListener('keydown', (e) => {
-      if (this.hud && this.hud.isDisconnectShowing()) {
-        if (e.code === 'Enter' || e.code === 'Space') {
-          e.preventDefault();
-          this.hud.continueWithKeyboard();
-          return;
-        } else if (e.code === 'Escape') {
-          e.preventDefault();
-          this.hud.hideDisconnectOverlay();
-          this.returnToLobby();
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        const isEnter = e.code === 'Enter' || e.code === 'NumpadEnter' || e.key === 'Enter';
+        const isSpace = e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar';
+        const isEscape = e.code === 'Escape' || e.key === 'Escape' || e.key === 'Esc';
+        const isV = e.code === 'KeyV' || e.key.toLowerCase() === 'v';
+        const isR = e.code === 'KeyR' || e.key.toLowerCase() === 'r';
+        const isQ = e.code === 'KeyQ' || e.key.toLowerCase() === 'q';
+
+        // 1. Phone Disconnected Modal Priority
+        if (this.hud && this.hud.isDisconnectShowing()) {
+          if (isEnter || isSpace) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.hud.continueWithKeyboard();
+            return;
+          }
+          if (isEscape) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.hud.hideDisconnectOverlay();
+            this.returnToLobby();
+            return;
+          }
           return;
         }
-      }
-      if (this.hud && this.hud.isVictoryShowing()) {
-        if (e.code === 'Enter' || e.code === 'Space') {
-          e.preventDefault();
-          this.hud.dismissVictoryNext();
-        } else if (e.code === 'KeyR') {
-          e.preventDefault();
-          this.hud.dismissVictoryRetry();
-        } else if (e.code === 'Escape') {
-          e.preventDefault();
-          this.hud.dismissVictoryLobby();
+
+        // 2. Victory Modal Priority
+        if (this.hud && this.hud.isVictoryShowing()) {
+          if (isEnter || isSpace) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.hud.dismissVictoryNext();
+            return;
+          }
+          if (isR) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.hud.dismissVictoryRetry();
+            return;
+          }
+          if (isEscape) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.hud.dismissVictoryLobby();
+            return;
+          }
+          return;
         }
-      }
-    });
+
+        // 3. Active Gameplay Shortcuts (HUD Buttons: Lobby [Esc], Camera [V], Quality [Q])
+        if (this.isPlaying) {
+          if (isEscape) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.returnToLobby();
+            return;
+          }
+          if (isV && !e.repeat) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.toggleCameraView();
+            return;
+          }
+          if (isQ && !e.repeat) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.toggleQualityMode();
+            return;
+          }
+        }
+      },
+      { capture: true }
+    );
   }
 
   private toggleQualityMode(): void {
@@ -260,6 +309,11 @@ class GameApp {
       onRestartLevel: () => this.startLevel(this.currentLevelIndex),
       onReturnToLobby: () => this.returnToLobby(),
       onToggleCameraView: () => this.toggleCameraView(),
+      onContinueWithKeyboard: () => {
+        this.isPhysicsPaused = false;
+        this.forceKeyboardMode = true;
+        this.hud.showToast('Switched to Keyboard Control', '#38bdf8');
+      },
     });
 
     try {

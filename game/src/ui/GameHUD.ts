@@ -7,11 +7,14 @@ export interface HUDCallbacks {
   onRestartLevel: () => void;
   onReturnToLobby: () => void;
   onToggleCameraView?: () => void;
+  onContinueWithKeyboard?: () => void;
 }
 
 export class GameHUD {
   private container: HTMLElement;
   private callbacks: HUDCallbacks;
+  private disconnectShowing = false;
+  private victoryShowing = false;
 
   // HUD Elements
   private timerEl!: HTMLElement;
@@ -743,27 +746,34 @@ export class GameHUD {
           align-items: center;
           gap: 1.15rem;
           box-sizing: border-box;
+          overflow: hidden;
         }
 
-        /* Magic UI Rotating Border Beam in Signal Amber (#FF7700) */
+        @property --disconnect-beam-angle {
+          syntax: '<angle>';
+          inherits: false;
+          initial-value: 0deg;
+        }
+
+        /* Signal Amber (#FF7700) Border Beam along card perimeter */
         .hud-disconnect-card::before {
           content: '';
           position: absolute;
-          inset: -2px;
-          border-radius: 26px;
-          padding: 2px;
-          background: conic-gradient(from 0deg, transparent 65%, #ff7700 85%, #ffaa00 95%, transparent 100%);
+          inset: -1.5px;
+          border-radius: 25px;
+          padding: 1.5px;
+          background: conic-gradient(from var(--disconnect-beam-angle, 0deg), transparent 70%, #ff7700 88%, #ffaa00 96%, transparent 100%);
           -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
           -webkit-mask-composite: xor;
           mask-composite: exclude;
           pointer-events: none;
-          animation: rotate-border-beam 4s linear infinite;
+          animation: disconnect-border-beam-spin 4s linear infinite;
           z-index: 1;
         }
 
-        @keyframes rotate-border-beam {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
+        @keyframes disconnect-border-beam-spin {
+          to { --disconnect-beam-angle: 360deg; }
         }
 
         /* Radar Sweep Graphic */
@@ -1056,8 +1066,8 @@ export class GameHUD {
         <!-- Top-Right: Controls & Checkpoint Badge -->
         <div class="hud-top-right-group">
           <span id="hud-mode-badge" style="display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 10px; font-size: 0.70rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);">MEDIUM</span>
-          <button id="hud-btn-view" class="hud-btn-util">Camera &nbsp;<span style="font-size: 0.72rem; opacity: 0.6;">V</span></button>
-          <button id="hud-btn-lobby" class="hud-btn-util">Lobby &nbsp;<span style="font-size: 0.72rem; opacity: 0.6;">Esc</span></button>
+          <button id="hud-btn-view" class="hud-btn-util" title="Toggle Camera View [V]">Camera &nbsp;<span class="hud-keycap hud-keycap-sm">V</span></button>
+          <button id="hud-btn-lobby" class="hud-btn-util" title="Return to Lobby [Esc]">Lobby &nbsp;<span class="hud-keycap hud-keycap-sm">Esc</span></button>
 
           <div class="hud-glass-surface hud-checkpoint-badge">
             <div class="hud-meta-header">
@@ -1491,10 +1501,11 @@ export class GameHUD {
     }, 2500);
   }
 
-  public showDisconnectOverlay(onContinueKeyboard: () => void): void {
+  public showDisconnectOverlay(onContinueKeyboard?: () => void): void {
+    this.disconnectShowing = true;
     this.pauseTimer();
     this.disconnectOverlay.style.display = 'flex';
-    this.onContinueKeyboardCallback = onContinueKeyboard;
+    this.onContinueKeyboardCallback = onContinueKeyboard || null;
     let remainingSecs = 60;
     this.disconnectTimerEl.textContent = `${remainingSecs}`;
     if (this.disconnectProgressFillEl) {
@@ -1516,6 +1527,7 @@ export class GameHUD {
   }
 
   public hideDisconnectOverlay(): void {
+    this.disconnectShowing = false;
     this.resumeTimer();
     this.disconnectOverlay.style.display = 'none';
     this.onContinueKeyboardCallback = null;
@@ -1528,11 +1540,15 @@ export class GameHUD {
   public continueWithKeyboard(): void {
     const cb = this.onContinueKeyboardCallback;
     this.hideDisconnectOverlay();
-    cb?.();
+    if (cb) {
+      cb();
+    } else {
+      this.callbacks.onContinueWithKeyboard?.();
+    }
   }
 
   public isDisconnectShowing(): boolean {
-    return !!(this.disconnectOverlay && this.disconnectOverlay.style.display === 'flex');
+    return this.disconnectShowing || (!!this.disconnectOverlay && this.disconnectOverlay.style.display === 'flex');
   }
 
   public showVictory(levelIndex?: number, totalLevels: number = LEVELS.length): void {
@@ -1663,15 +1679,17 @@ export class GameHUD {
       });
     }
 
+    this.victoryShowing = true;
     this.victoryModal.style.display = 'flex';
   }
 
   public isVictoryShowing(): boolean {
-    return !!(this.victoryModal && this.victoryModal.style.display === 'flex');
+    return this.victoryShowing || (!!this.victoryModal && this.victoryModal.style.display === 'flex');
   }
 
   public dismissVictoryNext(): void {
     if (this.isVictoryShowing()) {
+      this.victoryShowing = false;
       this.victoryModal.style.display = 'none';
       this.callbacks.onNextLevel();
     }
@@ -1679,6 +1697,7 @@ export class GameHUD {
 
   public dismissVictoryRetry(): void {
     if (this.isVictoryShowing()) {
+      this.victoryShowing = false;
       this.victoryModal.style.display = 'none';
       this.callbacks.onRestartLevel();
     }
@@ -1686,6 +1705,7 @@ export class GameHUD {
 
   public dismissVictoryLobby(): void {
     if (this.isVictoryShowing()) {
+      this.victoryShowing = false;
       this.victoryModal.style.display = 'none';
       this.callbacks.onReturnToLobby();
     }

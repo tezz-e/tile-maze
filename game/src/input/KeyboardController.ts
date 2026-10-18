@@ -42,20 +42,20 @@ export class KeyboardController {
     window.addEventListener('keydown', (e) => {
       this.keys[e.code] = true;
 
-      if (e.code === 'Space' && !e.repeat) {
+      if (e.code === 'Space' && !e.repeat && !e.defaultPrevented) {
         this.shakeTriggered = true;
         e.preventDefault();
       }
 
-      if (e.code === 'KeyC' && !e.repeat) {
+      if (e.code === 'KeyC' && !e.repeat && !e.defaultPrevented) {
         this.recalibrateTriggered = true;
       }
 
-      if (e.code === 'KeyV' && !e.repeat) {
+      if (e.code === 'KeyV' && !e.repeat && !e.defaultPrevented) {
         this.onToggleCameraView?.();
       }
 
-      if (e.code === 'KeyQ' && !e.repeat) {
+      if (e.code === 'KeyQ' && !e.repeat && !e.defaultPrevented) {
         this.onToggleQuality?.();
       }
     });
