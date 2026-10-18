@@ -1,6 +1,6 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import type { LevelDef } from '../levels/LevelData.js';
-import { LEVEL_JUMP_EDGES } from '../levels/LevelData.js';
+import { LEVEL_JUMP_EDGES, getBoostRampOrientation } from '../levels/LevelData.js';
 
 export type DifficultyMode = 'easy' | 'medium' | 'hard';
 
@@ -119,7 +119,7 @@ export class PhysicsWorld {
   private wallColliders: RAPIER.Collider[] = [];
   private sensorColliders: Map<
     number,
-    { type: 'hole' | 'checkpoint' | 'goal' | 'boost' | 'bouncer'; index?: number }
+    { type: 'hole' | 'checkpoint' | 'goal' | 'boost' | 'bouncer'; index?: number; dirX?: number; dirZ?: number }
   > = new Map();
   private spinners: SpinnerObject[] = [];
   private bouncers: BouncerObject[] = [];
@@ -282,7 +282,12 @@ export class PhysicsWorld {
             .setSensor(true)
             .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
           const col = this.world.createCollider(boostColDesc, boostBody);
-          this.sensorColliders.set(col.handle, { type: 'boost' });
+          const boostOrientation = getBoostRampOrientation(level.grid, r, c);
+          this.sensorColliders.set(col.handle, {
+            type: 'boost',
+            dirX: boostOrientation.dirX,
+            dirZ: boostOrientation.dirZ,
+          });
         } else if (cell === 'C' || cell === 'O') {
           checkpointCoords.push({ x: c, y: r, cx, cz });
         } else if (cell === 'G') {
@@ -499,16 +504,23 @@ export class PhysicsWorld {
             this.callbacks.onGoalReached();
           }
         } else if (sensor.type === 'boost') {
-          // Speed Boost Ramp: forward propulsion along travel heading (or -Z towards goal if slow)
+          // Speed Boost Ramp: forward propulsion along ramp heading
+          const bDirX = sensor.dirX ?? 0;
+          const bDirZ = sensor.dirZ ?? -1;
           const vel = this.marbleBody.linvel();
-          const speed = Math.hypot(vel.x, vel.z);
-          if (speed > 0.1) {
-            const dirX = vel.x / speed;
-            const dirZ = vel.z / speed;
-            this.marbleBody.applyImpulse({ x: dirX * 6.5, y: 0.35, z: dirZ * 6.5 }, true);
-          } else {
-            this.marbleBody.applyImpulse({ x: 0, y: 0.35, z: -6.5 }, true);
-          }
+          
+          // Align marble velocity along ramp vector and apply boost impulse
+          const currentSpeedAlongDir = vel.x * bDirX + vel.z * bDirZ;
+          const targetSpeed = Math.max(currentSpeedAlongDir + 7.0, 9.5);
+          
+          this.marbleBody.setLinvel(
+            {
+              x: bDirX * targetSpeed,
+              y: 0.45,
+              z: bDirZ * targetSpeed,
+            },
+            true
+          );
           this.callbacks.onBoostPad();
         } else if (sensor.type === 'bouncer') {
           // BlockBouncer: Launch marble vertically into satisfying ~1.9m arcade arc

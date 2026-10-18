@@ -33,6 +33,7 @@ fun CockpitControllerScreen(
     screenRotatedHint: Boolean = false,
     onBoostChange: (Boolean) -> Unit,
     onBrakeChange: (Boolean) -> Unit,
+    onJump: () -> Unit = {},
     onCalibrate: () -> Unit,
     onResetFlat: () -> Unit,
     onDisconnect: () -> Unit,
@@ -309,21 +310,52 @@ fun CockpitControllerScreen(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "[ SHAKE // JUMP ]",
+                text = "[ 02 // PROPULSION ]",
                 color = Color(0xFF888888),
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
             )
 
+            // Jump Action Button (Tap to Jump / Pulse)
+            Button(
+                onClick = onJump,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF141414),
+                    contentColor = Color.White
+                ),
+                border = BorderStroke(1.dp, Color.White),
+                shape = RoundedCornerShape(0.dp),
+                modifier = Modifier.size(width = 140.dp, height = 44.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "[ JUMP ]",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 0.5.sp
+                    )
+                    Text(
+                        text = "TAP OR SHAKE",
+                        color = Color(0xFF888888),
+                        fontSize = 8.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
             // Nitro Boost Thumb Button (Hold down, Inverts to Nothing Red)
             Box(
                 modifier = Modifier
-                    .size(width = 140.dp, height = 80.dp)
+                    .size(width = 140.dp, height = 74.dp)
                     .border(
                         BorderStroke(2.dp, if (isBoosting) Color.White else Color(0xFFEA3323)),
                         RoundedCornerShape(0.dp)
@@ -347,14 +379,14 @@ fun CockpitControllerScreen(
                         text = "NITRO",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
+                        fontSize = 18.sp,
                         fontFamily = FontFamily.Monospace,
                         letterSpacing = 1.sp
                     )
                     Text(
                         text = "HOLD TO BOOST",
                         color = if (isBoosting) Color.White else Color(0xFFEA3323),
-                        fontSize = 9.sp,
+                        fontSize = 8.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
                     )

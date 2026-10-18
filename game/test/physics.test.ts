@@ -147,9 +147,9 @@ describe('PhysicsWorld - Rotated Gravity & Stability', () => {
 
     // Place marble on launch ramp heading north towards goal
     // @ts-expect-error accessing marbleBody
-    physics.marbleBody.setTranslation({ x: launchX, y: 0.4, z: launchZ }, true);
+    physics.marbleBody.setTranslation({ x: launchX, y: 0.8, z: launchZ }, true);
     // @ts-expect-error accessing marbleBody
-    physics.marbleBody.setLinvel({ x: 0, y: 2.0, z: -8.0 }, true);
+    physics.marbleBody.setLinvel({ x: 0, y: 3.5, z: -8.0 }, true);
 
     for (let i = 0; i < 15; i++) {
       physics.step(0.016);

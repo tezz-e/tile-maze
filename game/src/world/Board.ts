@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { LevelDef } from '../levels/LevelData.js';
-import { LEVEL_JUMP_EDGES } from '../levels/LevelData.js';
+import { LEVEL_JUMP_EDGES, getBoostRampOrientation } from '../levels/LevelData.js';
 import { MAX_BOARD_TILT_RAD, type SpinnerObject, type DifficultyMode } from '../physics/PhysicsWorld.js';
 import { TextureGenerator } from './TextureGenerator.js';
 
@@ -515,6 +515,8 @@ export class Board {
           // Speed Boost Ramp: Incline wedge with white chevron arrows (>>) and side curbs
           const rampGroup = new THREE.Group();
           rampGroup.position.set(cx, 0, cz);
+          const boostOrientation = getBoostRampOrientation(level.grid, r, c);
+          rampGroup.rotation.y = boostOrientation.angleY;
 
           const rampWidth = cellSize * 0.88;
           const rampLength = cellSize * 0.95;

@@ -81,6 +81,10 @@ class MainActivity : ComponentActivity(), TelemetryListener {
                         screenRotatedHint = screenRotatedHintState,
                         onBoostChange = { socket.isBoostActive = it },
                         onBrakeChange = { socket.isBrakeActive = it },
+                        onJump = {
+                            socket.triggerJump()
+                            hapticManager.trigger("jump", 70L, 0.85f)
+                        },
                         onCalibrate = { sensorManager.calibrateNeutral() },
                         onResetFlat = { sensorManager.resetToFlat() },
                         onDisconnect = { disconnect() },

@@ -38,6 +38,11 @@ class TelemetrySocket(private val listener: TelemetryListener) {
     // Button states
     @Volatile var isBoostActive = false
     @Volatile var isBrakeActive = false
+    @Volatile var isJumpTriggered = false
+
+    fun triggerJump() {
+        isJumpTriggered = true
+    }
 
     // Bitmask constants
     private val BUTTON_BOOST = 1 shl 0
@@ -145,7 +150,9 @@ class TelemetrySocket(private val listener: TelemetryListener) {
                 var bitmask = 0
                 if (isBoostActive) bitmask = bitmask or BUTTON_BOOST
                 if (isBrakeActive) bitmask = bitmask or BUTTON_BRAKE
-                if (motion.shakeTriggered) bitmask = bitmask or BUTTON_SHAKE
+                val jump = motion.shakeTriggered || isJumpTriggered
+                isJumpTriggered = false
+                if (jump) bitmask = bitmask or BUTTON_SHAKE
                 if (motion.recalibratedPulse) bitmask = bitmask or BUTTON_RECALIBRATE
 
                 sequenceNumber = (sequenceNumber + 1) and 0xFF
